@@ -16,7 +16,7 @@ type TraitsPanel struct {
 	viewport       viewport.Model
 	ready          bool
 	selectedIndex  int
-	selectedType   string // "language", "feat", or "resistance"
+	selectedType   string // "language", "feat", "resistance", or "trait"
 }
 
 func NewTraitsPanel(char *models.Character) *TraitsPanel {
@@ -28,15 +28,18 @@ func NewTraitsPanel(char *models.Character) *TraitsPanel {
 }
 
 func (p *TraitsPanel) View(width, height int) string {
+	// Use almost all available height, leaving minimal space for scroll indicator
+	viewportHeight := height - 1
+
 	if !p.ready {
-		p.viewport = viewport.New(width, height)
+		p.viewport = viewport.New(width, viewportHeight)
 		p.viewport.Style = lipgloss.NewStyle()
 		p.ready = true
 	}
 
-	if p.viewport.Width != width || p.viewport.Height != height {
+	if p.viewport.Width != width || p.viewport.Height != viewportHeight {
 		p.viewport.Width = width
-		p.viewport.Height = height
+		p.viewport.Height = viewportHeight
 	}
 
 	titleStyle := lipgloss.NewStyle().
@@ -122,6 +125,31 @@ func (p *TraitsPanel) View(width, height int) string {
 		}
 	}
 
+	// Build traits section (full width, below columns)
+	var traitsSection []string
+	traitsSection = append(traitsSection, "")
+	traitsSection = append(traitsSection, titleStyle.Render("✨ SPECIES TRAITS"))
+	traitsSection = append(traitsSection, "")
+
+	if len(p.character.SpeciesTraits) == 0 {
+		traitsSection = append(traitsSection, emptyStyle.Render("  No species traits"))
+	} else {
+		for i, trait := range p.character.SpeciesTraits {
+			if p.selectedType == "trait" && i == p.selectedIndex {
+				traitsSection = append(traitsSection, selectedStyle.Render(fmt.Sprintf("  → %s", trait.Name)))
+			} else {
+				traitsSection = append(traitsSection, normalStyle.Render(fmt.Sprintf("    %s", trait.Name)))
+			}
+			// Add description with wrapping
+			descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+			wrapped := wrapText(trait.Description, width-6)
+			for _, line := range wrapped {
+				traitsSection = append(traitsSection, descStyle.Render("      "+line))
+			}
+			traitsSection = append(traitsSection, "")
+		}
+	}
+
 	// Combine columns
 	colWidth := width / 2
 	leftContent := strings.Join(leftCol, "\n")
@@ -130,10 +158,19 @@ func (p *TraitsPanel) View(width, height int) string {
 	leftStyle := lipgloss.NewStyle().Width(colWidth)
 	rightStyle := lipgloss.NewStyle().Width(colWidth)
 
-	content := lipgloss.JoinHorizontal(
+	columnsContent := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		leftStyle.Render(leftContent),
 		rightStyle.Render(rightContent),
+	)
+
+	// Add traits section below columns
+	traitsContent := strings.Join(traitsSection, "\n")
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		columnsContent,
+		traitsContent,
 	)
 
 	p.viewport.SetContent(content)
@@ -167,6 +204,10 @@ func (p *TraitsPanel) Next() {
 			// Move to feats section
 			p.selectedType = "feat"
 			p.selectedIndex = 0
+		} else if len(p.character.SpeciesTraits) > 0 {
+			// Move to traits section
+			p.selectedType = "trait"
+			p.selectedIndex = 0
 		}
 	} else if p.selectedType == "resistance" {
 		if p.selectedIndex < len(p.character.Resistances)-1 {
@@ -176,9 +217,22 @@ func (p *TraitsPanel) Next() {
 			// Move to feats section
 			p.selectedType = "feat"
 			p.selectedIndex = 0
+		} else if len(p.character.SpeciesTraits) > 0 {
+			// Move to traits section
+			p.selectedType = "trait"
+			p.selectedIndex = 0
 		}
 	} else if p.selectedType == "feat" {
 		if p.selectedIndex < len(p.character.Feats)-1 {
+			p.selectedIndex++
+			p.viewport.LineDown(1)
+		} else if len(p.character.SpeciesTraits) > 0 {
+			// Move to traits section
+			p.selectedType = "trait"
+			p.selectedIndex = 0
+		}
+	} else if p.selectedType == "trait" {
+		if p.selectedIndex < len(p.character.SpeciesTraits)-1 {
 			p.selectedIndex++
 			p.viewport.LineDown(1)
 		}
@@ -186,7 +240,24 @@ func (p *TraitsPanel) Next() {
 }
 
 func (p *TraitsPanel) Prev() {
-	if p.selectedType == "feat" {
+	if p.selectedType == "trait" {
+		if p.selectedIndex > 0 {
+			p.selectedIndex--
+			p.viewport.LineUp(1)
+		} else if len(p.character.Feats) > 0 {
+			// Move to feats section
+			p.selectedType = "feat"
+			p.selectedIndex = len(p.character.Feats) - 1
+		} else if len(p.character.Resistances) > 0 {
+			// Move to resistances section
+			p.selectedType = "resistance"
+			p.selectedIndex = len(p.character.Resistances) - 1
+		} else if len(p.character.Languages) > 0 {
+			// Move to languages section
+			p.selectedType = "language"
+			p.selectedIndex = len(p.character.Languages) - 1
+		}
+	} else if p.selectedType == "feat" {
 		if p.selectedIndex > 0 {
 			p.selectedIndex--
 			p.viewport.LineUp(1)
@@ -254,4 +325,28 @@ func (p *TraitsPanel) RemoveSelected() {
 			p.selectedIndex--
 		}
 	}
+	// Note: Species traits cannot be removed manually, they come from the species
+}
+
+// wrapText wraps text to a specified width
+func wrapText(text string, width int) []string {
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{}
+	}
+
+	var lines []string
+	currentLine := words[0]
+
+	for _, word := range words[1:] {
+		if len(currentLine)+1+len(word) <= width {
+			currentLine += " " + word
+		} else {
+			lines = append(lines, currentLine)
+			currentLine = word
+		}
+	}
+	lines = append(lines, currentLine)
+
+	return lines
 }

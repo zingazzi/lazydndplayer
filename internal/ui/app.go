@@ -41,9 +41,11 @@ type Model struct {
 	storage      *storage.Storage
 
 	// UI Components
-	tabs         *components.Tabs
-	help         *components.Help
+	tabs            *components.Tabs
+	help            *components.Help
 	speciesSelector *components.SpeciesSelector
+	languageSelector *components.LanguageSelector
+	skillSelector    *components.SkillSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -75,6 +77,8 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		tabs:                components.NewTabs(),
 		help:                components.NewHelp(),
 		speciesSelector:     components.NewSpeciesSelector(),
+		languageSelector:    components.NewLanguageSelector(),
+		skillSelector:       components.NewSkillSelector(),
 		statsPanel:          panels.NewStatsPanel(char),
 		skillsPanel:         panels.NewSkillsPanel(char),
 		inventoryPanel:      panels.NewInventoryPanel(char),
@@ -181,7 +185,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// If not in main focus, let the focused panel handle it
 		}
 
-		// Check if species selector is active first
+		// Check if skill selector is active first
+		if m.skillSelector.IsVisible() {
+			return m.handleSkillSelectorKeys(msg)
+		}
+
+		// Check if language selector is active
+		if m.languageSelector.IsVisible() {
+			return m.handleLanguageSelectorKeys(msg)
+		}
+
+		// Check if species selector is active
 		if m.speciesSelector.IsVisible() {
 			return m.handleSpeciesSelectorKeys(msg)
 		}
@@ -477,12 +491,131 @@ func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			oldSpecies := m.character.Race
 			// Apply new species
 			models.ApplySpeciesToCharacter(m.character, selectedSpecies.Name)
-			m.message = fmt.Sprintf("Species changed from %s to %s. Speed updated to %d ft.", oldSpecies, selectedSpecies.Name, m.character.Speed)
+
+			// Check if we need to select additional languages
+			needsLanguageSelection := false
+			for _, lang := range m.character.Languages {
+				if strings.Contains(strings.ToLower(lang), "additional") || strings.Contains(strings.ToLower(lang), "choice") {
+					needsLanguageSelection = true
+					break
+				}
+			}
+
+			// Check if we need to select a skill (and no language selection)
+			needsSkillSelection := models.HasSkillChoice(selectedSpecies)
+
+			if needsLanguageSelection {
+				m.languageSelector.Show()
+				m.message = "Select your additional language..."
+			} else if needsSkillSelection {
+				m.skillSelector.Show()
+				m.message = "Select your skill proficiency..."
+			} else {
+				m.message = fmt.Sprintf("Species changed from %s to %s. Speed updated to %d ft.", oldSpecies, selectedSpecies.Name, m.character.Speed)
+			}
 		}
 		m.speciesSelector.Hide()
 	case "esc":
 		m.speciesSelector.Hide()
 		m.message = "Species selection cancelled"
+	}
+	return m, nil
+}
+
+// handleLanguageSelectorKeys handles language selector specific keys
+func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.languageSelector.Prev()
+	case "down", "j":
+		m.languageSelector.Next()
+	case "enter":
+		selectedLanguage := m.languageSelector.GetSelectedLanguage()
+		if selectedLanguage != "" {
+			// Find and replace the "additional language" placeholder
+			for i, lang := range m.character.Languages {
+				if strings.Contains(strings.ToLower(lang), "additional") || strings.Contains(strings.ToLower(lang), "choice") {
+					m.character.Languages[i] = selectedLanguage
+					break
+				}
+			}
+
+			// After language selection, check if we need skill selection
+			species := models.GetSpeciesByName(m.character.Race)
+			if species != nil && models.HasSkillChoice(species) {
+				m.skillSelector.Show()
+				m.message = "Select your skill proficiency..."
+			} else {
+				m.message = fmt.Sprintf("Language selected: %s", selectedLanguage)
+			}
+		}
+		m.languageSelector.Hide()
+	case "esc":
+		m.languageSelector.Hide()
+		m.message = "Language selection cancelled"
+	}
+	return m, nil
+}
+
+// handleSkillSelectorKeys handles skill selector specific keys
+func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.skillSelector.Prev()
+	case "down", "j":
+		m.skillSelector.Next()
+	case "enter":
+		selectedSkill := m.skillSelector.GetSelectedSkill()
+		if selectedSkill != "" {
+			// Apply the skill proficiency and track it as a species skill
+			skillNameLower := strings.ToLower(selectedSkill)
+			var skillType models.SkillType
+			switch skillNameLower {
+			case "acrobatics":
+				skillType = models.Acrobatics
+			case "animal handling":
+				skillType = models.AnimalHandling
+			case "arcana":
+				skillType = models.Arcana
+			case "athletics":
+				skillType = models.Athletics
+			case "deception":
+				skillType = models.Deception
+			case "history":
+				skillType = models.History
+			case "insight":
+				skillType = models.Insight
+			case "intimidation":
+				skillType = models.Intimidation
+			case "investigation":
+				skillType = models.Investigation
+			case "medicine":
+				skillType = models.Medicine
+			case "nature":
+				skillType = models.Nature
+			case "perception":
+				skillType = models.Perception
+			case "performance":
+				skillType = models.Performance
+			case "persuasion":
+				skillType = models.Persuasion
+			case "religion":
+				skillType = models.Religion
+			case "sleight of hand":
+				skillType = models.SleightOfHand
+			case "stealth":
+				skillType = models.Stealth
+			case "survival":
+				skillType = models.Survival
+			}
+			// Use the helper function to add and track the species skill
+			models.AddSpeciesSkillChoice(m.character, skillType)
+			m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
+		}
+		m.skillSelector.Hide()
+	case "esc":
+		m.skillSelector.Hide()
+		m.message = "Skill selection cancelled"
 	}
 	return m, nil
 }
@@ -779,8 +912,18 @@ func (m *Model) View() string {
 		statusBar,
 	)
 
-	// Render popups/overlays
-	// Species selector takes priority
+	// Render popups/overlays (in priority order)
+	// Skill selector takes highest priority
+	if m.skillSelector.IsVisible() {
+		return m.skillSelector.View(m.width, m.height)
+	}
+
+	// Language selector takes second priority
+	if m.languageSelector.IsVisible() {
+		return m.languageSelector.View(m.width, m.height)
+	}
+
+	// Species selector takes third priority
 	if m.speciesSelector.IsVisible() {
 		return m.speciesSelector.View(m.width, m.height)
 	}

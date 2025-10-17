@@ -24,24 +24,6 @@ var (
 			Background(primaryColor).
 			Padding(0, 1)
 
-	// Sidebar styles
-	SidebarStyle = lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(mutedColor).
-			Padding(1, 2)
-
-	SidebarItemStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("252"))
-
-	SidebarItemSelectedStyle = lipgloss.NewStyle().
-					Bold(true).
-					Foreground(primaryColor).
-					Background(lipgloss.Color("237"))
-
-	SidebarKeyStyle = lipgloss.NewStyle().
-			Foreground(accentColor).
-			Bold(true)
-
 	// Panel styles
 	PanelStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).

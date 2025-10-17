@@ -1,0 +1,293 @@
+{
+  "name": "Thorin Oakenshield",
+  "race": "Dwarf (Mountain)",
+  "class": "Fighter",
+  "background": "Folk Hero",
+  "alignment": "Lawful Good",
+  "level": 5,
+  "experience": 6500,
+  "max_hp": 52,
+  "current_hp": 52,
+  "temp_hp": 0,
+  "armor_class": 18,
+  "speed": 25,
+  "ability_scores": {
+    "strength": 16,
+    "dexterity": 12,
+    "constitution": 16,
+    "intelligence": 10,
+    "wisdom": 12,
+    "charisma": 10
+  },
+  "saving_throws": {
+    "strength": true,
+    "dexterity": false,
+    "constitution": true,
+    "intelligence": false,
+    "wisdom": false,
+    "charisma": false
+  },
+  "skills": {
+    "skills": [
+      {
+        "name": "Acrobatics",
+        "ability": "DEX",
+        "proficiency": 0
+      },
+      {
+        "name": "Animal Handling",
+        "ability": "WIS",
+        "proficiency": 1
+      },
+      {
+        "name": "Arcana",
+        "ability": "INT",
+        "proficiency": 0
+      },
+      {
+        "name": "Athletics",
+        "ability": "STR",
+        "proficiency": 1
+      },
+      {
+        "name": "Deception",
+        "ability": "CHA",
+        "proficiency": 0
+      },
+      {
+        "name": "History",
+        "ability": "INT",
+        "proficiency": 0
+      },
+      {
+        "name": "Insight",
+        "ability": "WIS",
+        "proficiency": 0
+      },
+      {
+        "name": "Intimidation",
+        "ability": "CHA",
+        "proficiency": 1
+      },
+      {
+        "name": "Investigation",
+        "ability": "INT",
+        "proficiency": 0
+      },
+      {
+        "name": "Medicine",
+        "ability": "WIS",
+        "proficiency": 0
+      },
+      {
+        "name": "Nature",
+        "ability": "INT",
+        "proficiency": 0
+      },
+      {
+        "name": "Perception",
+        "ability": "WIS",
+        "proficiency": 1
+      },
+      {
+        "name": "Performance",
+        "ability": "CHA",
+        "proficiency": 0
+      },
+      {
+        "name": "Persuasion",
+        "ability": "CHA",
+        "proficiency": 0
+      },
+      {
+        "name": "Religion",
+        "ability": "INT",
+        "proficiency": 0
+      },
+      {
+        "name": "Sleight of Hand",
+        "ability": "DEX",
+        "proficiency": 0
+      },
+      {
+        "name": "Stealth",
+        "ability": "DEX",
+        "proficiency": 0
+      },
+      {
+        "name": "Survival",
+        "ability": "WIS",
+        "proficiency": 1
+      }
+    ]
+  },
+  "proficiency_bonus": 3,
+  "initiative": 1,
+  "actions": {
+    "actions": [
+      {
+        "name": "Attack",
+        "type": "Action",
+        "description": "Make a weapon attack",
+        "uses_per_rest": -1,
+        "uses_remaining": -1,
+        "rest_type": ""
+      },
+      {
+        "name": "Second Wind",
+        "type": "Bonus Action",
+        "description": "Regain 1d10 + fighter level HP",
+        "uses_per_rest": 1,
+        "uses_remaining": 1,
+        "rest_type": "short"
+      },
+      {
+        "name": "Action Surge",
+        "type": "Action",
+        "description": "Take one additional action",
+        "uses_per_rest": 1,
+        "uses_remaining": 1,
+        "rest_type": "short"
+      },
+      {
+        "name": "Extra Attack",
+        "type": "Action",
+        "description": "Attack twice when you take the Attack action",
+        "uses_per_rest": -1,
+        "uses_remaining": -1,
+        "rest_type": ""
+      },
+      {
+        "name": "Dash",
+        "type": "Action",
+        "description": "Double movement speed",
+        "uses_per_rest": -1,
+        "uses_remaining": -1,
+        "rest_type": ""
+      },
+      {
+        "name": "Dodge",
+        "type": "Action",
+        "description": "Attacks against you have disadvantage",
+        "uses_per_rest": -1,
+        "uses_remaining": -1,
+        "rest_type": ""
+      },
+      {
+        "name": "Opportunity Attack",
+        "type": "Reaction",
+        "description": "Attack when enemy leaves reach",
+        "uses_per_rest": -1,
+        "uses_remaining": -1,
+        "rest_type": ""
+      }
+    ]
+  },
+  "inventory": {
+    "items": [
+      {
+        "name": "Longsword",
+        "type": "Weapon",
+        "quantity": 1,
+        "weight": 3,
+        "description": "Versatile (1d8/1d10)",
+        "equipped": true,
+        "value": 15
+      },
+      {
+        "name": "Shield",
+        "type": "Armor",
+        "quantity": 1,
+        "weight": 6,
+        "description": "+2 AC",
+        "equipped": true,
+        "value": 10
+      },
+      {
+        "name": "Plate Armor",
+        "type": "Armor",
+        "quantity": 1,
+        "weight": 65,
+        "description": "AC 18",
+        "equipped": true,
+        "value": 1500
+      },
+      {
+        "name": "Healing Potion",
+        "type": "Potion",
+        "quantity": 3,
+        "weight": 0.5,
+        "description": "Restores 2d4+2 HP",
+        "equipped": false,
+        "value": 50
+      },
+      {
+        "name": "Rope (50 ft)",
+        "type": "Gear",
+        "quantity": 1,
+        "weight": 10,
+        "description": "Hemp rope",
+        "equipped": false,
+        "value": 1
+      },
+      {
+        "name": "Torch",
+        "type": "Gear",
+        "quantity": 5,
+        "weight": 1,
+        "description": "Provides light",
+        "equipped": false,
+        "value": 1
+      }
+    ],
+    "gold": 245,
+    "silver": 18,
+    "copper": 42,
+    "carry_capacity": 240
+  },
+  "spellbook": {
+    "spells": [],
+    "slots": {
+      "level_1": {
+        "maximum": 0,
+        "current": 0
+      },
+      "level_2": {
+        "maximum": 0,
+        "current": 0
+      },
+      "level_3": {
+        "maximum": 0,
+        "current": 0
+      },
+      "level_4": {
+        "maximum": 0,
+        "current": 0
+      },
+      "level_5": {
+        "maximum": 0,
+        "current": 0
+      },
+      "level_6": {
+        "maximum": 0,
+        "current": 0
+      },
+      "level_7": {
+        "maximum": 0,
+        "current": 0
+      },
+      "level_8": {
+        "maximum": 0,
+        "current": 0
+      },
+      "level_9": {
+        "maximum": 0,
+        "current": 0
+      }
+    },
+    "spellcasting_mod": "",
+    "spell_save_dc": 0,
+    "spell_attack_bonus": 0
+  },
+  "notes": "Thorin is a brave dwarf fighter who leads his companions with courage and honor."
+}

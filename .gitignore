@@ -19,7 +19,6 @@ vendor/
 go.work
 
 # Character data (local)
-data/
 .lazydndplayer/
 
 # IDE

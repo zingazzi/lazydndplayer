@@ -1,27 +1,68 @@
 // internal/models/species.go
 package models
 
+import (
+	"encoding/json"
+	"os"
+	"strings"
+)
+
 // SpeciesTrait represents a special trait or ability of a species
 type SpeciesTrait struct {
-	Name        string
-	Description string
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 // SpeciesInfo contains all information about a D&D 5e 2024 species
 type SpeciesInfo struct {
-	Name        string
-	Size        string
-	Speed       int
-	Traits      []SpeciesTrait
-	Languages   []string
-	Resistances []string
-	Darkvision  int // Range in feet, 0 if none
-	Description string
+	Name        string         `json:"name"`
+	Size        string         `json:"size"`
+	Speed       int            `json:"speed"`
+	Traits      []SpeciesTrait `json:"traits"`
+	Languages   []string       `json:"languages"`
+	Resistances []string       `json:"resistances"`
+	Darkvision  int            `json:"darkvision"` // Range in feet, 0 if none
+	Description string         `json:"description"`
+}
+
+// SpeciesData represents the root structure of the species JSON file
+type SpeciesData struct {
+	Species []SpeciesInfo `json:"species"`
+}
+
+var cachedSpecies []SpeciesInfo
+
+// LoadSpeciesFromJSON loads species data from the JSON file
+func LoadSpeciesFromJSON(filepath string) ([]SpeciesInfo, error) {
+	file, err := os.ReadFile(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	var data SpeciesData
+	if err := json.Unmarshal(file, &data); err != nil {
+		return nil, err
+	}
+
+	return data.Species, nil
 }
 
 // GetAllSpecies returns all available species in D&D 5e 2024
 func GetAllSpecies() []SpeciesInfo {
-	return []SpeciesInfo{
+	// Return cached species if already loaded
+	if len(cachedSpecies) > 0 {
+		return cachedSpecies
+	}
+
+	// Try to load from JSON file
+	species, err := LoadSpeciesFromJSON("data/species.json")
+	if err == nil {
+		cachedSpecies = species
+		return cachedSpecies
+	}
+
+	// Fallback to hardcoded species if JSON file is not available
+	cachedSpecies = []SpeciesInfo{
 		{
 			Name:        "Aasimar",
 			Size:        "Medium",
@@ -29,7 +70,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Description: "Aasimar bear a divine light within them, descended from celestial beings.",
 			Traits: []SpeciesTrait{
 				{Name: "Celestial Resistance", Description: "You have resistance to necrotic damage and radiant damage."},
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Healing Hands", Description: "You can touch a creature and restore hit points equal to your level. Once per long rest."},
 				{Name: "Light Bearer", Description: "You know the Light cantrip."},
 			},
@@ -57,7 +97,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       25,
 			Description: "Dwarves are solid and enduring, known for their craftsmanship and valor.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Dwarven Resilience", Description: "Advantage on saves against poison, resistance to poison damage."},
 				{Name: "Dwarven Toughness", Description: "Your hit point maximum increases by 1, and it increases by 1 again whenever you gain a level."},
 				{Name: "Stonecunning", Description: "Proficiency in History checks related to the origin of stonework."},
@@ -72,7 +111,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       30,
 			Description: "Drow are elves adapted to the Underdark, with innate magical abilities and superior darkvision.",
 			Traits: []SpeciesTrait{
-				{Name: "Superior Darkvision", Description: "You can see in dim light within 120 feet as if it were bright light."},
 				{Name: "Fey Ancestry", Description: "Advantage on saves against being charmed, and magic can't put you to sleep."},
 				{Name: "Keen Senses", Description: "Proficiency in Perception."},
 				{Name: "Trance", Description: "You don't sleep but meditate for 4 hours instead of sleeping for 8."},
@@ -89,7 +127,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       30,
 			Description: "High elves are scholarly and magical, with a keen mind and mastery of wizardry.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Fey Ancestry", Description: "Advantage on saves against being charmed, and magic can't put you to sleep."},
 				{Name: "Keen Senses", Description: "Proficiency in Perception."},
 				{Name: "Trance", Description: "You don't sleep but meditate for 4 hours instead of sleeping for 8."},
@@ -106,7 +143,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       35,
 			Description: "Wood elves are swift and stealthy, at home in the wilderness and attuned to nature.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Fey Ancestry", Description: "Advantage on saves against being charmed, and magic can't put you to sleep."},
 				{Name: "Keen Senses", Description: "Proficiency in Perception."},
 				{Name: "Trance", Description: "You don't sleep but meditate for 4 hours instead of sleeping for 8."},
@@ -123,7 +159,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       25,
 			Description: "Dwarves are solid and enduring, known for their craftsmanship and valor.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Dwarven Resilience", Description: "Advantage on saves against poison, resistance to poison damage."},
 				{Name: "Dwarven Toughness", Description: "Your hit point maximum increases by 1, and it increases by 1 again whenever you gain a level."},
 				{Name: "Stonecunning", Description: "Proficiency in History checks related to the origin of stonework."},
@@ -136,7 +171,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       25,
 			Description: "Gnomes are small, inventive, and curious, with a love of tinkering and discovery.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Gnome Cunning", Description: "Advantage on Intelligence, Wisdom, and Charisma saves against magic."},
 			},
 			Languages:   []string{"Common", "Gnomish"},
@@ -193,7 +227,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       30,
 			Description: "Orcs are fierce warriors with a strong sense of honor and strength.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Adrenaline Rush", Description: "You can take the Dash action as a bonus action."},
 				{Name: "Powerful Build", Description: "Count as one size larger for carrying capacity and push/drag/lift."},
 				{Name: "Relentless Endurance", Description: "When reduced to 0 HP, drop to 1 HP instead. Once per long rest."},
@@ -208,7 +241,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       30,
 			Description: "Abyssal tieflings are touched by the chaotic energies of the Abyss, embodying primal and destructive magic.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Abyssal Legacy", Description: "You know the Dancing Lights cantrip. At 3rd level, you can cast Burning Hands. At 5th level, you can cast Alter Self."},
 				{Name: "Abyssal Resistance", Description: "Resistance to poison damage."},
 			},
@@ -222,7 +254,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       30,
 			Description: "Chthonic tieflings are connected to the Lower Planes, with powers over death and darkness.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Chthonic Legacy", Description: "You know the Chill Touch cantrip. At 3rd level, you can cast False Life. At 5th level, you can cast Ray of Enfeeblement."},
 				{Name: "Necrotic Resistance", Description: "Resistance to necrotic damage."},
 			},
@@ -236,7 +267,6 @@ func GetAllSpecies() []SpeciesInfo {
 			Speed:       30,
 			Description: "Infernal tieflings bear the classic marks of their heritage from the Nine Hells, with fire and command.",
 			Traits: []SpeciesTrait{
-				{Name: "Darkvision", Description: "You can see in dim light within 60 feet as if it were bright light."},
 				{Name: "Infernal Legacy", Description: "You know the Thaumaturgy cantrip. At 3rd level, you can cast Hellish Rebuke. At 5th level, you can cast Darkness."},
 				{Name: "Hellish Resistance", Description: "Resistance to fire damage."},
 			},
@@ -245,6 +275,8 @@ func GetAllSpecies() []SpeciesInfo {
 			Darkvision:  60,
 		},
 	}
+
+	return cachedSpecies
 }
 
 // GetSpeciesByName returns species info for a given species name
@@ -264,6 +296,9 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 		return
 	}
 
+	// Remove old species skill proficiencies first
+	RemoveSpeciesSkillProficiencies(char)
+
 	// Update basic stats
 	char.Race = species.Name
 	char.Speed = species.Speed
@@ -279,7 +314,65 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 	// Update darkvision from species
 	char.Darkvision = species.Darkvision
 
+	// Update species traits
+	char.SpeciesTraits = make([]SpeciesTrait, len(species.Traits))
+	for i, trait := range species.Traits {
+		char.SpeciesTraits[i] = SpeciesTrait{
+			Name:        trait.Name,
+			Description: trait.Description,
+		}
+	}
+
+	// Clear old species skills list
+	char.SpeciesSkills = []SkillType{}
+
+	// Apply skill proficiencies from species traits
+	ApplySpeciesSkillProficiencies(char, species)
+
 	// Note: In D&D 5e 2024, ability score increases are more flexible
 	// and often chosen by the player rather than fixed by species.
 	// We'll handle this through the character creation/leveling system.
+}
+
+// RemoveSpeciesSkillProficiencies removes all skill proficiencies granted by the previous species
+func RemoveSpeciesSkillProficiencies(char *Character) {
+	for _, skillType := range char.SpeciesSkills {
+		char.Skills.SetProficiency(skillType, NotProficient)
+	}
+	char.SpeciesSkills = []SkillType{}
+}
+
+// ApplySpeciesSkillProficiencies applies skill proficiencies from species traits
+func ApplySpeciesSkillProficiencies(char *Character, species *SpeciesInfo) {
+	for _, trait := range species.Traits {
+		traitNameLower := strings.ToLower(trait.Name)
+		traitDescLower := strings.ToLower(trait.Description)
+
+		// Check for specific skill proficiencies mentioned in traits
+		if strings.Contains(traitNameLower, "keen senses") || strings.Contains(traitDescLower, "proficiency in perception") {
+			char.Skills.SetProficiency(Perception, Proficient)
+			// Track that this skill came from species
+			char.SpeciesSkills = append(char.SpeciesSkills, Perception)
+		}
+	}
+}
+
+// AddSpeciesSkillChoice adds a skill proficiency from a species choice
+func AddSpeciesSkillChoice(char *Character, skillType SkillType) {
+	char.Skills.SetProficiency(skillType, Proficient)
+	// Track that this skill came from species
+	char.SpeciesSkills = append(char.SpeciesSkills, skillType)
+}
+
+// HasSkillChoice checks if a species grants a skill choice
+func HasSkillChoice(species *SpeciesInfo) bool {
+	for _, trait := range species.Traits {
+		traitNameLower := strings.ToLower(trait.Name)
+		traitDescLower := strings.ToLower(trait.Description)
+		if (strings.Contains(traitNameLower, "skillful") || strings.Contains(traitDescLower, "proficiency in one skill")) &&
+		   strings.Contains(traitDescLower, "choice") {
+			return true
+		}
+	}
+	return false
 }
