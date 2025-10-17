@@ -51,6 +51,9 @@ type Character struct {
 	SpeciesSkills       []SkillType    `json:"species_skills"` // Track which skills came from species
 	SpeciesSpells       []string       `json:"species_spells"` // Track which spells came from species
 
+	// Inspiration
+	Inspiration bool `json:"inspiration"` // Can be used to gain advantage on rolls
+
 	// Misc
 	Notes string `json:"notes"`
 }
@@ -172,6 +175,11 @@ func (c *Character) LongRest() {
 	c.Actions.LongRest()
 	c.SpellBook.LongRest()
 	c.Features.LongRestRecover()
+	
+	// Humans regain Inspiration on long rest (Resourceful trait)
+	if c.Race == "Human" {
+		c.Inspiration = true
+	}
 }
 
 // ExperienceThresholds returns XP needed for each level (1-20)

@@ -529,6 +529,15 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		expr := fmt.Sprintf("1d20%+d", initMod)
 		m.dicePanel.Roll(expr)
 		m.message = fmt.Sprintf("Initiative rolled: %s", m.dicePanel.LastMessage)
+	case "I":
+		// Toggle inspiration
+		m.characterStatsPanel.ToggleInspiration()
+		if m.character.Inspiration {
+			m.message = "✨ Inspiration gained!"
+		} else {
+			m.message = "Inspiration used"
+		}
+		m.storage.Save(m.character)
 	}
 	return m, nil
 }

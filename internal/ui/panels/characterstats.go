@@ -165,10 +165,28 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	lines = append(lines, statBoxesRow2)
 	lines = append(lines, "")
 
+	// Inspiration
+	inspirationIcon := "☐"
+	inspirationColor := lipgloss.Color("240")
+	if char.Inspiration {
+		inspirationIcon = "☑"
+		inspirationColor = lipgloss.Color("42") // Green when active
+	}
+	inspirationStyle := lipgloss.NewStyle().Foreground(inspirationColor).Bold(true)
+	inspirationLabel := inspirationStyle.Render(fmt.Sprintf("%s Inspiration", inspirationIcon))
+	
+	// Add note for Humans
+	if char.Race == "Human" {
+		inspirationLabel += lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true).Render(" (auto-restored on rest)")
+	}
+	
+	lines = append(lines, inspirationLabel)
+	lines = append(lines, "")
+
 	// Add help text
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	if p.editMode == CharStatsNormal {
-		lines = append(lines, helpStyle.Render("[n] Name • [r] Species • [h] HP • [+/-] ±1 • [i] Init"))
+		lines = append(lines, helpStyle.Render("[n] Name • [r] Species • [h] HP • [+/-] ±1 • [i] Init • [I] Inspiration"))
 	} else if p.editMode == CharStatsEditHP {
 		// Don't show help here, it's in the popup
 	} else {
@@ -329,6 +347,11 @@ func (p *CharacterStatsPanel) RenderHPPopup(screenWidth, screenHeight int) strin
 
 	// Center the popup on screen using Place
 	return lipgloss.Place(screenWidth, screenHeight, lipgloss.Center, lipgloss.Center, popup)
+}
+
+// ToggleInspiration toggles the inspiration state
+func (p *CharacterStatsPanel) ToggleInspiration() {
+	p.character.Inspiration = !p.character.Inspiration
 }
 
 // getLevelXP returns the XP required to reach a given level (simplified)

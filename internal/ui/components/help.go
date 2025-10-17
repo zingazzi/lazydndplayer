@@ -102,6 +102,7 @@ func GetCharacterStatsBindings() []HelpBinding {
 		{"h", "Adjust HP (popup)"},
 		{"+/-", "Quick HP adjust (±1)"},
 		{"i", "Roll initiative (1d20 + DEX)"},
+		{"Shift+I", "Toggle Inspiration"},
 	}
 }
 

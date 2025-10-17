@@ -305,7 +305,7 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 
 	// Remove old species skill proficiencies first
 	RemoveSpeciesSkillProficiencies(char)
-	
+
 	// Remove old species features
 	RemoveSpeciesFeatures(char)
 
@@ -336,10 +336,10 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 
 	// Apply skill proficiencies from species traits
 	ApplySpeciesSkillProficiencies(char, species)
-	
+
 	// Apply species spells based on character level
 	ApplySpeciesSpells(char, species)
-	
+
 	// Apply species features (limited-use abilities)
 	ApplySpeciesFeatures(char, species)
 
@@ -445,17 +445,17 @@ func RemoveSpeciesSpells(char *Character) {
 // CalculateFeatureUses calculates the number of uses for a feature based on formula
 func CalculateFeatureUses(formula string, char *Character) int {
 	formula = strings.TrimSpace(strings.ToLower(formula))
-	
+
 	// If formula is empty or just a number
 	if formula == "" {
 		return 1
 	}
-	
+
 	// Try to parse as integer
 	if uses, err := strconv.Atoi(formula); err == nil {
 		return uses
 	}
-	
+
 	// Handle common formulas
 	switch formula {
 	case "proficiency":
@@ -486,7 +486,7 @@ func ConvertTraitToFeature(trait SpeciesTrait, char *Character, speciesName stri
 	if maxUses == 1 && trait.MaxUses != "" && trait.MaxUses != "1" {
 		maxUses = CalculateFeatureUses(trait.MaxUses, char)
 	}
-	
+
 	// Parse rest type
 	var restType RestType
 	switch strings.ToLower(trait.RestType) {
@@ -499,14 +499,14 @@ func ConvertTraitToFeature(trait SpeciesTrait, char *Character, speciesName stri
 	default:
 		restType = LongRest
 	}
-	
+
 	// Build description with effect formula if present
 	description := trait.Description
 	if trait.EffectFormula != "" {
 		effectValue := CalculateFeatureEffect(trait.EffectFormula, char)
 		description = fmt.Sprintf("%s (Effect: %s)", description, effectValue)
 	}
-	
+
 	return Feature{
 		Name:        trait.Name,
 		Description: description,
@@ -520,7 +520,7 @@ func ConvertTraitToFeature(trait SpeciesTrait, char *Character, speciesName stri
 // CalculateFeatureEffect calculates the effect value for display
 func CalculateFeatureEffect(formula string, char *Character) string {
 	formula = strings.TrimSpace(strings.ToLower(formula))
-	
+
 	switch formula {
 	case "level":
 		return fmt.Sprintf("%d HP", char.Level)
