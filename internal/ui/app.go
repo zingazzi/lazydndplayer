@@ -41,9 +41,10 @@ type Model struct {
 	storage      *storage.Storage
 
 	// UI Components
-	tabs            *components.Tabs
-	help            *components.Help
-	speciesSelector *components.SpeciesSelector
+	tabs             *components.Tabs
+	help             *components.Help
+	speciesSelector  *components.SpeciesSelector
+	subtypeSelector  *components.SubtypeSelector
 	languageSelector *components.LanguageSelector
 	skillSelector    *components.SkillSelector
 	spellSelector    *components.SpellSelector
@@ -80,6 +81,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		tabs:                components.NewTabs(),
 		help:                components.NewHelp(),
 		speciesSelector:     components.NewSpeciesSelector(),
+		subtypeSelector:     components.NewSubtypeSelector(),
 		languageSelector:    components.NewLanguageSelector(),
 		skillSelector:       components.NewSkillSelector(),
 		spellSelector:       components.NewSpellSelector(),
@@ -199,6 +201,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if feat selector is active
 		if m.featSelector.IsVisible() {
 			return m.handleFeatSelectorKeys(msg)
+		}
+
+		// Check if subtype selector is active
+		if m.subtypeSelector.IsVisible() {
+			return m.handleSubtypeSelectorKeys(msg)
 		}
 
 		// Check if skill selector is active
@@ -559,8 +566,29 @@ func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		selectedSpecies := m.speciesSelector.GetSelectedSpecies()
 		if selectedSpecies != nil {
+			// Check if species has subtypes
+			if selectedSpecies.HasSubtypes && len(selectedSpecies.Subtypes) > 0 {
+				// Show subtype selector
+				subtypes := make([]components.SpeciesSubtype, len(selectedSpecies.Subtypes))
+				for i, st := range selectedSpecies.Subtypes {
+					subtypes[i] = components.SpeciesSubtype{
+						Name:        st.Name,
+						Description: st.Description,
+						Modifier:    st.Modifier,
+					}
+					// For Dragonborn, show damage type
+					if st.DamageType != "" {
+						subtypes[i].Modifier = fmt.Sprintf("%s damage", st.DamageType)
+					}
+				}
+				m.subtypeSelector.Show(selectedSpecies.Name, subtypes)
+				m.message = fmt.Sprintf("Select %s subtype...", selectedSpecies.Name)
+				m.speciesSelector.Hide()
+				return m, nil
+			}
+
+			// No subtypes, apply species directly
 			oldSpecies := m.character.Race
-			// Apply new species
 			models.ApplySpeciesToCharacter(m.character, selectedSpecies.Name)
 
 			// Check if we need to select additional languages
@@ -605,6 +633,75 @@ func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.speciesSelector.Hide()
 		m.message = "Species selection cancelled"
+	}
+	return m, nil
+}
+
+// handleSubtypeSelectorKeys handles subtype selector specific keys
+func (m *Model) handleSubtypeSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.subtypeSelector.Prev()
+	case "down", "j":
+		m.subtypeSelector.Next()
+	case "enter":
+		selectedSubtype := m.subtypeSelector.GetSelectedSubtype()
+		if selectedSubtype != nil {
+			// ALWAYS use the species name from the selector (just selected)
+			// Don't use m.character.Race as it might still have the old species
+			speciesName := m.subtypeSelector.SpeciesName
+			
+			// Apply species with the selected subtype
+			models.ApplySpeciesWithSubtype(m.character, speciesName, selectedSubtype.Name)
+			
+			// Get species info for additional checks
+			species := models.GetSpeciesByName(speciesName)
+
+			// Check if we need to select additional languages
+			needsLanguageSelection := false
+			for _, lang := range m.character.Languages {
+				if strings.Contains(strings.ToLower(lang), "additional") || strings.Contains(strings.ToLower(lang), "choice") {
+					needsLanguageSelection = true
+					break
+				}
+			}
+
+			// Check for various selections needed
+			needsSkillSelection := species != nil && models.HasSkillChoice(species)
+			needsSpellSelection := species != nil && models.HasSpellChoice(species)
+			needsFeatSelection := species != nil && models.HasFeatChoice(species)
+
+			if needsLanguageSelection {
+				// Filter out languages the character already knows
+				m.languageSelector.SetExcludeLanguages(m.character.Languages)
+				m.languageSelector.Show()
+				m.message = "Select your additional language..."
+			} else if needsSkillSelection {
+				m.skillSelector.Show()
+				m.message = "Select your skill proficiency..."
+			} else if needsSpellSelection {
+				// Show wizard cantrip selector (High Elf)
+				cantrips := models.GetWizardCantrips()
+				m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+				m.spellSelector.Show()
+				m.message = "Select your wizard cantrip..."
+			} else if needsFeatSelection {
+				// Show feat selector for origin feat
+				m.featSelector.Show(m.character, true)
+				m.message = "Select your origin feat..."
+			} else {
+				m.message = fmt.Sprintf("%s (%s) selected! Speed: %d ft, Darkvision: %d ft",
+					speciesName, selectedSubtype.Name, m.character.Speed, m.character.Darkvision)
+				// Save character when species change is complete (no additional selections)
+				m.storage.Save(m.character)
+			}
+		}
+		m.subtypeSelector.Hide()
+	case "esc":
+		m.subtypeSelector.Hide()
+		// Show species selector again to let user pick different species
+		m.speciesSelector.Show()
+		m.message = "Subtype selection cancelled"
 	}
 	return m, nil
 }
@@ -769,7 +866,7 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.message = fmt.Sprintf("You already know %s", selectedSpell.Name)
 			}
-			
+
 			// After spell selection, check if we need feat selection
 			species := models.GetSpeciesByName(m.character.Race)
 			if species != nil && models.HasFeatChoice(species) {
@@ -779,7 +876,7 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.message = "Select your origin feat..."
 				return m, nil
 			}
-			
+
 			// Save character after spell selection (final step)
 			m.storage.Save(m.character)
 		}
@@ -1133,7 +1230,12 @@ func (m *Model) View() string {
 		return m.featSelector.View(m.width, m.height)
 	}
 
-	// Skill selector takes third priority
+	// Subtype selector takes third priority
+	if m.subtypeSelector.IsVisible() {
+		return m.subtypeSelector.View(m.width, m.height)
+	}
+
+	// Skill selector takes fourth priority
 	if m.skillSelector.IsVisible() {
 		return m.skillSelector.View(m.width, m.height)
 	}

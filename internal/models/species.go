@@ -20,16 +20,38 @@ type SpeciesTrait struct {
 	EffectFormula string `json:"effect_formula"` // Formula for effect (e.g., "level", "1d12+con", "2d6")
 }
 
+// SpeciesSubtype represents a variant of a species
+type SpeciesSubtype struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Modifier    string `json:"modifier,omitempty"`     // For display (e.g., "+5 ft speed")
+	DamageType  string `json:"damage_type,omitempty"`  // For Dragonborn
+	BreathShape string `json:"breath_shape,omitempty"` // For Dragonborn
+}
+
+// SubtypeProperties holds property overrides for a subtype
+type SubtypeProperties struct {
+	Speed       int      `json:"speed,omitempty"`
+	Darkvision  int      `json:"darkvision,omitempty"`
+	Languages   []string `json:"languages,omitempty"`
+	Resistances []string `json:"resistances,omitempty"`
+}
+
 // SpeciesInfo contains all information about a D&D 5e 2024 species
 type SpeciesInfo struct {
-	Name        string         `json:"name"`
-	Size        string         `json:"size"`
-	Speed       int            `json:"speed"`
-	Traits      []SpeciesTrait `json:"traits"`
-	Languages   []string       `json:"languages"`
-	Resistances []string       `json:"resistances"`
-	Darkvision  int            `json:"darkvision"` // Range in feet, 0 if none
-	Description string         `json:"description"`
+	Name             string                        `json:"name"`
+	Size             string                        `json:"size"`
+	Speed            int                           `json:"speed"`
+	Traits           []SpeciesTrait                `json:"traits"`
+	Languages        []string                      `json:"languages"`
+	Resistances      []string                      `json:"resistances"`
+	Darkvision       int                           `json:"darkvision"` // Range in feet, 0 if none
+	Description      string                        `json:"description"`
+	HasSubtypes      bool                          `json:"has_subtypes,omitempty"`
+	Subtypes         []SpeciesSubtype              `json:"subtypes,omitempty"`
+	BaseTraits       []SpeciesTrait                `json:"base_traits,omitempty"`       // Traits all subtypes share
+	SubtypeTraits    map[string][]SpeciesTrait     `json:"subtype_traits,omitempty"`    // Traits specific to each subtype
+	SubtypeProperties map[string]SubtypeProperties `json:"subtype_properties,omitempty"` // Property overrides per subtype
 }
 
 // SpeciesData represents the root structure of the species JSON file
@@ -296,6 +318,118 @@ func GetSpeciesByName(name string) *SpeciesInfo {
 	return nil
 }
 
+// GetCombinedTraitsForSubtype returns all traits for a species with a specific subtype
+func GetCombinedTraitsForSubtype(species *SpeciesInfo, subtypeName string) []SpeciesTrait {
+	if !species.HasSubtypes {
+		return species.Traits
+	}
+
+	// Start with base traits (shared by all subtypes)
+	combined := make([]SpeciesTrait, len(species.BaseTraits))
+	copy(combined, species.BaseTraits)
+
+	// Add subtype-specific traits
+	if subtypeTraits, ok := species.SubtypeTraits[subtypeName]; ok {
+		combined = append(combined, subtypeTraits...)
+	}
+
+	// If no subtypes defined, fallback to regular traits
+	if len(combined) == 0 {
+		combined = species.Traits
+	}
+
+	return combined
+}
+
+// ApplySpeciesWithSubtype applies species bonuses and traits with a specific subtype
+func ApplySpeciesWithSubtype(char *Character, speciesName string, subtypeName string) {
+	species := GetSpeciesByName(speciesName)
+	if species == nil {
+		return
+	}
+
+	// Remove old species data first
+	RemoveSpeciesSkillProficiencies(char)
+	RemoveSpeciesFeatures(char)
+	RemoveSpeciesSpells(char)
+	RemoveSpeciesFeats(char)
+
+	// Update basic stats
+	char.Race = species.Name
+	char.Subtype = subtypeName
+	char.Speed = species.Speed
+	char.Darkvision = species.Darkvision
+
+	// Apply subtype property overrides
+	if species.HasSubtypes && subtypeName != "" {
+		if props, ok := species.SubtypeProperties[subtypeName]; ok {
+			if props.Speed > 0 {
+				char.Speed = props.Speed
+			}
+			if props.Darkvision > 0 {
+				char.Darkvision = props.Darkvision
+			}
+			if len(props.Languages) > 0 {
+				char.Languages = make([]string, len(props.Languages))
+				copy(char.Languages, props.Languages)
+			} else {
+				char.Languages = make([]string, len(species.Languages))
+				copy(char.Languages, species.Languages)
+			}
+			if len(props.Resistances) > 0 {
+				char.Resistances = make([]string, len(props.Resistances))
+				copy(char.Resistances, props.Resistances)
+			} else {
+				char.Resistances = make([]string, len(species.Resistances))
+				copy(char.Resistances, species.Resistances)
+			}
+		} else {
+			// No override, use base values
+			char.Languages = make([]string, len(species.Languages))
+			copy(char.Languages, species.Languages)
+			char.Resistances = make([]string, len(species.Resistances))
+			copy(char.Resistances, species.Resistances)
+		}
+	} else {
+		// No subtype, use base values
+		char.Languages = make([]string, len(species.Languages))
+		copy(char.Languages, species.Languages)
+		char.Resistances = make([]string, len(species.Resistances))
+		copy(char.Resistances, species.Resistances)
+	}
+
+	// For Dragonborn, add resistance based on selected ancestry
+	if species.Name == "Dragonborn" && subtypeName != "" {
+		for _, subtype := range species.Subtypes {
+			if subtype.Name == subtypeName && subtype.DamageType != "" {
+				// Add the damage type resistance
+				char.Resistances = []string{subtype.DamageType}
+				break
+			}
+		}
+	}
+
+	// Get combined traits (base + subtype-specific)
+	combinedTraits := GetCombinedTraitsForSubtype(species, subtypeName)
+	char.SpeciesTraits = make([]SpeciesTrait, len(combinedTraits))
+	copy(char.SpeciesTraits, combinedTraits)
+
+	// Clear old species skills list
+	char.SpeciesSkills = []SkillType{}
+
+	// Apply skill proficiencies from combined traits
+	ApplySpeciesSkillProficienciesWithTraits(char, species, combinedTraits)
+
+	// Apply species spells based on character level
+	ApplySpeciesSpellsWithTraits(char, species, combinedTraits)
+
+	// Apply species features (limited-use abilities)
+	ApplySpeciesFeaturesWithTraits(char, species, combinedTraits)
+
+	// Apply species HP bonuses (e.g., Dwarven Toughness)
+	ApplySpeciesHPBonus(char, species)
+}
+
 // ApplySpeciesToCharacter applies species bonuses and traits to a character
 func ApplySpeciesToCharacter(char *Character, speciesName string) {
 	species := GetSpeciesByName(speciesName)
@@ -308,6 +442,12 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 
 	// Remove old species features
 	RemoveSpeciesFeatures(char)
+
+	// Remove old species spells
+	RemoveSpeciesSpells(char)
+
+	// Remove old species feats
+	RemoveSpeciesFeats(char)
 
 	// Update basic stats
 	char.Race = species.Name
@@ -383,6 +523,17 @@ func AddSpeciesSkillChoice(char *Character, skillType SkillType) {
 
 // HasSkillChoice checks if a species grants a skill choice
 func HasSkillChoice(species *SpeciesInfo) bool {
+	// Check base traits (for species with subtypes)
+	for _, trait := range species.BaseTraits {
+		traitNameLower := strings.ToLower(trait.Name)
+		traitDescLower := strings.ToLower(trait.Description)
+		if (strings.Contains(traitNameLower, "skillful") || strings.Contains(traitDescLower, "proficiency in one skill")) &&
+		   strings.Contains(traitDescLower, "choice") {
+			return true
+		}
+	}
+
+	// Check regular traits (for species without subtypes)
 	for _, trait := range species.Traits {
 		traitNameLower := strings.ToLower(trait.Name)
 		traitDescLower := strings.ToLower(trait.Description)
@@ -396,6 +547,19 @@ func HasSkillChoice(species *SpeciesInfo) bool {
 
 // HasSpellChoice checks if a species grants a spell choice (like High Elf cantrip)
 func HasSpellChoice(species *SpeciesInfo) bool {
+	// Check subtype-specific traits
+	for _, subTraits := range species.SubtypeTraits {
+		for _, trait := range subTraits {
+			traitNameLower := strings.ToLower(trait.Name)
+			traitDescLower := strings.ToLower(trait.Description)
+			// Check for High Elf's cantrip trait
+			if strings.Contains(traitNameLower, "cantrip") && strings.Contains(traitDescLower, "wizard spell list") {
+				return true
+			}
+		}
+	}
+
+	// Check regular traits (for species without subtypes)
 	for _, trait := range species.Traits {
 		traitNameLower := strings.ToLower(trait.Name)
 		traitDescLower := strings.ToLower(trait.Description)
@@ -412,8 +576,22 @@ func HasFeatChoice(species *SpeciesInfo) bool {
 	if species == nil {
 		return false
 	}
-	
+
 	// Humans get an origin feat (Versatile trait)
+	// Check base traits (for species with subtypes)
+	for _, trait := range species.BaseTraits {
+		traitNameLower := strings.ToLower(trait.Name)
+		traitDescLower := strings.ToLower(trait.Description)
+		// Check for feat-granting traits
+		if strings.Contains(traitNameLower, "versatile") && strings.Contains(traitDescLower, "feat") {
+			return true
+		}
+		if strings.Contains(traitDescLower, "origin feat") {
+			return true
+		}
+	}
+
+	// Check regular traits (for species without subtypes)
 	for _, trait := range species.Traits {
 		traitNameLower := strings.ToLower(trait.Name)
 		traitDescLower := strings.ToLower(trait.Description)
@@ -425,6 +603,7 @@ func HasFeatChoice(species *SpeciesInfo) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -464,6 +643,78 @@ func RemoveSpeciesSpells(char *Character) {
 		char.SpellBook.RemoveSpell(spellName)
 	}
 	char.SpeciesSpells = []string{}
+}
+
+// RemoveSpeciesFeats removes all feats when changing species
+// In D&D 5e 2024, only Humans get an origin feat from their species
+func RemoveSpeciesFeats(char *Character) {
+	// Remove feat benefits before clearing the list
+	for _, featName := range char.Feats {
+		feat := GetFeatByName(featName)
+		if feat != nil {
+			RemoveFeatBenefits(char, *feat)
+		}
+	}
+
+	// Clear all feats when changing species
+	// This is important because the Human origin feat should be removed
+	// when changing from Human to another species
+	char.Feats = []string{}
+}
+
+// RemoveFeatBenefits removes the mechanical benefits of a feat from a character
+func RemoveFeatBenefits(char *Character, feat Feat) {
+	// Remove ability score increases
+	for ability, increase := range feat.AbilityIncreases {
+		abilityLower := strings.ToLower(ability)
+
+		// Handle multiple choice abilities
+		if strings.Contains(abilityLower, "or") {
+			// Can't auto-remove, skip
+			continue
+		}
+
+		// Remove specific ability increases
+		if strings.Contains(abilityLower, "strength") {
+			char.AbilityScores.Strength = max(char.AbilityScores.Strength-increase, 1)
+		} else if strings.Contains(abilityLower, "dexterity") {
+			char.AbilityScores.Dexterity = max(char.AbilityScores.Dexterity-increase, 1)
+		} else if strings.Contains(abilityLower, "constitution") {
+			char.AbilityScores.Constitution = max(char.AbilityScores.Constitution-increase, 1)
+		} else if strings.Contains(abilityLower, "intelligence") {
+			char.AbilityScores.Intelligence = max(char.AbilityScores.Intelligence-increase, 1)
+		} else if strings.Contains(abilityLower, "wisdom") {
+			char.AbilityScores.Wisdom = max(char.AbilityScores.Wisdom-increase, 1)
+		} else if strings.Contains(abilityLower, "charisma") {
+			char.AbilityScores.Charisma = max(char.AbilityScores.Charisma-increase, 1)
+		}
+	}
+
+	// Remove special benefits
+	featNameLower := strings.ToLower(feat.Name)
+
+	// Tough feat: -2 HP per level
+	if featNameLower == "tough" {
+		char.MaxHP -= char.Level * 2
+		if char.CurrentHP > char.MaxHP {
+			char.CurrentHP = char.MaxHP
+		}
+	}
+
+	// Mobile feat: -10 speed
+	if featNameLower == "mobile" {
+		char.Speed -= 10
+	}
+
+	// Update derived stats after removing benefits
+	char.UpdateDerivedStats()
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // CalculateFeatureUses calculates the number of uses for a feature based on formula
@@ -611,5 +862,59 @@ func ApplySpeciesHPBonus(char *Character, species *SpeciesInfo) {
 	// Ensure CurrentHP doesn't exceed MaxHP (but don't reduce it if it was already higher due to temp effects)
 	if char.CurrentHP > char.MaxHP && oldBonus > char.SpeciesHPBonus {
 		char.CurrentHP = char.MaxHP
+	}
+}
+
+// ApplySpeciesSkillProficienciesWithTraits applies skill proficiencies from provided traits
+func ApplySpeciesSkillProficienciesWithTraits(char *Character, species *SpeciesInfo, traits []SpeciesTrait) {
+	for _, trait := range traits {
+		traitNameLower := strings.ToLower(trait.Name)
+		traitDescLower := strings.ToLower(trait.Description)
+
+		// Check for specific skill proficiencies mentioned in traits
+		if strings.Contains(traitNameLower, "keen senses") || strings.Contains(traitDescLower, "proficiency in perception") {
+			char.Skills.SetProficiency(Perception, Proficient)
+			char.SpeciesSkills = append(char.SpeciesSkills, Perception)
+		}
+	}
+}
+
+// ApplySpeciesSpellsWithTraits adds spells granted by species traits based on character level
+func ApplySpeciesSpellsWithTraits(char *Character, species *SpeciesInfo, traits []SpeciesTrait) {
+	spellDB := GetSpeciesSpells()
+	char.SpeciesSpells = []string{}
+
+	for _, trait := range traits {
+		spells := GetSpellsForLevel(trait, char.Level)
+		for _, spellName := range spells {
+			// Check if spell is in our database
+			if spellData, exists := spellDB[spellName]; exists {
+				// Check if character already has this spell
+				hasSpell := false
+				for _, existing := range char.SpellBook.Spells {
+					if existing.Name == spellName {
+						hasSpell = true
+						break
+					}
+				}
+
+				if !hasSpell {
+					// Add spell to spellbook
+					char.SpellBook.AddSpell(spellData)
+					// Track that this spell came from species
+					char.SpeciesSpells = append(char.SpeciesSpells, spellName)
+				}
+			}
+		}
+	}
+}
+
+// ApplySpeciesFeaturesWithTraits adds features from species traits to the character
+func ApplySpeciesFeaturesWithTraits(char *Character, species *SpeciesInfo, traits []SpeciesTrait) {
+	for _, trait := range traits {
+		if trait.IsFeature {
+			feature := ConvertTraitToFeature(trait, char, species.Name)
+			char.Features.AddFeature(feature)
+		}
 	}
 }

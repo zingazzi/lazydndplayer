@@ -35,7 +35,7 @@ func NewFeatSelector() *FeatSelector {
 func (f *FeatSelector) Show(char *models.Character, originFeat bool) {
 	f.character = char
 	f.filterOrigin = originFeat
-	
+
 	if originFeat {
 		f.title = "SELECT ORIGIN FEAT (HUMAN)"
 		// For origin feats, show all feats the character can take
@@ -44,7 +44,7 @@ func (f *FeatSelector) Show(char *models.Character, originFeat bool) {
 		f.title = "SELECT FEAT"
 		f.feats = models.GetFeatsForCharacter(char)
 	}
-	
+
 	f.selectedIndex = 0
 	f.visible = true
 }
@@ -172,18 +172,18 @@ func (f *FeatSelector) View(width, height int) string {
 	// Show feats
 	for i := visibleStart; i < visibleEnd; i++ {
 		feat := f.feats[i]
-		
+
 		if i == f.selectedIndex {
 			// Selected feat - show full details
 			content.WriteString(selectedStyle.Render(fmt.Sprintf("▶ %s", feat.Name)) + "\n")
-			
+
 			// Show prerequisite
 			if feat.Prerequisite != "None" && feat.Prerequisite != "" {
 				content.WriteString(detailStyle.Render(
 					prerequisiteStyle.Render(fmt.Sprintf("Requires: %s", feat.Prerequisite)),
 				) + "\n")
 			}
-			
+
 			// Show ability increases
 			if len(feat.AbilityIncreases) > 0 {
 				for ability, increase := range feat.AbilityIncreases {
@@ -192,14 +192,14 @@ func (f *FeatSelector) View(width, height int) string {
 					) + "\n")
 				}
 			}
-			
+
 			// Show description
 			desc := feat.Description
 			if len(desc) > 80 {
 				desc = desc[:77] + "..."
 			}
 			content.WriteString(detailStyle.Render(fmt.Sprintf("  %s", desc)) + "\n")
-			
+
 			// Show first benefit
 			if len(feat.Benefits) > 0 {
 				benefit := feat.Benefits[0]
@@ -208,7 +208,7 @@ func (f *FeatSelector) View(width, height int) string {
 				}
 				content.WriteString(detailStyle.Render(fmt.Sprintf("  • %s", benefit)) + "\n")
 			}
-			
+
 			content.WriteString("\n")
 		} else {
 			// Other feats - show name only
@@ -230,7 +230,7 @@ func (f *FeatSelector) View(width, height int) string {
 	helpStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
-	
+
 	content.WriteString("\n\n")
 	content.WriteString(helpStyle.Render("[↑/↓] Navigate • [Enter] Select • [Esc] Cancel"))
 	content.WriteString("\n")
@@ -247,25 +247,24 @@ func (f *FeatSelector) View(width, height int) string {
 	}
 
 	contentStr := content.String()
-	
+
 	// Center the box
 	box := borderStyle.Width(boxWidth).Height(boxHeight).Render(contentStr)
-	
+
 	// Center horizontally and vertically
 	paddingTop := (height - boxHeight) / 2
 	paddingLeft := (width - boxWidth) / 2
-	
+
 	if paddingTop < 0 {
 		paddingTop = 0
 	}
 	if paddingLeft < 0 {
 		paddingLeft = 0
 	}
-	
+
 	centered := lipgloss.NewStyle().
 		Padding(paddingTop, 0, 0, paddingLeft).
 		Render(box)
 
 	return centered
 }
-

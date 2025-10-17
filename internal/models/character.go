@@ -6,6 +6,7 @@ type Character struct {
 	// Basic Info
 	Name       string `json:"name"`
 	Race       string `json:"race"`
+	Subtype    string `json:"subtype,omitempty"` // For species with subtypes (Elf, Tiefling, Dragonborn)
 	Class      string `json:"class"`
 	Background string `json:"background"`
 	Alignment  string `json:"alignment"`

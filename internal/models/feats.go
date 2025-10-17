@@ -62,7 +62,7 @@ func GetAllFeats() []Feat {
 func GetFeatByName(name string) *Feat {
 	feats := GetAllFeats()
 	nameLower := strings.ToLower(name)
-	
+
 	for _, feat := range feats {
 		if strings.ToLower(feat.Name) == nameLower {
 			return &feat
@@ -76,25 +76,25 @@ func GetFeatByName(name string) *Feat {
 func GetFeatsForCharacter(char *Character) []Feat {
 	allFeats := GetAllFeats()
 	availableFeats := []Feat{}
-	
+
 	for _, feat := range allFeats {
 		if CanTakeFeat(char, feat) {
 			availableFeats = append(availableFeats, feat)
 		}
 	}
-	
+
 	return availableFeats
 }
 
 // CanTakeFeat checks if a character meets the prerequisites for a feat
 func CanTakeFeat(char *Character, feat Feat) bool {
 	prereq := strings.ToLower(feat.Prerequisite)
-	
+
 	// No prerequisite
 	if prereq == "none" || prereq == "" {
 		return true
 	}
-	
+
 	// Check for ability score requirements
 	if strings.Contains(prereq, "strength") {
 		if strings.Contains(prereq, "13") && char.AbilityScores.Strength < 13 {
@@ -121,22 +121,22 @@ func CanTakeFeat(char *Character, feat Feat) bool {
 			return false
 		}
 	}
-	
+
 	// Check for spellcasting requirement
 	if strings.Contains(prereq, "cast at least one spell") {
 		// Check if character has any spells or is a spellcasting class
 		hasSpells := len(char.SpellBook.Spells) > 0
-		isSpellcaster := char.Class == "Wizard" || char.Class == "Cleric" || 
-		                char.Class == "Druid" || char.Class == "Bard" || 
+		isSpellcaster := char.Class == "Wizard" || char.Class == "Cleric" ||
+		                char.Class == "Druid" || char.Class == "Bard" ||
 		                char.Class == "Sorcerer" || char.Class == "Warlock"
 		if !hasSpells && !isSpellcaster {
 			return false
 		}
 	}
-	
+
 	// Check for armor proficiency requirements
 	// TODO: Implement armor proficiency tracking in character model
-	
+
 	return true
 }
 
@@ -157,20 +157,20 @@ func AddFeatToCharacter(char *Character, featName string) error {
 	if feat == nil {
 		return fmt.Errorf("feat %s not found", featName)
 	}
-	
+
 	// Check if character can take this feat
 	if !CanTakeFeat(char, *feat) {
 		return fmt.Errorf("character does not meet prerequisites for %s", featName)
 	}
-	
+
 	// Check if feat is already taken and not repeatable
 	if HasFeat(char, featName) && !feat.Repeatable {
 		return fmt.Errorf("feat %s is already taken and is not repeatable", featName)
 	}
-	
+
 	// Add feat to character's feat list
 	char.Feats = append(char.Feats, featName)
-	
+
 	return nil
 }
 
@@ -180,14 +180,14 @@ func ApplyFeatBenefits(char *Character, feat Feat) {
 	// Apply ability score increases
 	for ability, increase := range feat.AbilityIncreases {
 		abilityLower := strings.ToLower(ability)
-		
+
 		// Handle multiple choice abilities (e.g., "Strength or Dexterity")
 		if strings.Contains(abilityLower, "or") {
 			// This will need to be chosen by the player in the UI
 			// For now, we'll skip automatic application
 			continue
 		}
-		
+
 		// Apply specific ability increases
 		if strings.Contains(abilityLower, "strength") {
 			char.AbilityScores.Strength = min(char.AbilityScores.Strength+increase, 20)
@@ -203,25 +203,25 @@ func ApplyFeatBenefits(char *Character, feat Feat) {
 			char.AbilityScores.Charisma = min(char.AbilityScores.Charisma+increase, 20)
 		}
 	}
-	
+
 	// Apply special benefits
 	featNameLower := strings.ToLower(feat.Name)
-	
+
 	// Tough feat: +2 HP per level
 	if featNameLower == "tough" {
 		char.MaxHP += char.Level * 2
 		char.CurrentHP = char.MaxHP
 	}
-	
+
 	// Mobile feat: +10 speed
 	if featNameLower == "mobile" {
 		char.Speed += 10
 	}
-	
+
 	// Durable feat: Already has Constitution increase handled above
-	
+
 	// Alert feat: +5 initiative (we'll add this when implementing initiative modifiers)
-	
+
 	// Update derived stats after applying benefits
 	char.UpdateDerivedStats()
 }
@@ -230,33 +230,33 @@ func ApplyFeatBenefits(char *Character, feat Feat) {
 func GetFeatCategories() []string {
 	feats := GetAllFeats()
 	categoryMap := make(map[string]bool)
-	
+
 	for _, feat := range feats {
 		categoryMap[feat.Category] = true
 	}
-	
+
 	categories := []string{}
 	for category := range categoryMap {
 		categories = append(categories, category)
 	}
-	
+
 	return categories
 }
 
 // FormatFeatForDisplay returns a formatted string of feat information
 func FormatFeatForDisplay(feat Feat) string {
 	var sb strings.Builder
-	
+
 	sb.WriteString(fmt.Sprintf("=== %s ===\n\n", feat.Name))
 	sb.WriteString(fmt.Sprintf("Category: %s\n", feat.Category))
 	sb.WriteString(fmt.Sprintf("Prerequisite: %s\n", feat.Prerequisite))
-	
+
 	if feat.Repeatable {
 		sb.WriteString("Repeatable: Yes\n")
 	}
-	
+
 	sb.WriteString(fmt.Sprintf("\nDescription:\n%s\n\n", feat.Description))
-	
+
 	if len(feat.Benefits) > 0 {
 		sb.WriteString("Benefits:\n")
 		for _, benefit := range feat.Benefits {
@@ -264,7 +264,7 @@ func FormatFeatForDisplay(feat Feat) string {
 		}
 		sb.WriteString("\n")
 	}
-	
+
 	if len(feat.AbilityIncreases) > 0 {
 		sb.WriteString("Ability Increases:\n")
 		for ability, increase := range feat.AbilityIncreases {
@@ -272,7 +272,7 @@ func FormatFeatForDisplay(feat Feat) string {
 		}
 		sb.WriteString("\n")
 	}
-	
+
 	if len(feat.GrantsSpells) > 0 {
 		sb.WriteString("Grants Spells:\n")
 		for _, spell := range feat.GrantsSpells {
@@ -280,11 +280,11 @@ func FormatFeatForDisplay(feat Feat) string {
 		}
 		sb.WriteString("\n")
 	}
-	
+
 	if feat.Note != "" {
 		sb.WriteString(fmt.Sprintf("Note: %s\n", feat.Note))
 	}
-	
+
 	return sb.String()
 }
 
@@ -294,4 +294,3 @@ func min(a, b int) int {
 	}
 	return b
 }
-
