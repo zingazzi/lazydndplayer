@@ -17,8 +17,7 @@ import (
 type PanelType int
 
 const (
-	OverviewPanel PanelType = iota
-	StatsPanel
+	StatsPanel PanelType = iota
 	SkillsPanel
 	InventoryPanel
 	SpellsPanel
@@ -29,6 +28,7 @@ type FocusArea int
 
 const (
 	FocusMain FocusArea = iota
+	FocusCharStats
 	FocusActions
 	FocusDice
 )
@@ -43,15 +43,15 @@ type Model struct {
 	help         *components.Help
 
 	// Main Panels (switchable)
-	overviewPanel  *panels.OverviewPanel
 	statsPanel     *panels.StatsPanel
 	skillsPanel    *panels.SkillsPanel
 	inventoryPanel *panels.InventoryPanel
 	spellsPanel    *panels.SpellsPanel
 
 	// Fixed Panels (always visible)
-	actionsPanel   *panels.ActionsPanel
-	dicePanel      *panels.DicePanel
+	actionsPanel      *panels.ActionsPanel
+	dicePanel         *panels.DicePanel
+	characterStatsPanel *panels.CharacterStatsPanel
 
 	// State
 	currentPanel PanelType
@@ -66,19 +66,19 @@ type Model struct {
 // NewModel creates a new application model
 func NewModel(char *models.Character, store *storage.Storage) *Model {
 	return &Model{
-		character:      char,
-		storage:        store,
-		tabs:           components.NewTabs(),
-		help:           components.NewHelp(),
-		overviewPanel:  panels.NewOverviewPanel(char),
-		statsPanel:     panels.NewStatsPanel(char),
-		skillsPanel:    panels.NewSkillsPanel(char),
-		inventoryPanel: panels.NewInventoryPanel(char),
-		spellsPanel:    panels.NewSpellsPanel(char),
-		actionsPanel:   panels.NewActionsPanel(char),
-		dicePanel:      panels.NewDicePanel(char),
-		currentPanel:   OverviewPanel,
-		focusArea:      FocusMain,
+		character:           char,
+		storage:             store,
+		tabs:                components.NewTabs(),
+		help:                components.NewHelp(),
+		statsPanel:          panels.NewStatsPanel(char),
+		skillsPanel:         panels.NewSkillsPanel(char),
+		inventoryPanel:      panels.NewInventoryPanel(char),
+		spellsPanel:         panels.NewSpellsPanel(char),
+		actionsPanel:        panels.NewActionsPanel(char),
+		dicePanel:           panels.NewDicePanel(char),
+		characterStatsPanel: panels.NewCharacterStatsPanel(char),
+		currentPanel:        StatsPanel,
+		focusArea:           FocusMain,
 	}
 }
 
@@ -134,12 +134,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		// Focus cycling - f key cycles through Main, Actions, Dice
+		// Focus cycling - f key cycles through Main, CharStats, Actions, Dice
 		case "f":
-			m.focusArea = (m.focusArea + 1) % 3
+			m.focusArea = (m.focusArea + 1) % 4
 			switch m.focusArea {
 			case FocusMain:
 				m.message = "Focus: Main Panel"
+			case FocusCharStats:
+				m.message = "Focus: Character Stats"
 			case FocusActions:
 				m.message = "Focus: Actions Panel"
 			case FocusDice:
@@ -163,7 +165,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		// Number keys for quick panel selection (only when focused on main)
-		case "1", "2", "3", "4", "5":
+		case "1", "2", "3", "4":
 			if m.focusArea == FocusMain {
 				idx := int(msg.String()[0] - '1')
 				m.tabs.SetIndex(idx)
@@ -177,6 +179,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.focusArea {
 		case FocusMain:
 			return m.handleMainPanelKeys(msg)
+		case FocusCharStats:
+			// Character stats panel is read-only, no special handling
+			return m, nil
 		case FocusActions:
 			return m.handleActionsPanelKeys(msg)
 		case FocusDice:
@@ -360,8 +365,6 @@ func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 	switch m.focusArea {
 	case FocusMain:
 		switch m.currentPanel {
-		case OverviewPanel:
-			return "Overview", components.GetOverviewBindings()
 		case StatsPanel:
 			return "Stats", components.GetStatsBindings()
 		case SkillsPanel:
@@ -370,6 +373,10 @@ func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 			return "Inventory", components.GetInventoryBindings()
 		case SpellsPanel:
 			return "Spells", components.GetSpellsBindings()
+		}
+	case FocusCharStats:
+		return "Character Info", []components.HelpBinding{
+			{Key: "", Desc: "Read-only panel - Press [f] to cycle focus"},
 		}
 	case FocusActions:
 		return "Actions", components.GetActionsBindings()
@@ -383,16 +390,11 @@ func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 		}
 		return "Dice Roller", components.GetDiceBindings(mode)
 	}
-	return "Overview", components.GetOverviewBindings()
+	return "Stats", components.GetStatsBindings()
 }
 
 // buildStatusBar creates the status bar with contextual information
 func (m *Model) buildStatusBar() string {
-	appNameStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("205")).
-		Bold(true).
-		Background(lipgloss.Color("235"))
-
 	panelNameStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("86")).
 		Background(lipgloss.Color("235"))
@@ -411,9 +413,6 @@ func (m *Model) buildStatusBar() string {
 	switch m.focusArea {
 	case FocusMain:
 		switch m.currentPanel {
-		case OverviewPanel:
-			panelName = "Overview"
-			contextHelp = ""
 		case StatsPanel:
 			panelName = "Stats"
 			contextHelp = "[e] Edit"
@@ -427,6 +426,9 @@ func (m *Model) buildStatusBar() string {
 			panelName = "Spells"
 			contextHelp = "[a] Add • [r] Rest"
 		}
+	case FocusCharStats:
+		panelName = "Character Info"
+		contextHelp = "Read-only view"
 	case FocusActions:
 		panelName = "Actions"
 		contextHelp = "[↑/↓] Navigate • [Enter] Activate"
@@ -442,9 +444,8 @@ func (m *Model) buildStatusBar() string {
 		}
 	}
 
-	// Build left section: app name + panel + help
-	leftSection := appNameStyle.Render(" lazydndplayer ") +
-		panelNameStyle.Render(" "+panelName+" ")
+	// Build left section: panel + help
+	leftSection := panelNameStyle.Render(" "+panelName+" ")
 
 	if contextHelp != "" {
 		leftSection += helpStyle.Render(" "+contextHelp+" ")
@@ -486,55 +487,67 @@ func (m *Model) View() string {
 		return m.help.ViewWithContext(m.width, m.height, panelName, contextBindings)
 	}
 
-	// Title bar
-	titleText := fmt.Sprintf(" LazyDnDPlayer - %s (%s) - Level %d ",
-		m.character.Name, m.character.Class, m.character.Level)
-	title := TitleStyle.Width(m.width).Render(titleText)
+	// Calculate heights to fit exactly within screen
+	// Distribution: Line 1 (45%), Line 2 (45%), Status bar (4%), Gaps (6%)
+	statusBarHeight := int(float64(m.height) * 0.04)
+	if statusBarHeight < 1 {
+		statusBarHeight = 1
+	}
 
-	// Tab navigation
-	tabBar := m.tabs.View(m.width)
+	// First row: Main panel (2/3) + Character stats (1/3)
+	mainPanelWidth := int(float64(m.width) * 0.67)
+	charStatsWidth := m.width - mainPanelWidth
 
-	// Calculate heights (better proportions)
-	titleHeight := 1
-	tabHeight := 3
-	statusBarHeight := 1
-
-	// Use proportional heights: 55% for main panel, 45% for bottom panels
-	availableHeight := m.height - titleHeight - tabHeight - statusBarHeight - 2
-	mainPanelHeight := int(float64(availableHeight) * 0.55)
-	bottomHeight := availableHeight - mainPanelHeight
+	// Calculate panel heights: 45% each for top and bottom rows (reduced to account for gaps)
+	topRowHeight := int(float64(m.height) * 0.45)
+	bottomHeight := int(float64(m.height) * 0.45)
 
 	// Ensure minimum heights
-	if mainPanelHeight < 15 {
-		mainPanelHeight = 15
+	if topRowHeight < 10 {
+		topRowHeight = 10
 	}
-	if bottomHeight < 12 {
-		bottomHeight = 12
+	if bottomHeight < 8 {
+		bottomHeight = 8
 	}
 
-	// Main panel (full width at top)
+	// Tab navigation (width accounts for border and padding)
+	tabBarWidth := mainPanelWidth - 8 // Account for border (2) + horizontal padding (4)
+	tabBar := m.tabs.View(tabBarWidth)
+	tabHeight := lipgloss.Height(tabBar)
+
+	// Main content height accounts for tabs and spacing, to fill the full topRowHeight
+	// topRowHeight includes border and padding in the final render
+	mainContentHeight := topRowHeight - tabHeight - 8 // border (2) + padding vertical (2) + spacing (1) + tab bar itself (3)
+
+	// Main panel content
 	var mainPanelView string
-
-	// Always account for padding
-	mainWidth := m.width - 8
+	mainWidth := mainPanelWidth - 8 // Account for border + padding (2 for border, 4 for padding)
 
 	switch m.currentPanel {
-	case OverviewPanel:
-		mainPanelView = m.overviewPanel.View(mainWidth, mainPanelHeight)
 	case StatsPanel:
-		mainPanelView = m.statsPanel.View(mainWidth, mainPanelHeight)
+		mainPanelView = m.statsPanel.View(mainWidth, mainContentHeight)
 	case SkillsPanel:
-		mainPanelView = m.skillsPanel.View(mainWidth, mainPanelHeight)
+		mainPanelView = m.skillsPanel.View(mainWidth, mainContentHeight)
 	case InventoryPanel:
-		mainPanelView = m.inventoryPanel.View(mainWidth, mainPanelHeight)
+		mainPanelView = m.inventoryPanel.View(mainWidth, mainContentHeight)
 	case SpellsPanel:
-		mainPanelView = m.spellsPanel.View(mainWidth, mainPanelHeight)
+		mainPanelView = m.spellsPanel.View(mainWidth, mainContentHeight)
 	}
 
-	// Add border (focused = pink, unfocused = gray)
+	// Combine tabs and content vertically (tabs inside the panel)
+	tabsAndContent := lipgloss.JoinVertical(
+		lipgloss.Left,
+		tabBar,
+		"", // Add a line of spacing
+		mainPanelView,
+	)
+
+	// Add border to combined tabs + main panel (focused = pink, unfocused = gray)
+	// Set explicit height to match character stats panel
 	mainPanelStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(0, 1)
+		Padding(1, 2). // Match skills/inventory padding
+		Height(topRowHeight)
 
 	if m.focusArea == FocusMain {
 		mainPanelStyle = mainPanelStyle.BorderForeground(lipgloss.Color("205"))
@@ -542,20 +555,44 @@ func (m *Model) View() string {
 		mainPanelStyle = mainPanelStyle.BorderForeground(lipgloss.Color("240"))
 	}
 
-	mainPanelView = mainPanelStyle.Render(mainPanelView)
+	mainPanelWithTabs := mainPanelStyle.Render(tabsAndContent)
+
+	// Character stats panel (always visible, 1/3 of width)
+	// Height should match the main panel exactly
+	charStatsInnerWidth := charStatsWidth - 8 // Account for border + padding (2 for border, 4 for padding)
+	charStatsInnerHeight := topRowHeight - 6 // Full height minus border and padding
+	charStatsView := m.characterStatsPanel.View(charStatsInnerWidth, charStatsInnerHeight)
+	charStatsPanelStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		Padding(1, 2). // Match skills/inventory padding
+		Height(topRowHeight) // Set explicit height to match main panel
+
+	if m.focusArea == FocusCharStats {
+		charStatsPanelStyle = charStatsPanelStyle.BorderForeground(lipgloss.Color("205"))
+	} else {
+		charStatsPanelStyle = charStatsPanelStyle.BorderForeground(lipgloss.Color("86"))
+	}
+	charStatsWithBorder := charStatsPanelStyle.Render(charStatsView)
+
+	// Join main panel (with tabs) and character stats horizontally
+	topRow := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		mainPanelWithTabs,
+		charStatsWithBorder,
+	)
 
 	// Bottom panels (split 50/50)
 	bottomWidth := m.width / 2
 
-	// Always account for border padding
-	actionsWidth := bottomWidth - 6
-	diceWidth := bottomWidth - 6
+	// Always account for border + padding (2 for border, 4 for padding)
+	actionsWidth := bottomWidth - 8
+	diceWidth := bottomWidth - 8
 
 	// Actions panel with border (focused = pink, unfocused = gray)
 	actionsView := m.actionsPanel.View(actionsWidth, bottomHeight)
 	actionsPanelStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(0, 1)
+		Padding(1, 2) // Match skills/inventory padding
 
 	if m.focusArea == FocusActions {
 		actionsPanelStyle = actionsPanelStyle.BorderForeground(lipgloss.Color("205"))
@@ -568,7 +605,7 @@ func (m *Model) View() string {
 	diceView := m.dicePanel.View(diceWidth, bottomHeight)
 	dicePanelStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(0, 1)
+		Padding(1, 2) // Match skills/inventory padding
 
 	if m.focusArea == FocusDice {
 		dicePanelStyle = dicePanelStyle.BorderForeground(lipgloss.Color("205"))
@@ -590,9 +627,7 @@ func (m *Model) View() string {
 	// Combine all parts vertically
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		title,
-		tabBar,
-		mainPanelView,
+		topRow,
 		bottomRow,
 		statusBar,
 	)

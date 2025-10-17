@@ -23,11 +23,10 @@ type Tabs struct {
 func NewTabs() *Tabs {
 	return &Tabs{
 		Items: []Tab{
-			{Label: "Overview", Key: "1"},
-			{Label: "Stats", Key: "2"},
-			{Label: "Skills", Key: "3"},
-			{Label: "Inventory", Key: "4"},
-			{Label: "Spells", Key: "5"},
+			{Label: "Stats", Key: "1"},
+			{Label: "Skills", Key: "2"},
+			{Label: "Inventory", Key: "3"},
+			{Label: "Spells", Key: "4"},
 		},
 		SelectedIndex: 0,
 	}
@@ -89,24 +88,10 @@ func (t *Tabs) View(width int) string {
 
 	tabBar := strings.Join(tabs, tabSeparator)
 
-	// Add keyboard hints
-	hints := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Padding(0, 2).
-		Render("[f] Focus • [Tab] Switch • [s] Save • [?] Help • [q] Quit")
-
-	// Combine tab bar and hints
-	combined := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		tabBar,
-		lipgloss.NewStyle().Width(width-lipgloss.Width(tabBar)-lipgloss.Width(hints)).Render(""),
-		hints,
-	)
-
 	return lipgloss.NewStyle().
 		Width(width).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
 		BorderForeground(lipgloss.Color("240")).
-		Render(combined)
+		Render(tabBar)
 }

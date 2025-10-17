@@ -39,9 +39,9 @@ func (h *Help) Toggle() {
 // GetGeneralBindings returns common keyboard shortcuts
 func GetGeneralBindings() []HelpBinding {
 	return []HelpBinding{
-		{"f", "Cycle focus (Main → Actions → Dice)"},
+		{"f", "Cycle focus (Main → CharStats → Actions → Dice)"},
 		{"Tab / Shift+Tab", "Switch tabs (when in Main panel)"},
-		{"1-5", "Quick tab select (when in Main panel)"},
+		{"1-4", "Quick tab select (when in Main panel)"},
 		{"↑/↓ or j/k", "Navigate lists"},
 		{"s", "Save character"},
 		{"?", "Toggle help"},
