@@ -49,6 +49,7 @@ type Model struct {
 	skillSelector    *components.SkillSelector
 	spellSelector    *components.SpellSelector
 	featSelector     *components.FeatSelector
+	statGenerator    *components.StatGenerator
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -86,6 +87,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		skillSelector:       components.NewSkillSelector(),
 		spellSelector:       components.NewSpellSelector(),
 		featSelector:        components.NewFeatSelector(),
+		statGenerator:       components.NewStatGenerator(),
 		statsPanel:          panels.NewStatsPanel(char),
 		skillsPanel:         panels.NewSkillsPanel(char),
 		inventoryPanel:      panels.NewInventoryPanel(char),
@@ -181,19 +183,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentPanel = PanelType(m.tabs.SelectedIndex)
 			}
 			return m, nil
-
-		// Number keys for quick panel selection (only when focused on main)
-		case "1", "2", "3", "4":
-			if m.focusArea == FocusMain {
-				idx := int(msg.String()[0] - '1')
-				m.tabs.SetIndex(idx)
-				m.currentPanel = PanelType(idx)
-				return m, nil
-			}
-			// If not in main focus, let the focused panel handle it
 		}
 
-		// Check if spell selector is active first
+		// Check if stat generator is active first
+		if m.statGenerator.IsVisible() {
+			return m.handleStatGeneratorKeys(msg)
+		}
+
+		// Check if spell selector is active
 		if m.spellSelector.IsVisible() {
 			return m.handleSpellSelectorKeys(msg)
 		}
@@ -250,6 +247,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handleMainPanelKeys handles keys when main panel has focus
 func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.currentPanel {
+	case StatsPanel:
+		return m.handleStatsPanel(msg)
 	case SkillsPanel:
 		return m.handleSkillsPanel(msg)
 	case InventoryPanel:
@@ -260,6 +259,21 @@ func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFeaturesPanel(msg)
 	case TraitsPanel:
 		return m.handleTraitsPanel(msg)
+	}
+	return m, nil
+}
+
+// handleStatsPanel handles stats panel specific keys
+func (m *Model) handleStatsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "e":
+		// Go directly to extras/modifier editing
+		m.statGenerator.ShowExtrasOnly(&m.character.AbilityScores)
+		m.message = "Edit ability modifiers..."
+	case "r":
+		// Open full stat generator for rolling/assigning stats
+		m.statGenerator.Show(&m.character.AbilityScores)
+		m.message = "Generate ability scores..."
 	}
 	return m, nil
 }
@@ -556,6 +570,102 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleStatGeneratorKeys handles stat generator specific keys
+func (m *Model) handleStatGeneratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Check if we're in editing mode for extras
+	if m.statGenerator.IsVisible() {
+		// Special handling for extras editing mode
+		editingExtra := m.statGenerator.IsEditingExtra()
+
+		switch msg.String() {
+		case "up", "k":
+			if !editingExtra {
+				m.statGenerator.Prev()
+			}
+		case "down", "j":
+			if !editingExtra {
+				m.statGenerator.Next()
+			}
+		case "esc":
+			// Cancel extra input or go back
+			if editingExtra {
+				m.statGenerator.CancelExtra()
+			} else {
+				m.statGenerator.GoBack()
+				if !m.statGenerator.IsVisible() {
+					m.message = "Stat generation cancelled"
+				}
+			}
+		case "enter":
+			// Save extra or continue to next step
+			if editingExtra {
+				m.statGenerator.SaveExtra()
+			} else if m.statGenerator.CanContinue() {
+				// Check if we're at the final step and on confirm button
+				m.statGenerator.Continue()
+				if !m.statGenerator.IsVisible() {
+					// Apply stats and close
+					m.statGenerator.ApplyToCharacter(m.character)
+					m.message = "Ability scores updated!"
+					m.storage.Save(m.character)
+				}
+			} else {
+				m.message = "Please assign all stats before continuing"
+			}
+		case "e":
+			// Edit extra in extras state
+			if !editingExtra {
+				m.statGenerator.StartEditingExtra()
+			}
+		case "1", "2", "3", "4", "5", "6":
+			if !editingExtra {
+				// Only assign stats for 4d6 and Standard Array methods
+				method := m.statGenerator.GetMethod()
+				state := m.statGenerator.GetState()
+				if state == components.StateAssignStats &&
+					(method == components.Method4d6DropLowest || method == components.MethodStandardArray) {
+					idx := int(msg.String()[0] - '1')
+					m.statGenerator.ToggleAssignment(idx)
+				}
+			}
+		case "+", "=":
+			if !editingExtra {
+				// Increase in point buy state or extras
+				state := m.statGenerator.GetState()
+				if state == components.StateSetExtras {
+					m.statGenerator.IncreaseExtra()
+				} else {
+					m.statGenerator.IncreasePointBuy()
+				}
+			}
+		case "-", "_":
+			if !editingExtra {
+				// Decrease in point buy state or extras
+				state := m.statGenerator.GetState()
+				if state == components.StateSetExtras {
+					m.statGenerator.DecreaseExtra()
+				} else {
+					m.statGenerator.DecreasePointBuy()
+				}
+			}
+		case "backspace", "delete":
+			// Delete character in extra input
+			if editingExtra {
+				m.statGenerator.DeleteExtraInput()
+			}
+		default:
+			// Handle typing for extra input
+			if editingExtra && len(msg.String()) == 1 {
+				char := []rune(msg.String())[0]
+				if (char >= '0' && char <= '9') || char == '+' || char == '-' {
+					m.statGenerator.HandleExtraInput(char)
+				}
+			}
+		}
+	}
+	return m, nil
+}
+
 // handleSpeciesSelectorKeys handles species selector specific keys
 func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -650,10 +760,10 @@ func (m *Model) handleSubtypeSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// ALWAYS use the species name from the selector (just selected)
 			// Don't use m.character.Race as it might still have the old species
 			speciesName := m.subtypeSelector.SpeciesName
-			
+
 			// Apply species with the selected subtype
 			models.ApplySpeciesWithSubtype(m.character, speciesName, selectedSubtype.Name)
-			
+
 			// Get species info for additional checks
 			species := models.GetSpeciesByName(speciesName)
 
@@ -984,7 +1094,7 @@ func (m *Model) buildStatusBar() string {
 		switch m.currentPanel {
 		case StatsPanel:
 			panelName = "Stats"
-			contextHelp = "[e] Edit"
+			contextHelp = "[r] Roll Stats • [e] Edit Modifiers"
 		case SkillsPanel:
 			panelName = "Skills"
 			contextHelp = "[↑/↓] Navigate • [r] Roll • [e] Toggle Prof"
@@ -1220,7 +1330,12 @@ func (m *Model) View() string {
 	)
 
 	// Render popups/overlays (in priority order)
-	// Spell selector takes highest priority
+	// Stat generator takes highest priority
+	if m.statGenerator.IsVisible() {
+		return m.statGenerator.View(m.width, m.height)
+	}
+
+	// Spell selector takes high priority
 	if m.spellSelector.IsVisible() {
 		return m.spellSelector.View(m.width, m.height)
 	}

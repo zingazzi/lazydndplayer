@@ -23,6 +23,22 @@ type AbilityScores struct {
 	Intelligence int `json:"intelligence"`
 	Wisdom       int `json:"wisdom"`
 	Charisma     int `json:"charisma"`
+
+	// Base values (before racial/feat bonuses)
+	StrengthBase     int `json:"strength_base,omitempty"`
+	DexterityBase    int `json:"dexterity_base,omitempty"`
+	ConstitutionBase int `json:"constitution_base,omitempty"`
+	IntelligenceBase int `json:"intelligence_base,omitempty"`
+	WisdomBase       int `json:"wisdom_base,omitempty"`
+	CharismaBase     int `json:"charisma_base,omitempty"`
+
+	// Extra bonuses (from species, feats, etc.)
+	StrengthExtra     int `json:"strength_extra,omitempty"`
+	DexterityExtra    int `json:"dexterity_extra,omitempty"`
+	ConstitutionExtra int `json:"constitution_extra,omitempty"`
+	IntelligenceExtra int `json:"intelligence_extra,omitempty"`
+	WisdomExtra       int `json:"wisdom_extra,omitempty"`
+	CharismaExtra     int `json:"charisma_extra,omitempty"`
 }
 
 // GetScore returns the score for a given ability
@@ -101,4 +117,102 @@ func (s *SavingThrows) IsProficient(ability AbilityType) bool {
 	default:
 		return false
 	}
+}
+
+// GetBaseScore returns the base score for a given ability
+func (a *AbilityScores) GetBaseScore(ability AbilityType) int {
+	switch ability {
+	case Strength:
+		return a.StrengthBase
+	case Dexterity:
+		return a.DexterityBase
+	case Constitution:
+		return a.ConstitutionBase
+	case Intelligence:
+		return a.IntelligenceBase
+	case Wisdom:
+		return a.WisdomBase
+	case Charisma:
+		return a.CharismaBase
+	default:
+		return 10
+	}
+}
+
+// SetBaseScore sets the base score for a given ability and updates total
+func (a *AbilityScores) SetBaseScore(ability AbilityType, score int) {
+	switch ability {
+	case Strength:
+		a.StrengthBase = score
+		a.Strength = score + a.StrengthExtra
+	case Dexterity:
+		a.DexterityBase = score
+		a.Dexterity = score + a.DexterityExtra
+	case Constitution:
+		a.ConstitutionBase = score
+		a.Constitution = score + a.ConstitutionExtra
+	case Intelligence:
+		a.IntelligenceBase = score
+		a.Intelligence = score + a.IntelligenceExtra
+	case Wisdom:
+		a.WisdomBase = score
+		a.Wisdom = score + a.WisdomExtra
+	case Charisma:
+		a.CharismaBase = score
+		a.Charisma = score + a.CharismaExtra
+	}
+}
+
+// GetExtraScore returns the extra bonus for a given ability
+func (a *AbilityScores) GetExtraScore(ability AbilityType) int {
+	switch ability {
+	case Strength:
+		return a.StrengthExtra
+	case Dexterity:
+		return a.DexterityExtra
+	case Constitution:
+		return a.ConstitutionExtra
+	case Intelligence:
+		return a.IntelligenceExtra
+	case Wisdom:
+		return a.WisdomExtra
+	case Charisma:
+		return a.CharismaExtra
+	default:
+		return 0
+	}
+}
+
+// SetExtraScore sets the extra bonus for a given ability and updates total
+func (a *AbilityScores) SetExtraScore(ability AbilityType, extra int) {
+	switch ability {
+	case Strength:
+		a.StrengthExtra = extra
+		a.Strength = a.StrengthBase + extra
+	case Dexterity:
+		a.DexterityExtra = extra
+		a.Dexterity = a.DexterityBase + extra
+	case Constitution:
+		a.ConstitutionExtra = extra
+		a.Constitution = a.ConstitutionBase + extra
+	case Intelligence:
+		a.IntelligenceExtra = extra
+		a.Intelligence = a.IntelligenceBase + extra
+	case Wisdom:
+		a.WisdomExtra = extra
+		a.Wisdom = a.WisdomBase + extra
+	case Charisma:
+		a.CharismaExtra = extra
+		a.Charisma = a.CharismaBase + extra
+	}
+}
+
+// RecalculateTotals recalculates all total scores from base and extra
+func (a *AbilityScores) RecalculateTotals() {
+	a.Strength = a.StrengthBase + a.StrengthExtra
+	a.Dexterity = a.DexterityBase + a.DexterityExtra
+	a.Constitution = a.ConstitutionBase + a.ConstitutionExtra
+	a.Intelligence = a.IntelligenceBase + a.IntelligenceExtra
+	a.Wisdom = a.WisdomBase + a.WisdomExtra
+	a.Charisma = a.CharismaBase + a.CharismaExtra
 }
