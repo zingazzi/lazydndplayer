@@ -50,6 +50,7 @@ type Model struct {
 	spellSelector    *components.SpellSelector
 	featSelector     *components.FeatSelector
 	statGenerator    *components.StatGenerator
+	abilityRoller    *components.AbilityRoller
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -88,6 +89,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		spellSelector:       components.NewSpellSelector(),
 		featSelector:        components.NewFeatSelector(),
 		statGenerator:       components.NewStatGenerator(),
+		abilityRoller:       components.NewAbilityRoller(),
 		statsPanel:          panels.NewStatsPanel(char),
 		skillsPanel:         panels.NewSkillsPanel(char),
 		inventoryPanel:      panels.NewInventoryPanel(char),
@@ -168,8 +170,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.message = "Focus: Dice Roller"
 			}
 			return m, nil
+		}
 
-		// Panel navigation (only when focused on main)
+		// Check if stat generator is active first (BEFORE tab handling)
+		if m.statGenerator.IsVisible() {
+			return m.handleStatGeneratorKeys(msg)
+		}
+
+		// Check if ability roller is active (BEFORE tab handling)
+		if m.abilityRoller.IsVisible() {
+			return m.handleAbilityRollerKeys(msg)
+		}
+
+		// Panel navigation (only when focused on main and no popups)
+		switch msg.String() {
 		case "tab":
 			if m.focusArea == FocusMain {
 				m.tabs.Next()
@@ -183,11 +197,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentPanel = PanelType(m.tabs.SelectedIndex)
 			}
 			return m, nil
-		}
-
-		// Check if stat generator is active first
-		if m.statGenerator.IsVisible() {
-			return m.handleStatGeneratorKeys(msg)
 		}
 
 		// Check if spell selector is active
@@ -274,6 +283,10 @@ func (m *Model) handleStatsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Open full stat generator for rolling/assigning stats
 		m.statGenerator.Show(&m.character.AbilityScores)
 		m.message = "Generate ability scores..."
+	case "t":
+		// Open ability roller (test/saving throw)
+		m.abilityRoller.Show()
+		m.message = "Select ability and roll type..."
 	}
 	return m, nil
 }
@@ -662,6 +675,32 @@ func (m *Model) handleStatGeneratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+	}
+	return m, nil
+}
+
+// handleAbilityRollerKeys handles ability roller specific keys
+func (m *Model) handleAbilityRollerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.abilityRoller.Prev()
+	case "down", "j":
+		m.abilityRoller.Next()
+	case "tab":
+		m.abilityRoller.SwitchFocus()
+		m.message = "Switched focus"
+	case "space":
+		m.abilityRoller.ToggleType()
+	case "enter":
+		// Roll the dice!
+		expr := m.abilityRoller.GetRollExpression(m.character)
+		description := m.abilityRoller.GetRollDescription(m.character)
+		m.dicePanel.Roll(expr)
+		m.message = fmt.Sprintf("%s: %s", description, m.dicePanel.LastMessage)
+		m.abilityRoller.Hide()
+	case "esc":
+		m.abilityRoller.Hide()
+		m.message = "Roll cancelled"
 	}
 	return m, nil
 }
@@ -1094,7 +1133,7 @@ func (m *Model) buildStatusBar() string {
 		switch m.currentPanel {
 		case StatsPanel:
 			panelName = "Stats"
-			contextHelp = "[r] Roll Stats • [e] Edit Modifiers"
+			contextHelp = "[r] Roll Stats • [e] Edit Modifiers • [t] Test/Save"
 		case SkillsPanel:
 			panelName = "Skills"
 			contextHelp = "[↑/↓] Navigate • [r] Roll • [e] Toggle Prof"
@@ -1333,6 +1372,11 @@ func (m *Model) View() string {
 	// Stat generator takes highest priority
 	if m.statGenerator.IsVisible() {
 		return m.statGenerator.View(m.width, m.height)
+	}
+
+	// Ability roller takes high priority
+	if m.abilityRoller.IsVisible() {
+		return m.abilityRoller.View(m.width, m.height, m.character)
 	}
 
 	// Spell selector takes high priority

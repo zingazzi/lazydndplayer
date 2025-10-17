@@ -111,7 +111,7 @@ func (p *StatsPanel) View(width, height int) string {
 	lines = append(lines, "")
 	lines = append(lines, lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("Press 'r' to roll/assign stats  •  'e' to edit modifiers"))
+		Render("Press 'r' to roll stats  •  'e' to edit modifiers  •  't' to roll ability check/save"))
 
 	content := strings.Join(lines, "\n")
 
