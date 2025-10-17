@@ -8,15 +8,22 @@
       "traits": [
         {
           "name": "Celestial Resistance",
-          "description": "You have resistance to necrotic damage and radiant damage."
+          "description": "You have resistance to necrotic damage and radiant damage.",
+          "is_feature": false
         },
         {
           "name": "Healing Hands",
-          "description": "You can touch a creature and restore hit points equal to your level. Once per long rest."
+          "description": "You can touch a creature and restore hit points equal to your level. Once per long rest.",
+          "is_feature": true,
+          "max_uses": "1",
+          "rest_type": "Long Rest",
+          "uses_formula": "",
+          "effect_formula": "level"
         },
         {
           "name": "Light Bearer",
-          "description": "You know the Light cantrip."
+          "description": "You know the Light cantrip.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Celestial"],
@@ -31,15 +38,22 @@
       "traits": [
         {
           "name": "Draconic Ancestry",
-          "description": "Choose a dragon type, gaining resistance to its damage type."
+          "description": "Choose a dragon type, gaining resistance to its damage type.",
+          "is_feature": false
         },
         {
           "name": "Breath Weapon",
-          "description": "Exhale destructive energy based on your draconic ancestry."
+          "description": "Exhale destructive energy in a 15-foot cone. Each creature must make a Dexterity saving throw (DC 8 + CON modifier + proficiency). Deals 2d6 damage on failed save, half on success. Damage increases at levels 5 (3d6), 11 (4d6), and 17 (5d6).",
+          "is_feature": true,
+          "max_uses": "proficiency",
+          "rest_type": "Long Rest",
+          "uses_formula": "proficiency",
+          "effect_formula": "2d6"
         },
         {
           "name": "Damage Resistance",
-          "description": "Resistance to the damage type of your draconic ancestry."
+          "description": "Resistance to the damage type of your draconic ancestry.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Draconic"],
@@ -54,15 +68,18 @@
       "traits": [
         {
           "name": "Dwarven Resilience",
-          "description": "Advantage on saves against poison, resistance to poison damage."
+          "description": "Advantage on saves against poison, resistance to poison damage.",
+          "is_feature": false
         },
         {
           "name": "Dwarven Toughness",
-          "description": "Your hit point maximum increases by 1, and it increases by 1 again whenever you gain a level."
+          "description": "Your hit point maximum increases by 1, and it increases by 1 again whenever you gain a level.",
+          "is_feature": false
         },
         {
           "name": "Stonecunning",
-          "description": "Proficiency in History checks related to the origin of stonework."
+          "description": "Proficiency in History checks related to the origin of stonework.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Dwarvish"],
@@ -77,23 +94,28 @@
       "traits": [
         {
           "name": "Fey Ancestry",
-          "description": "Advantage on saves against being charmed, and magic can't put you to sleep."
+          "description": "Advantage on saves against being charmed, and magic can't put you to sleep.",
+          "is_feature": false
         },
         {
           "name": "Keen Senses",
-          "description": "Proficiency in Perception."
+          "description": "Proficiency in Perception.",
+          "is_feature": false
         },
         {
           "name": "Trance",
-          "description": "You don't sleep but meditate for 4 hours instead of sleeping for 8."
+          "description": "You don't sleep but meditate for 4 hours instead of sleeping for 8.",
+          "is_feature": false
         },
         {
           "name": "Drow Magic",
-          "description": "You know the Dancing Lights cantrip. At 3rd level, you can cast Faerie Fire. At 5th level, you can cast Darkness."
+          "description": "You know the Dancing Lights cantrip. At 3rd level, you can cast Faerie Fire. At 5th level, you can cast Darkness.",
+          "is_feature": false
         },
         {
           "name": "Sunlight Sensitivity",
-          "description": "Disadvantage on attack rolls and Perception checks in direct sunlight."
+          "description": "Disadvantage on attack rolls and Perception checks in direct sunlight.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Elvish"],
@@ -108,23 +130,28 @@
       "traits": [
         {
           "name": "Fey Ancestry",
-          "description": "Advantage on saves against being charmed, and magic can't put you to sleep."
+          "description": "Advantage on saves against being charmed, and magic can't put you to sleep.",
+          "is_feature": false
         },
         {
           "name": "Keen Senses",
-          "description": "Proficiency in Perception."
+          "description": "Proficiency in Perception.",
+          "is_feature": false
         },
         {
           "name": "Trance",
-          "description": "You don't sleep but meditate for 4 hours instead of sleeping for 8."
+          "description": "You don't sleep but meditate for 4 hours instead of sleeping for 8.",
+          "is_feature": false
         },
         {
           "name": "Cantrip",
-          "description": "You know one cantrip from the Wizard spell list. Intelligence is your spellcasting ability for it."
+          "description": "You know one cantrip from the Wizard spell list. Intelligence is your spellcasting ability for it.",
+          "is_feature": false
         },
         {
           "name": "Extra Language",
-          "description": "You can speak, read, and write one extra language of your choice."
+          "description": "You can speak, read, and write one extra language of your choice.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Elvish", "One additional language"],
@@ -139,23 +166,28 @@
       "traits": [
         {
           "name": "Fey Ancestry",
-          "description": "Advantage on saves against being charmed, and magic can't put you to sleep."
+          "description": "Advantage on saves against being charmed, and magic can't put you to sleep.",
+          "is_feature": false
         },
         {
           "name": "Keen Senses",
-          "description": "Proficiency in Perception."
+          "description": "Proficiency in Perception.",
+          "is_feature": false
         },
         {
           "name": "Trance",
-          "description": "You don't sleep but meditate for 4 hours instead of sleeping for 8."
+          "description": "You don't sleep but meditate for 4 hours instead of sleeping for 8.",
+          "is_feature": false
         },
         {
           "name": "Fleet of Foot",
-          "description": "Your walking speed increases to 35 feet."
+          "description": "Your walking speed increases to 35 feet.",
+          "is_feature": false
         },
         {
           "name": "Mask of the Wild",
-          "description": "You can attempt to hide even when only lightly obscured by foliage, rain, snow, mist, or other natural phenomena."
+          "description": "You can attempt to hide even when only lightly obscured by foliage, rain, snow, mist, or other natural phenomena.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Elvish"],
@@ -170,11 +202,13 @@
       "traits": [
         {
           "name": "Darkvision",
-          "description": "You can see in dim light within 60 feet as if it were bright light."
+          "description": "You can see in dim light within 60 feet as if it were bright light.",
+          "is_feature": false
         },
         {
           "name": "Gnome Cunning",
-          "description": "Advantage on Intelligence, Wisdom, and Charisma saves against magic."
+          "description": "Advantage on Intelligence, Wisdom, and Charisma saves against magic.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Gnomish"],
@@ -189,19 +223,27 @@
       "traits": [
         {
           "name": "Large Form",
-          "description": "You have advantage on saving throws against being pushed or knocked prone."
+          "description": "You have advantage on saving throws against being pushed or knocked prone.",
+          "is_feature": false
         },
         {
           "name": "Mountain Born",
-          "description": "You have resistance to cold damage and are acclimated to high altitude."
+          "description": "You have resistance to cold damage and are acclimated to high altitude.",
+          "is_feature": false
         },
         {
           "name": "Powerful Build",
-          "description": "Count as one size larger for carrying capacity and push/drag/lift."
+          "description": "Count as one size larger for carrying capacity and push/drag/lift.",
+          "is_feature": false
         },
         {
           "name": "Stone's Endurance",
-          "description": "You can reduce damage taken by 1d12 + Constitution modifier. Once per long rest."
+          "description": "When you take damage, you can use your reaction to reduce the damage by 1d12 + your Constitution modifier. Once per long rest.",
+          "is_feature": true,
+          "max_uses": "1",
+          "rest_type": "Long Rest",
+          "uses_formula": "",
+          "effect_formula": "1d12+con"
         }
       ],
       "languages": ["Common", "Giant"],
@@ -216,19 +258,23 @@
       "traits": [
         {
           "name": "Brave",
-          "description": "Advantage on saves against being frightened."
+          "description": "Advantage on saves against being frightened.",
+          "is_feature": false
         },
         {
           "name": "Halfling Nimbleness",
-          "description": "You can move through the space of any creature larger than you."
+          "description": "You can move through the space of any creature larger than you.",
+          "is_feature": false
         },
         {
           "name": "Luck",
-          "description": "When you roll a 1 on d20, you can reroll and must use the new roll."
+          "description": "When you roll a 1 on d20, you can reroll and must use the new roll.",
+          "is_feature": false
         },
         {
           "name": "Naturally Stealthy",
-          "description": "You can attempt to hide even when obscured only by a larger creature."
+          "description": "You can attempt to hide even when obscured only by a larger creature.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Halfling"],
@@ -243,15 +289,18 @@
       "traits": [
         {
           "name": "Resourceful",
-          "description": "You gain Inspiration whenever you finish a Long Rest."
+          "description": "You gain Inspiration whenever you finish a Long Rest.",
+          "is_feature": false
         },
         {
           "name": "Skillful",
-          "description": "You gain proficiency in one skill of your choice."
+          "description": "You gain proficiency in one skill of your choice.",
+          "is_feature": false
         },
         {
           "name": "Versatile",
-          "description": "You gain an Origin feat."
+          "description": "You gain an Origin feat.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "One additional language of your choice"],
@@ -266,19 +315,31 @@
       "traits": [
         {
           "name": "Darkvision",
-          "description": "You can see in dim light within 60 feet as if it were bright light."
+          "description": "You can see in dim light within 60 feet as if it were bright light.",
+          "is_feature": false
         },
         {
           "name": "Adrenaline Rush",
-          "description": "You can take the Dash action as a bonus action."
+          "description": "You can take the Dash action as a bonus action. You can use this a number of times equal to your proficiency bonus per long rest.",
+          "is_feature": true,
+          "max_uses": "proficiency",
+          "rest_type": "Long Rest",
+          "uses_formula": "proficiency",
+          "effect_formula": ""
         },
         {
           "name": "Powerful Build",
-          "description": "Count as one size larger for carrying capacity and push/drag/lift."
+          "description": "Count as one size larger for carrying capacity and push/drag/lift.",
+          "is_feature": false
         },
         {
           "name": "Relentless Endurance",
-          "description": "When reduced to 0 HP, drop to 1 HP instead. Once per long rest."
+          "description": "When reduced to 0 HP, drop to 1 HP instead. Once per long rest.",
+          "is_feature": true,
+          "max_uses": "1",
+          "rest_type": "Long Rest",
+          "uses_formula": "",
+          "effect_formula": ""
         }
       ],
       "languages": ["Common", "Orc"],
@@ -293,15 +354,18 @@
       "traits": [
         {
           "name": "Darkvision",
-          "description": "You can see in dim light within 60 feet as if it were bright light."
+          "description": "You can see in dim light within 60 feet as if it were bright light.",
+          "is_feature": false
         },
         {
           "name": "Abyssal Legacy",
-          "description": "You know the Dancing Lights cantrip. At 3rd level, you can cast Burning Hands. At 5th level, you can cast Alter Self."
+          "description": "You know the Dancing Lights cantrip. At 3rd level, you can cast Burning Hands. At 5th level, you can cast Alter Self.",
+          "is_feature": false
         },
         {
           "name": "Abyssal Resistance",
-          "description": "Resistance to poison damage."
+          "description": "Resistance to poison damage.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Abyssal"],
@@ -316,15 +380,18 @@
       "traits": [
         {
           "name": "Darkvision",
-          "description": "You can see in dim light within 60 feet as if it were bright light."
+          "description": "You can see in dim light within 60 feet as if it were bright light.",
+          "is_feature": false
         },
         {
           "name": "Chthonic Legacy",
-          "description": "You know the Chill Touch cantrip. At 3rd level, you can cast False Life. At 5th level, you can cast Ray of Enfeeblement."
+          "description": "You know the Chill Touch cantrip. At 3rd level, you can cast False Life. At 5th level, you can cast Ray of Enfeeblement.",
+          "is_feature": false
         },
         {
           "name": "Necrotic Resistance",
-          "description": "Resistance to necrotic damage."
+          "description": "Resistance to necrotic damage.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Infernal"],
@@ -339,15 +406,18 @@
       "traits": [
         {
           "name": "Darkvision",
-          "description": "You can see in dim light within 60 feet as if it were bright light."
+          "description": "You can see in dim light within 60 feet as if it were bright light.",
+          "is_feature": false
         },
         {
           "name": "Infernal Legacy",
-          "description": "You know the Thaumaturgy cantrip. At 3rd level, you can cast Hellish Rebuke. At 5th level, you can cast Darkness."
+          "description": "You know the Thaumaturgy cantrip. At 3rd level, you can cast Hellish Rebuke. At 5th level, you can cast Darkness.",
+          "is_feature": false
         },
         {
           "name": "Hellish Resistance",
-          "description": "Resistance to fire damage."
+          "description": "Resistance to fire damage.",
+          "is_feature": false
         }
       ],
       "languages": ["Common", "Infernal"],

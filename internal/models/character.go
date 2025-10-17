@@ -32,8 +32,9 @@ type Character struct {
 	ProficiencyBonus  int    `json:"proficiency_bonus"`
 
 	// Combat & Features
-	Initiative int        `json:"initiative"`
-	Actions    ActionList `json:"actions"`
+	Initiative int         `json:"initiative"`
+	Actions    ActionList  `json:"actions"`
+	Features   FeatureList `json:"features"`
 
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
@@ -77,6 +78,7 @@ func NewCharacter() *Character {
 		Skills:           NewDefaultSkills(),
 		ProficiencyBonus: 2,
 		Actions:          NewDefaultActions(),
+		Features:         *NewFeatureList(),
 		Inventory: Inventory{
 			Items:         []Item{},
 			CarryCapacity: 150,
@@ -160,6 +162,7 @@ func (c *Character) Heal(amount int) {
 // ShortRest performs a short rest
 func (c *Character) ShortRest() {
 	c.Actions.ShortRest()
+	c.Features.ShortRestRecover()
 }
 
 // LongRest performs a long rest
@@ -168,6 +171,7 @@ func (c *Character) LongRest() {
 	c.TempHP = 0
 	c.Actions.LongRest()
 	c.SpellBook.LongRest()
+	c.Features.LongRestRecover()
 }
 
 // ExperienceThresholds returns XP needed for each level (1-20)

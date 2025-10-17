@@ -39,6 +39,11 @@ func (s *Storage) Load() (*models.Character, error) {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
+	// Initialize Features if nil (for backwards compatibility with old saves)
+	if character.Features.Features == nil {
+		character.Features = *models.NewFeatureList()
+	}
+
 	return &character, nil
 }
 

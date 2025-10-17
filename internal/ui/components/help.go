@@ -116,12 +116,26 @@ func GetTraitsBindings() []HelpBinding {
 	}
 }
 
-// GetActionsBindings returns actions panel bindings
+// GetActionsBindings returns actions panel bindings (bottom panel)
 func GetActionsBindings() []HelpBinding {
 	return []HelpBinding{
 		{"↑/↓ or j/k", "Navigate actions"},
 		{"Enter", "Activate selected action"},
-		{"Shift+R", "Long rest (restore limited use actions)"},
+	}
+}
+
+// GetFeaturesBindings returns features panel bindings (main panel)
+func GetFeaturesBindings() []HelpBinding {
+	return []HelpBinding{
+		{"↑/↓ or j/k", "Navigate features"},
+		{"Ctrl+D/U", "Page down/up"},
+		{"Ctrl+E/Y", "Scroll down/up"},
+		{"u", "Use feature (consume charge)"},
+		{"+/=", "Restore one use"},
+		{"d", "Delete feature"},
+		{"a", "Add feature"},
+		{"r", "Short rest (recover short rest features)"},
+		{"Shift+R", "Long rest (recover all features)"},
 	}
 }
 

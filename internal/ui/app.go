@@ -21,7 +21,7 @@ const (
 	SkillsPanel
 	InventoryPanel
 	SpellsPanel
-	ActionsPanel
+	FeaturesPanel
 	TraitsPanel
 )
 
@@ -53,12 +53,13 @@ type Model struct {
 	skillsPanel    *panels.SkillsPanel
 	inventoryPanel *panels.InventoryPanel
 	spellsPanel    *panels.SpellsPanel
-	actionsPanel   *panels.ActionsPanel
+	featuresPanel  *panels.FeaturesPanel
 	traitsPanel    *panels.TraitsPanel
 
 	// Fixed Panels (always visible)
-	dicePanel         *panels.DicePanel
+	dicePanel           *panels.DicePanel
 	characterStatsPanel *panels.CharacterStatsPanel
+	actionsPanel        *panels.ActionsPanel // Bottom panel for quick actions
 
 	// State
 	currentPanel PanelType
@@ -85,10 +86,11 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		skillsPanel:         panels.NewSkillsPanel(char),
 		inventoryPanel:      panels.NewInventoryPanel(char),
 		spellsPanel:         panels.NewSpellsPanel(char),
-		actionsPanel:        panels.NewActionsPanel(char),
+		featuresPanel:       panels.NewFeaturesPanel(char),
 		traitsPanel:         panels.NewTraitsPanel(char),
 		dicePanel:           panels.NewDicePanel(char),
 		characterStatsPanel: panels.NewCharacterStatsPanel(char),
+		actionsPanel:        panels.NewActionsPanel(char),
 		currentPanel:        StatsPanel,
 		focusArea:           FocusMain,
 	}
@@ -240,8 +242,8 @@ func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleInventoryPanel(msg)
 	case SpellsPanel:
 		return m.handleSpellsPanel(msg)
-	case ActionsPanel:
-		return m.handleActionsMainPanel(msg)
+	case FeaturesPanel:
+		return m.handleFeaturesPanel(msg)
 	case TraitsPanel:
 		return m.handleTraitsPanel(msg)
 	}
@@ -394,15 +396,49 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleActionsMainPanel handles actions panel when shown in main area
-func (m *Model) handleActionsMainPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// handleFeaturesPanel handles features panel specific keys
+func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
-		m.actionsPanel.Prev()
+		m.featuresPanel.Prev()
 	case "down", "j":
-		m.actionsPanel.Next()
-	case "enter":
-		m.message = "Action activated (not fully implemented)"
+		m.featuresPanel.Next()
+	case "ctrl+u", "pgup":
+		m.featuresPanel.PageUp()
+	case "ctrl+d", "pgdown":
+		m.featuresPanel.PageDown()
+	case "ctrl+y":
+		m.featuresPanel.ScrollUp()
+	case "ctrl+e":
+		m.featuresPanel.ScrollDown()
+	case "u":
+		// Use feature (decrement uses)
+		m.featuresPanel.UseFeature()
+		m.message = "Feature used"
+		m.storage.Save(m.character)
+	case "+", "=":
+		// Restore one use
+		m.featuresPanel.RestoreFeature()
+		m.message = "Feature restored"
+		m.storage.Save(m.character)
+	case "d", "delete":
+		// Delete feature
+		m.featuresPanel.RemoveFeature()
+		m.message = "Feature removed"
+		m.storage.Save(m.character)
+	case "a":
+		// Add feature (simplified - in real app would show a form)
+		m.message = "Add feature (not yet implemented)"
+	case "r":
+		// Short rest
+		m.character.ShortRest()
+		m.message = "Short rest completed - features recovered"
+		m.storage.Save(m.character)
+	case "R":
+		// Long rest
+		m.character.LongRest()
+		m.message = "Long rest completed - all features recovered"
+		m.storage.Save(m.character)
 	}
 	return m, nil
 }
@@ -540,6 +576,8 @@ func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.message = "Select your wizard cantrip..."
 			} else {
 				m.message = fmt.Sprintf("Species changed from %s to %s. Speed updated to %d ft.", oldSpecies, selectedSpecies.Name, m.character.Speed)
+				// Save character when species change is complete (no additional selections)
+				m.storage.Save(m.character)
 			}
 		}
 		m.speciesSelector.Hide()
@@ -582,9 +620,13 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 					m.message = "Select your wizard cantrip..."
 				} else {
 					m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
+					// Save when selection is complete (no more selections needed)
+					m.storage.Save(m.character)
 				}
 			} else {
 				m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
+				// Save when selection is complete (no species data)
+				m.storage.Save(m.character)
 			}
 		}
 		m.languageSelector.Hide()
@@ -659,6 +701,8 @@ func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.message = "Select your wizard cantrip..."
 			} else {
 				m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
+				// Save when selection is complete (no more selections needed)
+				m.storage.Save(m.character)
 			}
 		}
 		m.skillSelector.Hide()
@@ -696,6 +740,8 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.message = fmt.Sprintf("You already know %s", selectedSpell.Name)
 			}
+			// Save character after spell selection (final step)
+			m.storage.Save(m.character)
 		}
 		m.spellSelector.Hide()
 	case "esc":
@@ -718,8 +764,8 @@ func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 			return "Inventory", components.GetInventoryBindings()
 		case SpellsPanel:
 			return "Spells", components.GetSpellsBindings()
-		case ActionsPanel:
-			return "Abilities", components.GetActionsBindings()
+		case FeaturesPanel:
+			return "Features", components.GetFeaturesBindings()
 		case TraitsPanel:
 			return "Traits", components.GetTraitsBindings()
 		}
@@ -772,9 +818,9 @@ func (m *Model) buildStatusBar() string {
 		case SpellsPanel:
 			panelName = "Spells"
 			contextHelp = "[a] Add • [r] Rest"
-		case ActionsPanel:
-			panelName = "Abilities"
-			contextHelp = "[↑/↓] Navigate • [Enter] Activate"
+		case FeaturesPanel:
+			panelName = "Features"
+			contextHelp = "[↑/↓] Navigate • [u] Use • [+] Restore"
 		case TraitsPanel:
 			panelName = "Traits"
 			contextHelp = "[↑/↓] Navigate • [a] Add • [d] Delete"
@@ -885,8 +931,8 @@ func (m *Model) View() string {
 		mainPanelView = m.inventoryPanel.View(mainWidth, mainContentHeight)
 	case SpellsPanel:
 		mainPanelView = m.spellsPanel.View(mainWidth, mainContentHeight)
-	case ActionsPanel:
-		mainPanelView = m.actionsPanel.View(mainWidth, mainContentHeight)
+	case FeaturesPanel:
+		mainPanelView = m.featuresPanel.View(mainWidth, mainContentHeight)
 	case TraitsPanel:
 		mainPanelView = m.traitsPanel.View(mainWidth, mainContentHeight)
 	}

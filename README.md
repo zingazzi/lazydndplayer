@@ -20,7 +20,7 @@ A terminal user interface (TUI) application for managing D&D 5e 2024 characters,
 - **Skills** - All 18 D&D skills with proficiency and expertise tracking
 - **Inventory** - Track items, equipment, weight, and encumbrance
 - **Spells** - Organize spells by level, track slots and prepared spells
-- **Actions** - Manage actions, bonus actions, and reactions
+- **Features** - Manage limited-use abilities (class features, species abilities) with rest recovery
 - **Traits** - Languages, feats, resistances, darkvision, and species traits
 
 ### Species Support
@@ -65,7 +65,7 @@ On first run, a default character file is created at `~/.lazydndplayer/character
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Main Panel (Tabs: Stats/Skills/Inventory/Spells/Abilities/     │
+│ Main Panel (Tabs: Stats/Skills/Inventory/Spells/Features/      │
 │                   Traits)                                       │
 │                                                                 │
 │ [55% width]                          Character Stats [45%]     │
@@ -74,8 +74,8 @@ On first run, a default character file is created at `~/.lazydndplayer/character
 │                                      - Speed, Proficiency       │
 ├─────────────────────────────────────┬───────────────────────────┤
 │ Actions Panel [50%]                 │ Dice Roller [50%]        │
-│ - List of available actions         │ - Input field            │
-│ - Quick reference                   │ - Roll history           │
+│ - Quick action reference            │ - Input field            │
+│ - Combat actions                    │ - Roll history           │
 └─────────────────────────────────────┴───────────────────────────┘
 │ Status Bar: App • Help • Navigation                            │
 └─────────────────────────────────────────────────────────────────┘
@@ -96,11 +96,15 @@ On first run, a default character file is created at `~/.lazydndplayer/character
 - `←/→` or `h/l` - Navigate horizontally (where applicable)
 - `Esc` - Cancel/close popup
 
-#### Main Panel (Stats/Skills/Inventory/Spells/Abilities/Traits)
+#### Main Panel (Stats/Skills/Inventory/Spells/Features/Traits)
 - `e` - Edit selected item
 - `a` - Add new item
 - `d` - Delete selected item
 - `space` - Toggle (proficiency, equipped, prepared, etc.)
+- `u` - Use feature (Features tab only)
+- `+/=` - Restore feature charge (Features tab only)
+- `r` - Short rest (Features/Spells tabs)
+- `Shift+R` - Long rest (Features/Spells tabs)
 
 #### Character Stats Panel
 - `n` - Edit name

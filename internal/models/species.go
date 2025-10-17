@@ -3,14 +3,21 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
 // SpeciesTrait represents a special trait or ability of a species
 type SpeciesTrait struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	IsFeature    bool   `json:"is_feature"`     // Whether this trait is a limited-use feature
+	MaxUses      string `json:"max_uses"`       // Max uses per rest (can be "1", "proficiency", etc.)
+	RestType     string `json:"rest_type"`      // When it recharges: "Short Rest", "Long Rest", "Daily"
+	UsesFormula  string `json:"uses_formula"`   // Formula for calculating uses (e.g., "proficiency", "level")
+	EffectFormula string `json:"effect_formula"` // Formula for effect (e.g., "level", "1d12+con", "2d6")
 }
 
 // SpeciesInfo contains all information about a D&D 5e 2024 species
@@ -298,6 +305,9 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 
 	// Remove old species skill proficiencies first
 	RemoveSpeciesSkillProficiencies(char)
+	
+	// Remove old species features
+	RemoveSpeciesFeatures(char)
 
 	// Update basic stats
 	char.Race = species.Name
@@ -316,12 +326,7 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 
 	// Update species traits
 	char.SpeciesTraits = make([]SpeciesTrait, len(species.Traits))
-	for i, trait := range species.Traits {
-		char.SpeciesTraits[i] = SpeciesTrait{
-			Name:        trait.Name,
-			Description: trait.Description,
-		}
-	}
+	copy(char.SpeciesTraits, species.Traits)
 
 	// Clear old species skills list
 	char.SpeciesSkills = []SkillType{}
@@ -331,9 +336,12 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 
 	// Apply skill proficiencies from species traits
 	ApplySpeciesSkillProficiencies(char, species)
-
+	
 	// Apply species spells based on character level
 	ApplySpeciesSpells(char, species)
+	
+	// Apply species features (limited-use abilities)
+	ApplySpeciesFeatures(char, species)
 
 	// Note: In D&D 5e 2024, ability score increases are more flexible
 	// and often chosen by the player rather than fixed by species.
@@ -432,4 +440,126 @@ func RemoveSpeciesSpells(char *Character) {
 		char.SpellBook.RemoveSpell(spellName)
 	}
 	char.SpeciesSpells = []string{}
+}
+
+// CalculateFeatureUses calculates the number of uses for a feature based on formula
+func CalculateFeatureUses(formula string, char *Character) int {
+	formula = strings.TrimSpace(strings.ToLower(formula))
+	
+	// If formula is empty or just a number
+	if formula == "" {
+		return 1
+	}
+	
+	// Try to parse as integer
+	if uses, err := strconv.Atoi(formula); err == nil {
+		return uses
+	}
+	
+	// Handle common formulas
+	switch formula {
+	case "proficiency":
+		return char.ProficiencyBonus
+	case "level":
+		return char.Level
+	case "con", "constitution":
+		return char.AbilityScores.Constitution
+	case "str", "strength":
+		return char.AbilityScores.Strength
+	case "dex", "dexterity":
+		return char.AbilityScores.Dexterity
+	case "int", "intelligence":
+		return char.AbilityScores.Intelligence
+	case "wis", "wisdom":
+		return char.AbilityScores.Wisdom
+	case "cha", "charisma":
+		return char.AbilityScores.Charisma
+	default:
+		return 1
+	}
+}
+
+// ConvertTraitToFeature creates a Feature from a SpeciesTrait
+func ConvertTraitToFeature(trait SpeciesTrait, char *Character, speciesName string) Feature {
+	// Calculate max uses
+	maxUses := CalculateFeatureUses(trait.UsesFormula, char)
+	if maxUses == 1 && trait.MaxUses != "" && trait.MaxUses != "1" {
+		maxUses = CalculateFeatureUses(trait.MaxUses, char)
+	}
+	
+	// Parse rest type
+	var restType RestType
+	switch strings.ToLower(trait.RestType) {
+	case "short rest":
+		restType = ShortRest
+	case "long rest":
+		restType = LongRest
+	case "daily":
+		restType = Daily
+	default:
+		restType = LongRest
+	}
+	
+	// Build description with effect formula if present
+	description := trait.Description
+	if trait.EffectFormula != "" {
+		effectValue := CalculateFeatureEffect(trait.EffectFormula, char)
+		description = fmt.Sprintf("%s (Effect: %s)", description, effectValue)
+	}
+	
+	return Feature{
+		Name:        trait.Name,
+		Description: description,
+		MaxUses:     maxUses,
+		CurrentUses: maxUses,
+		RestType:    restType,
+		Source:      fmt.Sprintf("Species: %s", speciesName),
+	}
+}
+
+// CalculateFeatureEffect calculates the effect value for display
+func CalculateFeatureEffect(formula string, char *Character) string {
+	formula = strings.TrimSpace(strings.ToLower(formula))
+	
+	switch formula {
+	case "level":
+		return fmt.Sprintf("%d HP", char.Level)
+	case "proficiency":
+		return fmt.Sprintf("+%d", char.ProficiencyBonus)
+	case "1d12+con":
+		conMod := CalculateModifier(char.AbilityScores.Constitution)
+		return fmt.Sprintf("1d12+%d", conMod)
+	case "2d6":
+		return "2d6 damage"
+	case "3d6":
+		return "3d6 damage"
+	case "4d6":
+		return "4d6 damage"
+	case "5d6":
+		return "5d6 damage"
+	default:
+		return formula
+	}
+}
+
+// RemoveSpeciesFeatures removes all features granted by the previous species
+func RemoveSpeciesFeatures(char *Character) {
+	// Filter out features that came from species
+	var nonSpeciesFeatures []Feature
+	for _, feature := range char.Features.Features {
+		if !strings.HasPrefix(feature.Source, "Species:") {
+			nonSpeciesFeatures = append(nonSpeciesFeatures, feature)
+		}
+	}
+	char.Features.Features = nonSpeciesFeatures
+}
+
+// ApplySpeciesFeatures adds features from species traits to the character
+func ApplySpeciesFeatures(char *Character, species *SpeciesInfo) {
+	for _, trait := range species.Traits {
+		if trait.IsFeature {
+			feature := ConvertTraitToFeature(trait, char, species.Name)
+			char.Features.AddFeature(feature)
+		}
+	}
 }
