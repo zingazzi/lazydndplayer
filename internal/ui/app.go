@@ -414,6 +414,18 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.traitsPanel.Prev()
 	case "down", "j":
 		m.traitsPanel.Next()
+	case "ctrl+u", "pgup":
+		// Page up
+		m.traitsPanel.PageUp()
+	case "ctrl+d", "pgdown":
+		// Page down
+		m.traitsPanel.PageDown()
+	case "ctrl+y":
+		// Scroll up without changing selection
+		m.traitsPanel.ScrollUp()
+	case "ctrl+e":
+		// Scroll down without changing selection
+		m.traitsPanel.ScrollDown()
 	case "a":
 		// Add a sample language or feat
 		m.traitsPanel.AddLanguage("Elvish")
@@ -858,7 +870,7 @@ func (m *Model) View() string {
 
 	// Main content height accounts for tabs and spacing, to fill the full topRowHeight
 	// topRowHeight includes border and padding in the final render
-	mainContentHeight := topRowHeight - tabHeight - 8 // border (2) + padding vertical (2) + spacing (1) + tab bar itself (3)
+	mainContentHeight := topRowHeight - tabHeight - 5 // border (2) + padding vertical (2) + spacing line (1)
 
 	// Main panel content
 	var mainPanelView string

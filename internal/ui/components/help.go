@@ -108,10 +108,11 @@ func GetCharacterStatsBindings() []HelpBinding {
 // GetTraitsBindings returns traits panel bindings
 func GetTraitsBindings() []HelpBinding {
 	return []HelpBinding{
-		{"↑/↓ or j/k", "Navigate traits"},
-		{"a", "Add language/resistance/feat"},
+		{"↑/↓ or j/k", "Navigate items"},
+		{"Ctrl+D/U", "Page down/up"},
+		{"Ctrl+E/Y", "Scroll down/up"},
+		{"a", "Add language/feat"},
 		{"d", "Delete selected"},
-		{"", "Darkvision & resistances from species"},
 	}
 }
 

@@ -28,8 +28,8 @@ func NewTraitsPanel(char *models.Character) *TraitsPanel {
 }
 
 func (p *TraitsPanel) View(width, height int) string {
-	// Use almost all available height, leaving minimal space for scroll indicator
-	viewportHeight := height - 1
+	// Use all available height for the viewport
+	viewportHeight := height
 
 	if !p.ready {
 		p.viewport = viewport.New(width, viewportHeight)
@@ -175,14 +175,38 @@ func (p *TraitsPanel) View(width, height int) string {
 
 	p.viewport.SetContent(content)
 
-	// Add scroll indicators
-	scrollInfo := ""
+	// Render viewport
+	viewportContent := p.viewport.View()
+
+	// Overlay scroll indicator if content is scrollable
 	if p.viewport.TotalLineCount() > p.viewport.Height {
 		scrollPercentage := int(p.viewport.ScrollPercent() * 100)
-		scrollInfo = fmt.Sprintf(" [%d%%]", scrollPercentage)
+		scrollInfo := fmt.Sprintf("[%d%%]", scrollPercentage)
+
+		// Position the scroll indicator at the bottom-right
+		scrollStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Align(lipgloss.Right)
+
+		// Get the lines of the viewport
+		lines := strings.Split(viewportContent, "\n")
+		if len(lines) > 0 {
+			// Replace the last line with scroll info on the right
+			lastLine := lines[len(lines)-1]
+			// Pad to full width and add scroll info
+			paddedLine := lipgloss.NewStyle().Width(width).Render(lastLine)
+			lines[len(lines)-1] = lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				paddedLine,
+			)
+			// Overlay scroll info at bottom right
+			lines = append(lines[:len(lines)-1],
+				lipgloss.PlaceHorizontal(width, lipgloss.Right, scrollStyle.Render(scrollInfo)))
+			viewportContent = strings.Join(lines, "\n")
+		}
 	}
 
-	return p.viewport.View() + scrollInfo
+	return viewportContent
 }
 
 func (p *TraitsPanel) Update(msg tea.Msg) {
@@ -195,7 +219,7 @@ func (p *TraitsPanel) Next() {
 	if p.selectedType == "language" {
 		if p.selectedIndex < len(p.character.Languages)-1 {
 			p.selectedIndex++
-			p.viewport.LineDown(1)
+			p.viewport.LineDown(3)
 		} else if len(p.character.Resistances) > 0 {
 			// Move to resistances section
 			p.selectedType = "resistance"
@@ -212,7 +236,7 @@ func (p *TraitsPanel) Next() {
 	} else if p.selectedType == "resistance" {
 		if p.selectedIndex < len(p.character.Resistances)-1 {
 			p.selectedIndex++
-			p.viewport.LineDown(1)
+			p.viewport.LineDown(3)
 		} else if len(p.character.Feats) > 0 {
 			// Move to feats section
 			p.selectedType = "feat"
@@ -225,7 +249,7 @@ func (p *TraitsPanel) Next() {
 	} else if p.selectedType == "feat" {
 		if p.selectedIndex < len(p.character.Feats)-1 {
 			p.selectedIndex++
-			p.viewport.LineDown(1)
+			p.viewport.LineDown(3)
 		} else if len(p.character.SpeciesTraits) > 0 {
 			// Move to traits section
 			p.selectedType = "trait"
@@ -234,16 +258,38 @@ func (p *TraitsPanel) Next() {
 	} else if p.selectedType == "trait" {
 		if p.selectedIndex < len(p.character.SpeciesTraits)-1 {
 			p.selectedIndex++
-			p.viewport.LineDown(1)
+			// Scroll more for traits since they have wrapped descriptions
+			p.viewport.LineDown(5)
 		}
 	}
+}
+
+// ScrollDown scrolls the viewport down without changing selection
+func (p *TraitsPanel) ScrollDown() {
+	p.viewport.LineDown(3)
+}
+
+// ScrollUp scrolls the viewport up without changing selection
+func (p *TraitsPanel) ScrollUp() {
+	p.viewport.LineUp(3)
+}
+
+// PageDown scrolls down by half a page
+func (p *TraitsPanel) PageDown() {
+	p.viewport.HalfViewDown()
+}
+
+// PageUp scrolls up by half a page
+func (p *TraitsPanel) PageUp() {
+	p.viewport.HalfViewUp()
 }
 
 func (p *TraitsPanel) Prev() {
 	if p.selectedType == "trait" {
 		if p.selectedIndex > 0 {
 			p.selectedIndex--
-			p.viewport.LineUp(1)
+			// Scroll more for traits since they have wrapped descriptions
+			p.viewport.LineUp(5)
 		} else if len(p.character.Feats) > 0 {
 			// Move to feats section
 			p.selectedType = "feat"
@@ -260,7 +306,7 @@ func (p *TraitsPanel) Prev() {
 	} else if p.selectedType == "feat" {
 		if p.selectedIndex > 0 {
 			p.selectedIndex--
-			p.viewport.LineUp(1)
+			p.viewport.LineUp(3)
 		} else if len(p.character.Resistances) > 0 {
 			// Move to resistances section
 			p.selectedType = "resistance"
@@ -273,7 +319,7 @@ func (p *TraitsPanel) Prev() {
 	} else if p.selectedType == "resistance" {
 		if p.selectedIndex > 0 {
 			p.selectedIndex--
-			p.viewport.LineUp(1)
+			p.viewport.LineUp(3)
 		} else if len(p.character.Languages) > 0 {
 			// Move to languages section
 			p.selectedType = "language"
@@ -282,7 +328,7 @@ func (p *TraitsPanel) Prev() {
 	} else if p.selectedType == "language" {
 		if p.selectedIndex > 0 {
 			p.selectedIndex--
-			p.viewport.LineUp(1)
+			p.viewport.LineUp(3)
 		}
 	}
 }
