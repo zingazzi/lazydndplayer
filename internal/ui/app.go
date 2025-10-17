@@ -47,6 +47,7 @@ type Model struct {
 	languageSelector *components.LanguageSelector
 	skillSelector    *components.SkillSelector
 	spellSelector    *components.SpellSelector
+	featSelector     *components.FeatSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -82,6 +83,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		languageSelector:    components.NewLanguageSelector(),
 		skillSelector:       components.NewSkillSelector(),
 		spellSelector:       components.NewSpellSelector(),
+		featSelector:        components.NewFeatSelector(),
 		statsPanel:          panels.NewStatsPanel(char),
 		skillsPanel:         panels.NewSkillsPanel(char),
 		inventoryPanel:      panels.NewInventoryPanel(char),
@@ -192,6 +194,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if spell selector is active first
 		if m.spellSelector.IsVisible() {
 			return m.handleSpellSelectorKeys(msg)
+		}
+
+		// Check if feat selector is active
+		if m.featSelector.IsVisible() {
+			return m.handleFeatSelectorKeys(msg)
 		}
 
 		// Check if skill selector is active
@@ -568,6 +575,7 @@ func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Check for various selections needed
 			needsSkillSelection := models.HasSkillChoice(selectedSpecies)
 			needsSpellSelection := models.HasSpellChoice(selectedSpecies)
+			needsFeatSelection := models.HasFeatChoice(selectedSpecies)
 
 			if needsLanguageSelection {
 				// Filter out languages the character already knows
@@ -583,6 +591,10 @@ func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
 				m.spellSelector.Show()
 				m.message = "Select your wizard cantrip..."
+			} else if needsFeatSelection {
+				// Show feat selector for origin feat
+				m.featSelector.Show(m.character, true)
+				m.message = "Select your origin feat..."
 			} else {
 				m.message = fmt.Sprintf("Species changed from %s to %s. Speed updated to %d ft.", oldSpecies, selectedSpecies.Name, m.character.Speed)
 				// Save character when species change is complete (no additional selections)
@@ -615,7 +627,7 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 				}
 			}
 
-			// After language selection, check for skill or spell selection
+			// After language selection, check for skill, spell, or feat selection
 			species := models.GetSpeciesByName(m.character.Race)
 			if species != nil {
 				if models.HasSkillChoice(species) {
@@ -627,6 +639,10 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 					m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
 					m.spellSelector.Show()
 					m.message = "Select your wizard cantrip..."
+				} else if models.HasFeatChoice(species) {
+					// Show feat selector for origin feat
+					m.featSelector.Show(m.character, true)
+					m.message = "Select your origin feat..."
 				} else {
 					m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
 					// Save when selection is complete (no more selections needed)
@@ -700,7 +716,7 @@ func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Use the helper function to add and track the species skill
 			models.AddSpeciesSkillChoice(m.character, skillType)
 
-			// After skill selection, check if we need spell selection
+			// After skill selection, check if we need spell or feat selection
 			species := models.GetSpeciesByName(m.character.Race)
 			if species != nil && models.HasSpellChoice(species) {
 				// Show wizard cantrip selector for High Elf
@@ -708,6 +724,10 @@ func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
 				m.spellSelector.Show()
 				m.message = "Select your wizard cantrip..."
+			} else if species != nil && models.HasFeatChoice(species) {
+				// Show feat selector for origin feat
+				m.featSelector.Show(m.character, true)
+				m.message = "Select your origin feat..."
 			} else {
 				m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
 				// Save when selection is complete (no more selections needed)
@@ -749,6 +769,17 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.message = fmt.Sprintf("You already know %s", selectedSpell.Name)
 			}
+			
+			// After spell selection, check if we need feat selection
+			species := models.GetSpeciesByName(m.character.Race)
+			if species != nil && models.HasFeatChoice(species) {
+				m.spellSelector.Hide()
+				// Show feat selector for origin feat
+				m.featSelector.Show(m.character, true)
+				m.message = "Select your origin feat..."
+				return m, nil
+			}
+			
 			// Save character after spell selection (final step)
 			m.storage.Save(m.character)
 		}
@@ -756,6 +787,45 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.spellSelector.Hide()
 		m.message = "Spell selection cancelled"
+	}
+	return m, nil
+}
+
+// handleFeatSelectorKeys handles feat selector specific keys
+func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.featSelector.Prev()
+	case "down", "j":
+		m.featSelector.Next()
+	case "pgup", "ctrl+u":
+		m.featSelector.PageUp()
+	case "pgdown", "ctrl+d":
+		m.featSelector.PageDown()
+	case "enter":
+		selectedFeat := m.featSelector.GetSelectedFeat()
+		if selectedFeat != nil {
+			// Check if character already has this feat
+			if models.HasFeat(m.character, selectedFeat.Name) && !selectedFeat.Repeatable {
+				m.message = fmt.Sprintf("You already have %s and it's not repeatable", selectedFeat.Name)
+			} else {
+				// Add feat to character
+				err := models.AddFeatToCharacter(m.character, selectedFeat.Name)
+				if err != nil {
+					m.message = fmt.Sprintf("Error adding feat: %v", err)
+				} else {
+					// Apply feat benefits automatically
+					models.ApplyFeatBenefits(m.character, *selectedFeat)
+					m.message = fmt.Sprintf("Feat gained: %s!", selectedFeat.Name)
+					// Save character after feat selection
+					m.storage.Save(m.character)
+				}
+			}
+		}
+		m.featSelector.Hide()
+	case "esc":
+		m.featSelector.Hide()
+		m.message = "Feat selection cancelled"
 	}
 	return m, nil
 }
@@ -1058,7 +1128,12 @@ func (m *Model) View() string {
 		return m.spellSelector.View(m.width, m.height)
 	}
 
-	// Skill selector takes second priority
+	// Feat selector takes second priority
+	if m.featSelector.IsVisible() {
+		return m.featSelector.View(m.width, m.height)
+	}
+
+	// Skill selector takes third priority
 	if m.skillSelector.IsVisible() {
 		return m.skillSelector.View(m.width, m.height)
 	}

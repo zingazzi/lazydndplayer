@@ -407,6 +407,27 @@ func HasSpellChoice(species *SpeciesInfo) bool {
 	return false
 }
 
+// HasFeatChoice checks if a species grants a feat choice (like Human origin feat)
+func HasFeatChoice(species *SpeciesInfo) bool {
+	if species == nil {
+		return false
+	}
+	
+	// Humans get an origin feat (Versatile trait)
+	for _, trait := range species.Traits {
+		traitNameLower := strings.ToLower(trait.Name)
+		traitDescLower := strings.ToLower(trait.Description)
+		// Check for feat-granting traits
+		if strings.Contains(traitNameLower, "versatile") && strings.Contains(traitDescLower, "feat") {
+			return true
+		}
+		if strings.Contains(traitDescLower, "origin feat") {
+			return true
+		}
+	}
+	return false
+}
+
 // ApplySpeciesSpells adds spells granted by species traits based on character level
 func ApplySpeciesSpells(char *Character, species *SpeciesInfo) {
 	spellDB := GetSpeciesSpells()
