@@ -12,28 +12,40 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
+// DicePanelMode represents the current mode of the dice panel
+type DicePanelMode int
+
+const (
+	DiceModeIdle DicePanelMode = iota
+	DiceModeInput
+	DiceModeHistory
+)
+
 // DicePanel displays dice roller
 type DicePanel struct {
-	character   *models.Character
-	input       textinput.Model
-	history     *dice.RollHistory
-	rollType    dice.RollType
-	LastMessage string
+	character           *models.Character
+	input               textinput.Model
+	history             *dice.RollHistory
+	LastMessage         string
+	mode                DicePanelMode
+	historySelectedIndex int
 }
 
 // NewDicePanel creates a new dice panel
 func NewDicePanel(char *models.Character) *DicePanel {
 	ti := textinput.New()
-	ti.Placeholder = "e.g., 2d6+3, 1d20, d20"
-	ti.CharLimit = 20
+	ti.Placeholder = "Type dice and press Enter..."
+	ti.CharLimit = 50
 	ti.Width = 30
+	// Don't auto-focus - user will press Enter to activate
 
 	return &DicePanel{
-		character:   char,
-		input:       ti,
-		history:     dice.NewRollHistory(10),
-		rollType:    dice.Normal,
-		LastMessage: "",
+		character:           char,
+		input:               ti,
+		history:             dice.NewRollHistory(10),
+		LastMessage:         "",
+		mode:                DiceModeIdle,
+		historySelectedIndex: 0,
 	}
 }
 
@@ -45,37 +57,25 @@ func (p *DicePanel) View(width, height int) string {
 		Padding(0, 0, 1, 0)
 
 	var lines []string
-	lines = append(lines, titleStyle.Render("DICE ROLLER"))
-	lines = append(lines, "")
-
-	// Roll type selector
-	rollTypeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
-	lines = append(lines, rollTypeStyle.Render(fmt.Sprintf("Roll Type: %s", p.rollType)))
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render("Press 'n' for normal, 'a' for advantage, 'd' for disadvantage"))
-	lines = append(lines, "")
-
-	// Input field
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252")).
-		Render("Enter dice notation:"))
-	lines = append(lines, p.input.View())
-	lines = append(lines, "")
-
-	// Quick roll buttons with simpler layout
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("170")).
-		Bold(true).
-		Render("QUICK ROLLS"))
-
-	quickRolls := []string{
-		"d+4  d+6  d+8  d+10  d+12  d+20  d+100",
+	
+	// Title with mode indicator
+	modeIndicator := ""
+	switch p.mode {
+	case DiceModeInput:
+		modeIndicator = " [INPUT]"
+	case DiceModeHistory:
+		modeIndicator = " [HISTORY]"
 	}
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render("Press 'd' then number key to roll"))
-	lines = append(lines, strings.Join(quickRolls, "  "))
+	lines = append(lines, titleStyle.Render("DICE ROLLER"+modeIndicator))
+	lines = append(lines, "")
+
+	// Input field (highlighted when in input mode)
+	inputLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	if p.mode == DiceModeInput {
+		inputLabelStyle = inputLabelStyle.Bold(true).Foreground(lipgloss.Color("42"))
+	}
+	lines = append(lines, inputLabelStyle.Render("Enter dice notation:"))
+	lines = append(lines, p.input.View())
 	lines = append(lines, "")
 
 	// Last message
@@ -87,38 +87,59 @@ func (p *DicePanel) View(width, height int) string {
 		lines = append(lines, "")
 	}
 
-	// Roll history
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("170")).
-		Bold(true).
-		Render("ROLL HISTORY"))
+	// Roll history (highlighted when in history mode)
+	historyLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("170")).Bold(true)
+	if p.mode == DiceModeHistory {
+		historyLabelStyle = historyLabelStyle.Foreground(lipgloss.Color("42"))
+	}
+	lines = append(lines, historyLabelStyle.Render("ROLL HISTORY"))
 
-	recentRolls := p.history.GetRecent(5)
+	recentRolls := p.history.GetRecent(10)
 	if len(recentRolls) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Render("No rolls yet"))
 	} else {
-		for _, roll := range recentRolls {
+		for i, roll := range recentRolls {
 			rollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 
-			// Highlight critical hits (nat 20) and fails (nat 1) for d20 rolls
-			if len(roll.Rolls) > 0 {
-				if roll.Expression == "1d20" || roll.Expression == "d20" {
-					if roll.Rolls[0] == 20 {
-						rollStyle = lipgloss.NewStyle().
-							Foreground(lipgloss.Color("42")).
-							Bold(true)
-					} else if roll.Rolls[0] == 1 {
-						rollStyle = lipgloss.NewStyle().
-							Foreground(lipgloss.Color("196")).
-							Bold(true)
+			// Highlight selected in history mode
+			if p.mode == DiceModeHistory && i == p.historySelectedIndex {
+				rollStyle = lipgloss.NewStyle().
+					Foreground(lipgloss.Color("205")).
+					Bold(true).
+					Reverse(true)
+			} else {
+				// Highlight critical hits (nat 20) and fails (nat 1) for d20 rolls
+				if len(roll.Rolls) > 0 {
+					if roll.Expression == "1d20" || roll.Expression == "d20" {
+						if roll.Rolls[0] == 20 {
+							rollStyle = lipgloss.NewStyle().
+								Foreground(lipgloss.Color("42")).
+								Bold(true)
+						} else if roll.Rolls[0] == 1 {
+							rollStyle = lipgloss.NewStyle().
+								Foreground(lipgloss.Color("196")).
+								Bold(true)
+						}
 					}
 				}
 			}
 
 			lines = append(lines, rollStyle.Render(roll.String()))
 		}
+	}
+
+	// Mode hints
+	lines = append(lines, "")
+	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	switch p.mode {
+	case DiceModeIdle:
+		lines = append(lines, hintStyle.Render("[Enter] Input • [h] History • [r] Reroll last"))
+	case DiceModeInput:
+		lines = append(lines, hintStyle.Render("[Enter] Roll • [Esc] Back"))
+	case DiceModeHistory:
+		lines = append(lines, hintStyle.Render("[↑/↓] Navigate • [Enter] Reroll • [Esc] Back"))
 	}
 
 	content := strings.Join(lines, "\n")
@@ -153,9 +174,29 @@ func (p *DicePanel) Blur() {
 	p.input.Blur()
 }
 
-// Roll performs a dice roll
+// Roll performs a dice roll (supports comma-separated multiple rolls)
 func (p *DicePanel) Roll(expression string) {
-	result, err := dice.Roll(expression, p.rollType)
+	// Check if it's a comma-separated list
+	if strings.Contains(expression, ",") {
+		results, err := dice.RollMultiple(expression)
+		if err != nil {
+			p.LastMessage = fmt.Sprintf("Error: %s", err.Error())
+			return
+		}
+
+		// Add all results to history
+		var messages []string
+		for _, result := range results {
+			p.history.Add(*result)
+			messages = append(messages, result.String())
+		}
+		p.LastMessage = strings.Join(messages, "\n")
+		p.input.SetValue("")
+		return
+	}
+
+	// Single roll (always use Normal, adv/dis is in the notation)
+	result, err := dice.Roll(expression, dice.Normal)
 	if err != nil {
 		p.LastMessage = fmt.Sprintf("Error: %s", err.Error())
 		return
@@ -166,17 +207,53 @@ func (p *DicePanel) Roll(expression string) {
 	p.input.SetValue("")
 }
 
-// RollQuick performs a quick roll
-func (p *DicePanel) RollQuick(diceType string) {
-	p.Roll(diceType)
-}
-
-// SetRollType sets the roll type
-func (p *DicePanel) SetRollType(rollType dice.RollType) {
-	p.rollType = rollType
-}
-
 // GetInput returns the current input value
 func (p *DicePanel) GetInput() string {
 	return p.input.Value()
+}
+
+// SetMode changes the panel mode
+func (p *DicePanel) SetMode(mode DicePanelMode) {
+	p.mode = mode
+	if mode == DiceModeInput {
+		p.input.Focus()
+	} else {
+		p.input.Blur()
+	}
+}
+
+// GetMode returns the current mode
+func (p *DicePanel) GetMode() DicePanelMode {
+	return p.mode
+}
+
+// HistoryNext moves selection down in history
+func (p *DicePanel) HistoryNext() {
+	recentRolls := p.history.GetRecent(10)
+	if len(recentRolls) > 0 && p.historySelectedIndex < len(recentRolls)-1 {
+		p.historySelectedIndex++
+	}
+}
+
+// HistoryPrev moves selection up in history
+func (p *DicePanel) HistoryPrev() {
+	if p.historySelectedIndex > 0 {
+		p.historySelectedIndex--
+	}
+}
+
+// RerollLast rerolls the last roll
+func (p *DicePanel) RerollLast() {
+	recentRolls := p.history.GetRecent(1)
+	if len(recentRolls) > 0 {
+		p.Roll(recentRolls[0].Expression)
+	}
+}
+
+// RerollSelected rerolls the selected history item
+func (p *DicePanel) RerollSelected() {
+	recentRolls := p.history.GetRecent(10)
+	if len(recentRolls) > 0 && p.historySelectedIndex < len(recentRolls) {
+		p.Roll(recentRolls[p.historySelectedIndex].Expression)
+	}
 }

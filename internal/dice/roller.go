@@ -57,10 +57,32 @@ func (r *RollResult) String() string {
 	return fmt.Sprintf("%s%s: [%s]%s = %d", r.Expression, typeStr, strings.Join(rollsStr, ", "), modStr, r.Total)
 }
 
-// Roll rolls dice based on expression (e.g., "2d6+3", "1d20")
+// Roll rolls dice based on expression (e.g., "2d6+3", "1d20", "1d20 adv")
 func Roll(expression string, rollType RollType) (*RollResult, error) {
-	// Parse the expression
-	dice, sides, modifier, err := parseExpression(expression)
+	// Check for advantage/disadvantage keywords in expression
+	expr := strings.TrimSpace(expression)
+	exprLower := strings.ToLower(expr)
+
+	// Extract roll type from expression if present
+	if strings.HasSuffix(exprLower, " adv") || strings.HasSuffix(exprLower, " advantage") {
+		rollType = Advantage
+		expr = strings.TrimSuffix(exprLower, " adv")
+		expr = strings.TrimSuffix(expr, "antage") // Remove remaining "antage"
+		expr = strings.TrimSpace(expr)
+	} else if strings.HasSuffix(exprLower, " dis") || strings.HasSuffix(exprLower, " disadvantage") {
+		rollType = Disadvantage
+		expr = strings.TrimSuffix(exprLower, " dis")
+		expr = strings.TrimSuffix(expr, "advantage") // Remove remaining "advantage"
+		expr = strings.TrimSpace(expr)
+	}
+
+	// Check for complex expressions (multiple dice types like "2d8+3d4+2")
+	if strings.Count(expr, "d") > 1 {
+		return rollComplexExpression(expr, rollType)
+	}
+
+	// Parse simple expression
+	dice, sides, modifier, err := parseExpression(expr)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +140,90 @@ func parseExpression(expr string) (dice, sides, modifier int, err error) {
 	}
 
 	return dice, sides, modifier, nil
+}
+
+// rollComplexExpression handles expressions like "2d8+3d4+2"
+func rollComplexExpression(expr string, rollType RollType) (*RollResult, error) {
+	expr = strings.ToLower(strings.ReplaceAll(expr, " ", ""))
+
+	// Pattern to find all dice notation parts (XdY) and modifiers
+	dicePattern := regexp.MustCompile(`(\d*)d(\d+)`)
+	modifierPattern := regexp.MustCompile(`[\+\-]\d+`)
+
+	// Find all dice expressions
+	diceMatches := dicePattern.FindAllStringSubmatch(expr, -1)
+	if len(diceMatches) == 0 {
+		return nil, fmt.Errorf("no valid dice expressions found")
+	}
+
+	var allRolls []int
+	totalModifier := 0
+
+	// Roll each dice group
+	for _, match := range diceMatches {
+		numDice := 1
+		if match[1] != "" {
+			numDice, _ = strconv.Atoi(match[1])
+		}
+		sides, _ := strconv.Atoi(match[2])
+
+		// For complex expressions, only use advantage/disadvantage on first d20
+		currentRollType := Normal
+		if rollType != Normal && sides == 20 && len(allRolls) == 0 {
+			currentRollType = rollType
+		}
+
+		rolls := rollDice(numDice, sides, currentRollType)
+		allRolls = append(allRolls, rolls...)
+	}
+
+	// Find all modifiers
+	modifierMatches := modifierPattern.FindAllString(expr, -1)
+	for _, mod := range modifierMatches {
+		val, _ := strconv.Atoi(mod)
+		totalModifier += val
+	}
+
+	total := 0
+	for _, roll := range allRolls {
+		total += roll
+	}
+	total += totalModifier
+
+	return &RollResult{
+		Expression: expr,
+		Rolls:      allRolls,
+		Modifier:   totalModifier,
+		Total:      total,
+		RollType:   rollType,
+		Timestamp:  time.Now(),
+	}, nil
+}
+
+// RollMultiple handles comma-separated expressions like "1d20+3, 2d10"
+func RollMultiple(expression string) ([]*RollResult, error) {
+	// Split by comma
+	expressions := strings.Split(expression, ",")
+	results := make([]*RollResult, 0, len(expressions))
+
+	for _, expr := range expressions {
+		expr = strings.TrimSpace(expr)
+		if expr == "" {
+			continue
+		}
+
+		result, err := Roll(expr, Normal)
+		if err != nil {
+			return nil, fmt.Errorf("error in '%s': %v", expr, err)
+		}
+		results = append(results, result)
+	}
+
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no valid expressions found")
+	}
+
+	return results, nil
 }
 
 // rollDice performs the actual dice rolling

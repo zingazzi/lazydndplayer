@@ -105,20 +105,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Handle dice panel input when focused
-		if m.dicePanel.GetInput() != "" {
-			switch msg.String() {
-			case "enter":
-				m.dicePanel.Roll(m.dicePanel.GetInput())
-				return m, nil
-			case "esc":
-				m.dicePanel.Blur()
-				return m, nil
-			default:
-				return m, m.dicePanel.Update(msg)
-			}
-		}
-
 		// Global keys
 		switch msg.String() {
 		case "q", "ctrl+c":
@@ -181,8 +167,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				idx := int(msg.String()[0] - '1')
 				m.tabs.SetIndex(idx)
 				m.currentPanel = PanelType(idx)
+				return m, nil
 			}
-			return m, nil
+			// If not in main focus, let the focused panel handle it
 		}
 
 		// Handle input based on current focus
@@ -195,39 +182,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleDicePanelKeys(msg)
 		}
 
-		// Global key 'r' for rest (affects actions and spells)
+		// Global key 'R' for rest (affects actions and spells)
 		switch msg.String() {
 		case "R": // Shift+R for rest
 			m.character.LongRest()
 			m.message = "Long rest completed! HP, spells, and abilities restored."
-			return m, nil
-		}
-
-		// Handle dice shortcuts (d + number for quick rolls)
-		if len(msg.String()) == 2 && msg.String()[0] == 'd' {
-			switch msg.String()[1] {
-			case '1':
-				m.dicePanel.RollQuick("d4")
-				m.message = "Rolled d4"
-			case '2':
-				m.dicePanel.RollQuick("d6")
-				m.message = "Rolled d6"
-			case '3':
-				m.dicePanel.RollQuick("d8")
-				m.message = "Rolled d8"
-			case '4':
-				m.dicePanel.RollQuick("d10")
-				m.message = "Rolled d10"
-			case '5':
-				m.dicePanel.RollQuick("d12")
-				m.message = "Rolled d12"
-			case '6':
-				m.dicePanel.RollQuick("d20")
-				m.message = "Rolled d20"
-			case '7':
-				m.dicePanel.RollQuick("d100")
-				m.message = "Rolled d100"
-			}
 			return m, nil
 		}
 	}
@@ -263,41 +222,60 @@ func (m *Model) handleActionsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleDicePanelKeys handles keys when dice panel has focus
 func (m *Model) handleDicePanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "enter":
-		m.dicePanel.Focus()
+	mode := m.dicePanel.GetMode()
+	
+	switch mode {
+	case panels.DiceModeIdle:
+		// Idle mode - waiting for user to choose action
+		switch msg.String() {
+		case "enter":
+			m.dicePanel.SetMode(panels.DiceModeInput)
+			m.message = "Enter dice notation and press Enter to roll"
+		case "h":
+			m.dicePanel.SetMode(panels.DiceModeHistory)
+			m.message = "Navigate history with ↑/↓, press Enter to reroll"
+		case "r":
+			m.dicePanel.RerollLast()
+			m.message = "Rerolled last dice"
+		}
+		return m, nil
+		
+	case panels.DiceModeInput:
+		// Input mode - typing dice notation
+		switch msg.String() {
+		case "esc":
+			m.dicePanel.SetMode(panels.DiceModeIdle)
+			m.message = ""
+			return m, nil
+		case "enter":
+			if m.dicePanel.GetInput() != "" {
+				m.dicePanel.Roll(m.dicePanel.GetInput())
+				m.dicePanel.SetMode(panels.DiceModeIdle)
+				m.message = ""
+			}
+			return m, nil
+		}
+		// Pass all other keys to input
 		return m, m.dicePanel.Update(msg)
-	case "1":
-		m.dicePanel.RollQuick("d4")
-		m.message = "Rolled d4"
-	case "2":
-		m.dicePanel.RollQuick("d6")
-		m.message = "Rolled d6"
-	case "3":
-		m.dicePanel.RollQuick("d8")
-		m.message = "Rolled d8"
-	case "4":
-		m.dicePanel.RollQuick("d10")
-		m.message = "Rolled d10"
-	case "5":
-		m.dicePanel.RollQuick("d12")
-		m.message = "Rolled d12"
-	case "6":
-		m.dicePanel.RollQuick("d20")
-		m.message = "Rolled d20"
-	case "7":
-		m.dicePanel.RollQuick("d100")
-		m.message = "Rolled d100"
-	case "n":
-		m.dicePanel.SetRollType("normal")
-		m.message = "Roll type: Normal"
-	case "a":
-		m.dicePanel.SetRollType("advantage")
-		m.message = "Roll type: Advantage"
-	case "d":
-		m.dicePanel.SetRollType("disadvantage")
-		m.message = "Roll type: Disadvantage"
+		
+	case panels.DiceModeHistory:
+		// History mode - browsing previous rolls
+		switch msg.String() {
+		case "esc":
+			m.dicePanel.SetMode(panels.DiceModeIdle)
+			m.message = ""
+		case "up", "k":
+			m.dicePanel.HistoryPrev()
+		case "down", "j":
+			m.dicePanel.HistoryNext()
+		case "enter":
+			m.dicePanel.RerollSelected()
+			m.dicePanel.SetMode(panels.DiceModeIdle)
+			m.message = "Rerolled selected dice"
+		}
+		return m, nil
 	}
+	
 	return m, nil
 }
 
