@@ -15,9 +15,10 @@ type Character struct {
 	Experience int `json:"experience"`
 
 	// Hit Points
-	MaxHP     int `json:"max_hp"`
-	CurrentHP int `json:"current_hp"`
-	TempHP    int `json:"temp_hp"`
+	MaxHP           int `json:"max_hp"`
+	CurrentHP       int `json:"current_hp"`
+	TempHP          int `json:"temp_hp"`
+	SpeciesHPBonus  int `json:"species_hp_bonus"` // HP bonus from species (e.g., Dwarven Toughness)
 
 	// Armor Class & Speed
 	ArmorClass int `json:"armor_class"`
@@ -175,7 +176,7 @@ func (c *Character) LongRest() {
 	c.Actions.LongRest()
 	c.SpellBook.LongRest()
 	c.Features.LongRestRecover()
-	
+
 	// Humans regain Inspiration on long rest (Resourceful trait)
 	if c.Race == "Human" {
 		c.Inspiration = true

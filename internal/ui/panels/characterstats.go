@@ -174,12 +174,12 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	}
 	inspirationStyle := lipgloss.NewStyle().Foreground(inspirationColor).Bold(true)
 	inspirationLabel := inspirationStyle.Render(fmt.Sprintf("%s Inspiration", inspirationIcon))
-	
+
 	// Add note for Humans
 	if char.Race == "Human" {
 		inspirationLabel += lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true).Render(" (auto-restored on rest)")
 	}
-	
+
 	lines = append(lines, inspirationLabel)
 	lines = append(lines, "")
 

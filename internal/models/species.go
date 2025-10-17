@@ -343,6 +343,9 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 	// Apply species features (limited-use abilities)
 	ApplySpeciesFeatures(char, species)
 
+	// Apply species HP bonuses (e.g., Dwarven Toughness)
+	ApplySpeciesHPBonus(char, species)
+
 	// Note: In D&D 5e 2024, ability score increases are more flexible
 	// and often chosen by the player rather than fixed by species.
 	// We'll handle this through the character creation/leveling system.
@@ -561,5 +564,31 @@ func ApplySpeciesFeatures(char *Character, species *SpeciesInfo) {
 			feature := ConvertTraitToFeature(trait, char, species.Name)
 			char.Features.AddFeature(feature)
 		}
+	}
+}
+
+// ApplySpeciesHPBonus applies HP bonuses from species traits
+func ApplySpeciesHPBonus(char *Character, species *SpeciesInfo) {
+	// Reset species HP bonus
+	oldBonus := char.SpeciesHPBonus
+	char.SpeciesHPBonus = 0
+
+	// Check for HP-granting traits
+	for _, trait := range species.Traits {
+		traitNameLower := strings.ToLower(trait.Name)
+
+		// Dwarven Toughness: +1 HP per level
+		if strings.Contains(traitNameLower, "dwarven toughness") {
+			char.SpeciesHPBonus = char.Level
+		}
+	}
+
+	// Adjust MaxHP based on the change in bonus
+	hpChange := char.SpeciesHPBonus - oldBonus
+	char.MaxHP += hpChange
+
+	// Ensure CurrentHP doesn't exceed MaxHP (but don't reduce it if it was already higher due to temp effects)
+	if char.CurrentHP > char.MaxHP && oldBonus > char.SpeciesHPBonus {
+		char.CurrentHP = char.MaxHP
 	}
 }

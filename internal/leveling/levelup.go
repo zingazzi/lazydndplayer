@@ -186,6 +186,13 @@ func PerformLevelUp(char *models.Character, options LevelUpOptions) {
 
 	// Update derived stats
 	char.UpdateDerivedStats()
+
+	// Recalculate species HP bonus (e.g., Dwarven Toughness grows with level)
+	// This adds +1 HP for Dwarves at each level
+	species := models.GetSpeciesByName(char.Race)
+	if species != nil {
+		models.ApplySpeciesHPBonus(char, species)
+	}
 }
 
 // ValidateAbilityIncreases ensures ability increases are valid
