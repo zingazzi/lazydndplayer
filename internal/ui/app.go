@@ -355,6 +355,37 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 
+// getContextualHelp returns the panel name and contextual help bindings based on current focus
+func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
+	switch m.focusArea {
+	case FocusMain:
+		switch m.currentPanel {
+		case OverviewPanel:
+			return "Overview", components.GetOverviewBindings()
+		case StatsPanel:
+			return "Stats", components.GetStatsBindings()
+		case SkillsPanel:
+			return "Skills", components.GetSkillsBindings()
+		case InventoryPanel:
+			return "Inventory", components.GetInventoryBindings()
+		case SpellsPanel:
+			return "Spells", components.GetSpellsBindings()
+		}
+	case FocusActions:
+		return "Actions", components.GetActionsBindings()
+	case FocusDice:
+		mode := "idle"
+		switch m.dicePanel.GetMode() {
+		case panels.DiceModeInput:
+			mode = "input"
+		case panels.DiceModeHistory:
+			mode = "history"
+		}
+		return "Dice Roller", components.GetDiceBindings(mode)
+	}
+	return "Overview", components.GetOverviewBindings()
+}
+
 // buildStatusBar creates the status bar with contextual information
 func (m *Model) buildStatusBar() string {
 	appNameStyle := lipgloss.NewStyle().
@@ -451,7 +482,8 @@ func (m *Model) View() string {
 
 	// Show help overlay if visible
 	if m.help.Visible {
-		return m.help.View(m.width, m.height)
+		panelName, contextBindings := m.getContextualHelp()
+		return m.help.ViewWithContext(m.width, m.height, panelName, contextBindings)
 	}
 
 	// Title bar
