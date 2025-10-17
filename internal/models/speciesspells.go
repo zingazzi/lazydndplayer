@@ -2,9 +2,143 @@
 package models
 
 import (
+	"encoding/json"
+	"os"
 	"regexp"
 	"strings"
 )
+
+// LoadSpellsFromJSON loads spell data from the JSON file
+func LoadSpellsFromJSON(filepath string) ([]Spell, error) {
+	file, err := os.ReadFile(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	var spells []Spell
+	if err := json.Unmarshal(file, &spells); err != nil {
+		return nil, err
+	}
+
+	// Normalize school names and ensure proper capitalization
+	for i := range spells {
+		spells[i].School = SpellSchool(capitalizeFirst(string(spells[i].School)))
+
+		// Normalize class names
+		for j := range spells[i].Classes {
+			spells[i].Classes[j] = capitalizeFirst(spells[i].Classes[j])
+		}
+
+		// Set default values for TUI display
+		if spells[i].CastingTime == "" {
+			if spells[i].ActionType != "" {
+				spells[i].CastingTime = "1 " + spells[i].ActionType
+			} else {
+				spells[i].CastingTime = "1 action"
+			}
+		}
+	}
+
+	return spells, nil
+}
+
+// capitalizeFirst capitalizes the first letter of a string
+func capitalizeFirst(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(string(s[0])) + strings.ToLower(s[1:])
+}
+
+// GetWizardCantrips returns all wizard cantrips from the spell database
+func GetWizardCantrips() []Spell {
+	spells, err := LoadSpellsFromJSON("data/spells.json")
+	if err != nil {
+		// Fallback to hardcoded list
+		return getHardcodedWizardCantrips()
+	}
+
+	cantrips := []Spell{}
+	for _, spell := range spells {
+		if spell.Level == 0 {
+			// Check if Wizard is in the classes list
+			for _, class := range spell.Classes {
+				if class == "Wizard" {
+					cantrips = append(cantrips, spell)
+					break
+				}
+			}
+		}
+	}
+
+	return cantrips
+}
+
+// getHardcodedWizardCantrips returns a fallback list of wizard cantrips
+func getHardcodedWizardCantrips() []Spell {
+	return []Spell{
+		{
+			Name:        "Acid Splash",
+			Level:       0,
+			School:      Evocation,
+			CastingTime: "1 action",
+			Range:       "60 feet",
+			Components:  "V, S",
+			Duration:    "Instantaneous",
+			Description: "You hurl a bubble of acid. Choose one creature within range, or two creatures within 5 feet of each other. A target must succeed on a Dexterity saving throw or take 1d6 acid damage.",
+			Known:       true,
+			Prepared:    true,
+		},
+		{
+			Name:        "Fire Bolt",
+			Level:       0,
+			School:      Evocation,
+			CastingTime: "1 action",
+			Range:       "120 feet",
+			Components:  "V, S",
+			Duration:    "Instantaneous",
+			Description: "You hurl a mote of fire at a creature or object within range. Make a ranged spell attack. On a hit, the target takes 1d10 fire damage.",
+			Known:       true,
+			Prepared:    true,
+		},
+		{
+			Name:        "Mage Hand",
+			Level:       0,
+			School:      Conjuration,
+			CastingTime: "1 action",
+			Range:       "30 feet",
+			Components:  "V, S",
+			Duration:    "1 minute",
+			Description: "A spectral, floating hand appears at a point you choose within range. The hand lasts for the duration or until you dismiss it as an action.",
+			Known:       true,
+			Prepared:    true,
+		},
+		{
+			Name:        "Ray of Frost",
+			Level:       0,
+			School:      Evocation,
+			CastingTime: "1 action",
+			Range:       "60 feet",
+			Components:  "V, S",
+			Duration:    "Instantaneous",
+			Description: "A frigid beam of blue-white light streaks toward a creature within range. Make a ranged spell attack. On a hit, it takes 1d8 cold damage.",
+			Known:       true,
+			Prepared:    true,
+		},
+		{
+			Name:        "Shocking Grasp",
+			Level:       0,
+			School:      Evocation,
+			CastingTime: "1 action",
+			Range:       "Touch",
+			Components:  "V, S",
+			Duration:    "Instantaneous",
+			Description: "Lightning springs from your hand to deliver a shock to a creature you try to touch. Make a melee spell attack. On a hit, the target takes 1d8 lightning damage.",
+			Known:       true,
+			Prepared:    true,
+		},
+	}
+}
 
 // GetSpeciesSpells returns a map of spell definitions for species-granted spells
 func GetSpeciesSpells() map[string]Spell {

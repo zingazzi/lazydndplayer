@@ -31,7 +31,8 @@ var dndLanguages = []string{
 
 // LanguageSelector handles language selection UI
 type LanguageSelector struct {
-	languages     []string
+	allLanguages  []string
+	languages     []string // Filtered list (excluding already known)
 	selectedIndex int
 	viewport      viewport.Model
 	visible       bool
@@ -40,10 +41,38 @@ type LanguageSelector struct {
 // NewLanguageSelector creates a new language selector
 func NewLanguageSelector() *LanguageSelector {
 	return &LanguageSelector{
+		allLanguages:  dndLanguages,
 		languages:     dndLanguages,
 		selectedIndex: 0,
 		visible:       false,
 	}
+}
+
+// SetExcludeLanguages filters out languages the character already knows
+func (ls *LanguageSelector) SetExcludeLanguages(knownLanguages []string) {
+	// Create a set of known languages for fast lookup
+	knownSet := make(map[string]bool)
+	for _, lang := range knownLanguages {
+		// Normalize to handle variations like "One additional language of your choice"
+		normalizedLang := strings.ToLower(strings.TrimSpace(lang))
+		// Skip placeholder texts
+		if !strings.Contains(normalizedLang, "additional") &&
+		   !strings.Contains(normalizedLang, "choice") &&
+		   !strings.Contains(normalizedLang, "extra") {
+			knownSet[normalizedLang] = true
+		}
+	}
+
+	// Filter out known languages
+	ls.languages = []string{}
+	for _, lang := range ls.allLanguages {
+		if !knownSet[strings.ToLower(lang)] {
+			ls.languages = append(ls.languages, lang)
+		}
+	}
+
+	// Reset selected index
+	ls.selectedIndex = 0
 }
 
 // Show displays the language selector

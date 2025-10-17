@@ -46,6 +46,7 @@ type Model struct {
 	speciesSelector *components.SpeciesSelector
 	languageSelector *components.LanguageSelector
 	skillSelector    *components.SkillSelector
+	spellSelector    *components.SpellSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -79,6 +80,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		speciesSelector:     components.NewSpeciesSelector(),
 		languageSelector:    components.NewLanguageSelector(),
 		skillSelector:       components.NewSkillSelector(),
+		spellSelector:       components.NewSpellSelector(),
 		statsPanel:          panels.NewStatsPanel(char),
 		skillsPanel:         panels.NewSkillsPanel(char),
 		inventoryPanel:      panels.NewInventoryPanel(char),
@@ -185,7 +187,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// If not in main focus, let the focused panel handle it
 		}
 
-		// Check if skill selector is active first
+		// Check if spell selector is active first
+		if m.spellSelector.IsVisible() {
+			return m.handleSpellSelectorKeys(msg)
+		}
+
+		// Check if skill selector is active
 		if m.skillSelector.IsVisible() {
 			return m.handleSkillSelectorKeys(msg)
 		}
@@ -501,15 +508,24 @@ func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			// Check if we need to select a skill (and no language selection)
+			// Check for various selections needed
 			needsSkillSelection := models.HasSkillChoice(selectedSpecies)
+			needsSpellSelection := models.HasSpellChoice(selectedSpecies)
 
 			if needsLanguageSelection {
+				// Filter out languages the character already knows
+				m.languageSelector.SetExcludeLanguages(m.character.Languages)
 				m.languageSelector.Show()
 				m.message = "Select your additional language..."
 			} else if needsSkillSelection {
 				m.skillSelector.Show()
 				m.message = "Select your skill proficiency..."
+			} else if needsSpellSelection {
+				// Show wizard cantrip selector
+				cantrips := models.GetWizardCantrips()
+				m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+				m.spellSelector.Show()
+				m.message = "Select your wizard cantrip..."
 			} else {
 				m.message = fmt.Sprintf("Species changed from %s to %s. Speed updated to %d ft.", oldSpecies, selectedSpecies.Name, m.character.Speed)
 			}
@@ -540,13 +556,23 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 				}
 			}
 
-			// After language selection, check if we need skill selection
+			// After language selection, check for skill or spell selection
 			species := models.GetSpeciesByName(m.character.Race)
-			if species != nil && models.HasSkillChoice(species) {
-				m.skillSelector.Show()
-				m.message = "Select your skill proficiency..."
+			if species != nil {
+				if models.HasSkillChoice(species) {
+					m.skillSelector.Show()
+					m.message = "Select your skill proficiency..."
+				} else if models.HasSpellChoice(species) {
+					// Show wizard cantrip selector for High Elf
+					cantrips := models.GetWizardCantrips()
+					m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+					m.spellSelector.Show()
+					m.message = "Select your wizard cantrip..."
+				} else {
+					m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
+				}
 			} else {
-				m.message = fmt.Sprintf("Language selected: %s", selectedLanguage)
+				m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
 			}
 		}
 		m.languageSelector.Hide()
@@ -610,12 +636,59 @@ func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			// Use the helper function to add and track the species skill
 			models.AddSpeciesSkillChoice(m.character, skillType)
-			m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
+
+			// After skill selection, check if we need spell selection
+			species := models.GetSpeciesByName(m.character.Race)
+			if species != nil && models.HasSpellChoice(species) {
+				// Show wizard cantrip selector for High Elf
+				cantrips := models.GetWizardCantrips()
+				m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+				m.spellSelector.Show()
+				m.message = "Select your wizard cantrip..."
+			} else {
+				m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
+			}
 		}
 		m.skillSelector.Hide()
 	case "esc":
 		m.skillSelector.Hide()
 		m.message = "Skill selection cancelled"
+	}
+	return m, nil
+}
+
+// handleSpellSelectorKeys handles spell selector specific keys
+func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.spellSelector.Prev()
+	case "down", "j":
+		m.spellSelector.Next()
+	case "enter":
+		selectedSpell := m.spellSelector.GetSelectedSpell()
+		if selectedSpell.Name != "" {
+			// Check if character already has this spell
+			hasSpell := false
+			for _, existing := range m.character.SpellBook.Spells {
+				if existing.Name == selectedSpell.Name {
+					hasSpell = true
+					break
+				}
+			}
+
+			if !hasSpell {
+				// Add spell to spellbook and track it as a species spell
+				m.character.SpellBook.AddSpell(selectedSpell)
+				m.character.SpeciesSpells = append(m.character.SpeciesSpells, selectedSpell.Name)
+				m.message = fmt.Sprintf("Spell learned: %s", selectedSpell.Name)
+			} else {
+				m.message = fmt.Sprintf("You already know %s", selectedSpell.Name)
+			}
+		}
+		m.spellSelector.Hide()
+	case "esc":
+		m.spellSelector.Hide()
+		m.message = "Spell selection cancelled"
 	}
 	return m, nil
 }
@@ -913,17 +986,22 @@ func (m *Model) View() string {
 	)
 
 	// Render popups/overlays (in priority order)
-	// Skill selector takes highest priority
+	// Spell selector takes highest priority
+	if m.spellSelector.IsVisible() {
+		return m.spellSelector.View(m.width, m.height)
+	}
+
+	// Skill selector takes second priority
 	if m.skillSelector.IsVisible() {
 		return m.skillSelector.View(m.width, m.height)
 	}
 
-	// Language selector takes second priority
+	// Language selector takes third priority
 	if m.languageSelector.IsVisible() {
 		return m.languageSelector.View(m.width, m.height)
 	}
 
-	// Species selector takes third priority
+	// Species selector takes fourth priority
 	if m.speciesSelector.IsVisible() {
 		return m.speciesSelector.View(m.width, m.height)
 	}

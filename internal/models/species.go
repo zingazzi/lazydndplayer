@@ -326,8 +326,14 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 	// Clear old species skills list
 	char.SpeciesSkills = []SkillType{}
 
+	// Remove old species spells
+	RemoveSpeciesSpells(char)
+
 	// Apply skill proficiencies from species traits
 	ApplySpeciesSkillProficiencies(char, species)
+
+	// Apply species spells based on character level
+	ApplySpeciesSpells(char, species)
 
 	// Note: In D&D 5e 2024, ability score increases are more flexible
 	// and often chosen by the player rather than fixed by species.
@@ -375,4 +381,55 @@ func HasSkillChoice(species *SpeciesInfo) bool {
 		}
 	}
 	return false
+}
+
+// HasSpellChoice checks if a species grants a spell choice (like High Elf cantrip)
+func HasSpellChoice(species *SpeciesInfo) bool {
+	for _, trait := range species.Traits {
+		traitNameLower := strings.ToLower(trait.Name)
+		traitDescLower := strings.ToLower(trait.Description)
+		// Check for High Elf's cantrip trait
+		if strings.Contains(traitNameLower, "cantrip") && strings.Contains(traitDescLower, "wizard spell list") {
+			return true
+		}
+	}
+	return false
+}
+
+// ApplySpeciesSpells adds spells granted by species traits based on character level
+func ApplySpeciesSpells(char *Character, species *SpeciesInfo) {
+	spellDB := GetSpeciesSpells()
+	char.SpeciesSpells = []string{}
+
+	for _, trait := range species.Traits {
+		spells := GetSpellsForLevel(trait, char.Level)
+		for _, spellName := range spells {
+			// Check if spell is in our database
+			if spellData, exists := spellDB[spellName]; exists {
+				// Check if character already has this spell
+				hasSpell := false
+				for _, existing := range char.SpellBook.Spells {
+					if existing.Name == spellName {
+						hasSpell = true
+						break
+					}
+				}
+
+				if !hasSpell {
+					// Add spell to spellbook
+					char.SpellBook.AddSpell(spellData)
+					// Track that this spell came from species
+					char.SpeciesSpells = append(char.SpeciesSpells, spellName)
+				}
+			}
+		}
+	}
+}
+
+// RemoveSpeciesSpells removes all spells granted by the previous species
+func RemoveSpeciesSpells(char *Character) {
+	for _, spellName := range char.SpeciesSpells {
+		char.SpellBook.RemoveSpell(spellName)
+	}
+	char.SpeciesSpells = []string{}
 }

@@ -1,6 +1,11 @@
 // internal/models/spells.go
 package models
 
+import (
+	"fmt"
+	"strings"
+)
+
 // SpellSchool represents the school of magic
 type SpellSchool string
 
@@ -17,17 +22,44 @@ const (
 
 // Spell represents a single spell
 type Spell struct {
-	Name        string      `json:"name"`
-	Level       int         `json:"level"` // 0 for cantrips
-	School      SpellSchool `json:"school"`
-	CastingTime string      `json:"casting_time"`
-	Range       string      `json:"range"`
-	Components  string      `json:"components"` // V, S, M
-	Duration    string      `json:"duration"`
-	Description string      `json:"description"`
-	Prepared    bool        `json:"prepared"` // For prepared casters
-	Known       bool        `json:"known"`    // For known casters
-	Ritual      bool        `json:"ritual"`
+	Name           string      `json:"name"`
+	Level          int         `json:"level"` // 0 for cantrips
+	School         SpellSchool `json:"school"`
+	CastingTime    string      `json:"casting_time"`
+	ActionType     string      `json:"actionType"`     // action, bonus action, reaction
+	Range          string      `json:"range"`
+	Components     interface{} `json:"components"`     // Can be string or []string
+	Material       string      `json:"material"`       // Material component description
+	Duration       string      `json:"duration"`
+	Concentration  bool        `json:"concentration"`
+	Description    string      `json:"description"`
+	CantripUpgrade string      `json:"cantripUpgrade"` // Cantrip scaling info
+	Prepared       bool        `json:"prepared"`       // For prepared casters
+	Known          bool        `json:"known"`          // For known casters
+	Ritual         bool        `json:"ritual"`
+	Classes        []string    `json:"classes"` // Classes that can learn this spell
+}
+
+// GetComponentsString returns components as a formatted string
+func (s *Spell) GetComponentsString() string {
+	switch v := s.Components.(type) {
+	case string:
+		return v
+	case []interface{}:
+		parts := make([]string, len(v))
+		for i, comp := range v {
+			parts[i] = strings.ToUpper(fmt.Sprint(comp))
+		}
+		return strings.Join(parts, ", ")
+	case []string:
+		parts := make([]string, len(v))
+		for i, comp := range v {
+			parts[i] = strings.ToUpper(comp)
+		}
+		return strings.Join(parts, ", ")
+	default:
+		return "V, S"
+	}
 }
 
 // SpellSlots represents available spell slots per level

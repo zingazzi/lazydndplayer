@@ -48,6 +48,7 @@ type Character struct {
 	Darkvision          int            `json:"darkvision"` // Range in feet, 0 if none
 	SpeciesTraits       []SpeciesTrait `json:"species_traits"`
 	SpeciesSkills       []SkillType    `json:"species_skills"` // Track which skills came from species
+	SpeciesSpells       []string       `json:"species_spells"` // Track which spells came from species
 
 	// Misc
 	Notes string `json:"notes"`
@@ -90,6 +91,7 @@ func NewCharacter() *Character {
 		Darkvision:    0,
 		SpeciesTraits: []SpeciesTrait{},
 		SpeciesSkills: []SkillType{},
+		SpeciesSpells: []string{},
 	}
 	char.UpdateDerivedStats()
 	return char
