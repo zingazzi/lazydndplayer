@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/dice"
@@ -23,12 +24,14 @@ const (
 
 // DicePanel displays dice roller
 type DicePanel struct {
-	character           *models.Character
-	input               textinput.Model
-	history             *dice.RollHistory
-	LastMessage         string
-	mode                DicePanelMode
+	character            *models.Character
+	input                textinput.Model
+	history              *dice.RollHistory
+	LastMessage          string
+	mode                 DicePanelMode
 	historySelectedIndex int
+	viewport             viewport.Model
+	ready                bool
 }
 
 // NewDicePanel creates a new dice panel
@@ -40,12 +43,14 @@ func NewDicePanel(char *models.Character) *DicePanel {
 	// Don't auto-focus - user will press Enter to activate
 
 	return &DicePanel{
-		character:           char,
-		input:               ti,
-		history:             dice.NewRollHistory(10),
-		LastMessage:         "",
-		mode:                DiceModeIdle,
+		character:            char,
+		input:                ti,
+		history:              dice.NewRollHistory(20),
+		LastMessage:          "",
+		mode:                 DiceModeIdle,
 		historySelectedIndex: 0,
+		viewport:             viewport.New(0, 0),
+		ready:                false,
 	}
 }
 
@@ -56,8 +61,6 @@ func (p *DicePanel) View(width, height int) string {
 		Foreground(lipgloss.Color("205")).
 		Padding(0, 0, 1, 0)
 
-	var lines []string
-	
 	// Title with mode indicator
 	modeIndicator := ""
 	switch p.mode {
@@ -66,37 +69,70 @@ func (p *DicePanel) View(width, height int) string {
 	case DiceModeHistory:
 		modeIndicator = " [HISTORY]"
 	}
-	lines = append(lines, titleStyle.Render("DICE ROLLER"+modeIndicator))
-	lines = append(lines, "")
+
+	var headerLines []string
+	headerLines = append(headerLines, titleStyle.Render("DICE ROLLER"+modeIndicator))
+	headerLines = append(headerLines, "")
 
 	// Input field (highlighted when in input mode)
 	inputLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 	if p.mode == DiceModeInput {
 		inputLabelStyle = inputLabelStyle.Bold(true).Foreground(lipgloss.Color("42"))
 	}
-	lines = append(lines, inputLabelStyle.Render("Enter dice notation:"))
-	lines = append(lines, p.input.View())
-	lines = append(lines, "")
+	headerLines = append(headerLines, inputLabelStyle.Render("Enter dice notation:"))
+	headerLines = append(headerLines, p.input.View())
+	headerLines = append(headerLines, "")
 
 	// Last message
 	if p.LastMessage != "" {
 		messageStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("42")).
 			Bold(true)
-		lines = append(lines, messageStyle.Render(p.LastMessage))
-		lines = append(lines, "")
+		headerLines = append(headerLines, messageStyle.Render(p.LastMessage))
+		headerLines = append(headerLines, "")
 	}
 
-	// Roll history (highlighted when in history mode)
+	// Roll history label (highlighted when in history mode)
 	historyLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("170")).Bold(true)
 	if p.mode == DiceModeHistory {
 		historyLabelStyle = historyLabelStyle.Foreground(lipgloss.Color("42"))
 	}
-	lines = append(lines, historyLabelStyle.Render("ROLL HISTORY"))
+	headerLines = append(headerLines, historyLabelStyle.Render("ROLL HISTORY"))
 
-	recentRolls := p.history.GetRecent(10)
+	// Mode hints
+	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	var hint string
+	switch p.mode {
+	case DiceModeIdle:
+		hint = hintStyle.Render("[Enter] Input • [h] History • [r] Reroll last")
+	case DiceModeInput:
+		hint = hintStyle.Render("[Enter] Roll • [Esc] Back")
+	case DiceModeHistory:
+		hint = hintStyle.Render("[↑/↓] Navigate • [Enter] Reroll • [Esc] Back")
+	}
+
+	// Calculate header and footer heights
+	headerContent := strings.Join(headerLines, "\n")
+	headerHeight := strings.Count(headerContent, "\n") + 1
+	hintHeight := 2 // blank line + hint line
+
+	// Available height for history viewport
+	viewportHeight := height - headerHeight - hintHeight - 2 // -2 for padding
+	if viewportHeight < 3 {
+		viewportHeight = 3
+	}
+
+	// Initialize or update viewport size
+	if !p.ready || p.viewport.Width != width-4 || p.viewport.Height != viewportHeight {
+		p.viewport = viewport.New(width-4, viewportHeight)
+		p.ready = true
+	}
+
+	// Build history content
+	var historyLines []string
+	recentRolls := p.history.GetRecent(20)
 	if len(recentRolls) == 0 {
-		lines = append(lines, lipgloss.NewStyle().
+		historyLines = append(historyLines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Render("No rolls yet"))
 	} else {
@@ -126,23 +162,24 @@ func (p *DicePanel) View(width, height int) string {
 				}
 			}
 
-			lines = append(lines, rollStyle.Render(roll.String()))
+			historyLines = append(historyLines, rollStyle.Render(roll.String()))
 		}
 	}
 
-	// Mode hints
-	lines = append(lines, "")
-	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-	switch p.mode {
-	case DiceModeIdle:
-		lines = append(lines, hintStyle.Render("[Enter] Input • [h] History • [r] Reroll last"))
-	case DiceModeInput:
-		lines = append(lines, hintStyle.Render("[Enter] Roll • [Esc] Back"))
-	case DiceModeHistory:
-		lines = append(lines, hintStyle.Render("[↑/↓] Navigate • [Enter] Reroll • [Esc] Back"))
+	// Set viewport content
+	p.viewport.SetContent(strings.Join(historyLines, "\n"))
+
+	// Add scroll indicators
+	historyContent := p.viewport.View()
+	if p.viewport.TotalLineCount() > p.viewport.Height {
+		scrollIndicator := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(
+			fmt.Sprintf("↑↓ %d/%d", p.viewport.YOffset+1, p.viewport.TotalLineCount()-p.viewport.Height+1),
+		)
+		historyContent += "\n" + scrollIndicator
 	}
 
-	content := strings.Join(lines, "\n")
+	// Combine all sections
+	content := headerContent + "\n" + historyContent + "\n\n" + hint
 
 	panelStyle := lipgloss.NewStyle().
 		Width(width).
@@ -220,6 +257,12 @@ func (p *DicePanel) SetMode(mode DicePanelMode) {
 	} else {
 		p.input.Blur()
 	}
+
+	// When entering history mode, reset to top and first item
+	if mode == DiceModeHistory {
+		p.historySelectedIndex = 0
+		p.viewport.GotoTop()
+	}
 }
 
 // GetMode returns the current mode
@@ -229,9 +272,10 @@ func (p *DicePanel) GetMode() DicePanelMode {
 
 // HistoryNext moves selection down in history
 func (p *DicePanel) HistoryNext() {
-	recentRolls := p.history.GetRecent(10)
+	recentRolls := p.history.GetRecent(20)
 	if len(recentRolls) > 0 && p.historySelectedIndex < len(recentRolls)-1 {
 		p.historySelectedIndex++
+		p.viewport.LineDown(1)
 	}
 }
 
@@ -239,6 +283,7 @@ func (p *DicePanel) HistoryNext() {
 func (p *DicePanel) HistoryPrev() {
 	if p.historySelectedIndex > 0 {
 		p.historySelectedIndex--
+		p.viewport.LineUp(1)
 	}
 }
 
@@ -252,7 +297,7 @@ func (p *DicePanel) RerollLast() {
 
 // RerollSelected rerolls the selected history item
 func (p *DicePanel) RerollSelected() {
-	recentRolls := p.history.GetRecent(10)
+	recentRolls := p.history.GetRecent(20)
 	if len(recentRolls) > 0 && p.historySelectedIndex < len(recentRolls) {
 		p.Roll(recentRolls[p.historySelectedIndex].Expression)
 	}

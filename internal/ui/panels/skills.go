@@ -51,54 +51,92 @@ func (p *SkillsPanel) View(width, height int) string {
 		Foreground(lipgloss.Color("230")).
 		Background(lipgloss.Color("237"))
 
-	var lines []string
-	lines = append(lines, titleStyle.Render("SKILLS"))
-	lines = append(lines, "")
+	// Build title
+	var contentLines []string
+	contentLines = append(contentLines, titleStyle.Render("SKILLS"))
+	contentLines = append(contentLines, "")
 
-	for i, skill := range char.Skills.List {
-		abilityMod := char.AbilityScores.GetModifier(skill.Ability)
-		totalBonus := skill.CalculateBonus(abilityMod, char.ProficiencyBonus)
+	// Split skills into two columns
+	numSkills := len(char.Skills.List)
+	midpoint := (numSkills + 1) / 2
 
-		profMarker := "  "
-		if skill.Proficiency == models.Proficient {
-			profMarker = "● "
-		} else if skill.Proficiency == models.Expertise {
-			profMarker = "◆ "
-		}
-
-		line := fmt.Sprintf("%s%-20s (%s) %+3d",
-			profMarker,
-			skill.Name,
-			skill.Ability,
-			totalBonus,
-		)
-
-		if i == p.selectedIndex {
-			lines = append(lines, selectedStyle.Render(line))
-		} else {
-			lines = append(lines, normalStyle.Render(line))
-		}
+	columnWidth := width / 2
+	if columnWidth > 35 {
+		columnWidth = 35
 	}
 
-	lines = append(lines, "")
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render("  = Not proficient"))
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render("● = Proficient"))
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render("◆ = Expertise (double proficiency)"))
-	lines = append(lines, "")
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render("Press 'r' to roll selected skill"))
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render("Press 'e' to toggle proficiency"))
+	// Build each row with two columns
+	for i := 0; i < midpoint; i++ {
+		leftSkill := char.Skills.List[i]
+		leftAbilityMod := char.AbilityScores.GetModifier(leftSkill.Ability)
+		leftBonus := leftSkill.CalculateBonus(leftAbilityMod, char.ProficiencyBonus)
 
-	content := strings.Join(lines, "\n")
+		leftProfMarker := "  "
+		if leftSkill.Proficiency == models.Proficient {
+			leftProfMarker = "● "
+		} else if leftSkill.Proficiency == models.Expertise {
+			leftProfMarker = "◆ "
+		}
+
+		leftLine := fmt.Sprintf("%s%-15s (%s) %+3d",
+			leftProfMarker,
+			leftSkill.Name,
+			leftSkill.Ability,
+			leftBonus,
+		)
+
+		// Style left column
+		var leftStyled string
+		if i == p.selectedIndex {
+			leftStyled = selectedStyle.Width(columnWidth).Render(leftLine)
+		} else {
+			leftStyled = normalStyle.Width(columnWidth).Render(leftLine)
+		}
+
+		// Right column (if exists)
+		rightStyled := ""
+		rightIdx := i + midpoint
+		if rightIdx < numSkills {
+			rightSkill := char.Skills.List[rightIdx]
+			rightAbilityMod := char.AbilityScores.GetModifier(rightSkill.Ability)
+			rightBonus := rightSkill.CalculateBonus(rightAbilityMod, char.ProficiencyBonus)
+
+			rightProfMarker := "  "
+			if rightSkill.Proficiency == models.Proficient {
+				rightProfMarker = "● "
+			} else if rightSkill.Proficiency == models.Expertise {
+				rightProfMarker = "◆ "
+			}
+
+			rightLine := fmt.Sprintf("%s%-15s (%s) %+3d",
+				rightProfMarker,
+				rightSkill.Name,
+				rightSkill.Ability,
+				rightBonus,
+			)
+
+			if rightIdx == p.selectedIndex {
+				rightStyled = selectedStyle.Width(columnWidth).Render(rightLine)
+			} else {
+				rightStyled = normalStyle.Width(columnWidth).Render(rightLine)
+			}
+		}
+
+		// Join columns
+		row := lipgloss.JoinHorizontal(lipgloss.Left, leftStyled, rightStyled)
+		contentLines = append(contentLines, row)
+	}
+
+	contentLines = append(contentLines, "")
+	contentLines = append(contentLines, lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render("  = Not proficient  ● = Proficient  ◆ = Expertise"))
+	contentLines = append(contentLines, "")
+	contentLines = append(contentLines, lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render("Press 'r' to roll selected skill | Press 'e' to toggle proficiency"))
+
+	content := strings.Join(contentLines, "\n")
 	p.viewport.SetContent(content)
 
 	// Add scroll indicators at bottom of viewport

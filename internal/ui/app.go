@@ -3,6 +3,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -223,7 +224,7 @@ func (m *Model) handleActionsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleDicePanelKeys handles keys when dice panel has focus
 func (m *Model) handleDicePanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	mode := m.dicePanel.GetMode()
-	
+
 	switch mode {
 	case panels.DiceModeIdle:
 		// Idle mode - waiting for user to choose action
@@ -239,7 +240,7 @@ func (m *Model) handleDicePanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.message = "Rerolled last dice"
 		}
 		return m, nil
-		
+
 	case panels.DiceModeInput:
 		// Input mode - typing dice notation
 		switch msg.String() {
@@ -257,7 +258,7 @@ func (m *Model) handleDicePanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		// Pass all other keys to input
 		return m, m.dicePanel.Update(msg)
-		
+
 	case panels.DiceModeHistory:
 		// History mode - browsing previous rolls
 		switch msg.String() {
@@ -275,7 +276,7 @@ func (m *Model) handleDicePanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	
+
 	return m, nil
 }
 
@@ -354,6 +355,94 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 
+// buildStatusBar creates the status bar with contextual information
+func (m *Model) buildStatusBar() string {
+	appNameStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205")).
+		Bold(true).
+		Background(lipgloss.Color("235"))
+
+	panelNameStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("86")).
+		Background(lipgloss.Color("235"))
+
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		Background(lipgloss.Color("235"))
+
+	keyStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("170")).
+		Background(lipgloss.Color("235"))
+
+	// Get active panel name and contextual help
+	var panelName, contextHelp string
+
+	switch m.focusArea {
+	case FocusMain:
+		switch m.currentPanel {
+		case OverviewPanel:
+			panelName = "Overview"
+			contextHelp = ""
+		case StatsPanel:
+			panelName = "Stats"
+			contextHelp = "[e] Edit"
+		case SkillsPanel:
+			panelName = "Skills"
+			contextHelp = "[↑/↓] Navigate • [r] Roll • [e] Toggle Prof"
+		case InventoryPanel:
+			panelName = "Inventory"
+			contextHelp = "[↑/↓] Navigate • [a] Add • [e] Equip • [d] Delete"
+		case SpellsPanel:
+			panelName = "Spells"
+			contextHelp = "[a] Add • [r] Rest"
+		}
+	case FocusActions:
+		panelName = "Actions"
+		contextHelp = "[↑/↓] Navigate • [Enter] Activate"
+	case FocusDice:
+		panelName = "Dice Roller"
+		switch m.dicePanel.GetMode() {
+		case panels.DiceModeIdle:
+			contextHelp = "[Enter] Input • [h] History • [r] Reroll"
+		case panels.DiceModeInput:
+			contextHelp = "Type dice notation • [Enter] Roll • [Esc] Cancel"
+		case panels.DiceModeHistory:
+			contextHelp = "[↑/↓] Navigate • [Enter] Reroll • [Esc] Back"
+		}
+	}
+
+	// Build left section: app name + panel + help
+	leftSection := appNameStyle.Render(" lazydndplayer ") +
+		panelNameStyle.Render(" "+panelName+" ")
+
+	if contextHelp != "" {
+		leftSection += helpStyle.Render(" "+contextHelp+" ")
+	}
+
+	// Build right section: global shortcuts
+	rightSection := keyStyle.Render("[Tab]") + helpStyle.Render(" Switch tabs • ") +
+		keyStyle.Render("[f]") + helpStyle.Render(" Focus • ") +
+		keyStyle.Render("[s]") + helpStyle.Render(" Save • ") +
+		keyStyle.Render("[?]") + helpStyle.Render(" Help • ") +
+		keyStyle.Render("[q]") + helpStyle.Render(" Quit ")
+
+	// Calculate padding
+	leftWidth := lipgloss.Width(leftSection)
+	rightWidth := lipgloss.Width(rightSection)
+	padding := m.width - leftWidth - rightWidth
+	if padding < 0 {
+		padding = 0
+	}
+
+	paddingStr := strings.Repeat(" ", padding)
+
+	statusBarStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("235")).
+		Width(m.width)
+
+	return statusBarStyle.Render(leftSection + paddingStr + rightSection)
+}
+
 // View renders the application
 func (m *Model) View() string {
 	if !m.ready || m.quitting {
@@ -373,12 +462,23 @@ func (m *Model) View() string {
 	// Tab navigation
 	tabBar := m.tabs.View(m.width)
 
-	// Calculate heights
+	// Calculate heights (better proportions)
 	titleHeight := 1
 	tabHeight := 3
-	bottomHeight := 20 // Height for actions + dice panels
-	statusHeight := 1
-	mainPanelHeight := m.height - titleHeight - tabHeight - bottomHeight - statusHeight - 2
+	statusBarHeight := 1
+
+	// Use proportional heights: 55% for main panel, 45% for bottom panels
+	availableHeight := m.height - titleHeight - tabHeight - statusBarHeight - 2
+	mainPanelHeight := int(float64(availableHeight) * 0.55)
+	bottomHeight := availableHeight - mainPanelHeight
+
+	// Ensure minimum heights
+	if mainPanelHeight < 15 {
+		mainPanelHeight = 15
+	}
+	if bottomHeight < 12 {
+		bottomHeight = 12
+	}
 
 	// Main panel (full width at top)
 	var mainPanelView string
@@ -453,15 +553,7 @@ func (m *Model) View() string {
 	)
 
 	// Status bar
-	statusBar := ""
-	if m.message != "" {
-		statusStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("42")).
-			Background(lipgloss.Color("235")).
-			Width(m.width).
-			Padding(0, 1)
-		statusBar = statusStyle.Render(m.message)
-	}
+	statusBar := m.buildStatusBar()
 
 	// Combine all parts vertically
 	return lipgloss.JoinVertical(
