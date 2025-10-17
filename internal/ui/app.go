@@ -405,11 +405,8 @@ func (m *Model) View() string {
 	// Main panel (full width at top)
 	var mainPanelView string
 
-	// Adjust width for border if focused
-	mainWidth := m.width - 4
-	if m.focusArea == FocusMain {
-		mainWidth = m.width - 8 // Account for border padding
-	}
+	// Always account for padding
+	mainWidth := m.width - 8
 
 	switch m.currentPanel {
 	case OverviewPanel:
@@ -424,47 +421,51 @@ func (m *Model) View() string {
 		mainPanelView = m.spellsPanel.View(mainWidth, mainPanelHeight)
 	}
 
-	// Add focus border to main panel
+	// Add border (focused = pink, unfocused = gray)
+	mainPanelStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		Padding(0, 1)
+
 	if m.focusArea == FocusMain {
-		mainPanelStyle := lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("205")).
-			Padding(0, 1)
-		mainPanelView = mainPanelStyle.Render(mainPanelView)
+		mainPanelStyle = mainPanelStyle.BorderForeground(lipgloss.Color("205"))
+	} else {
+		mainPanelStyle = mainPanelStyle.BorderForeground(lipgloss.Color("240"))
 	}
+
+	mainPanelView = mainPanelStyle.Render(mainPanelView)
 
 	// Bottom panels (split 50/50)
 	bottomWidth := m.width / 2
 
-	// Adjust widths for borders
-	actionsWidth := bottomWidth - 2
-	diceWidth := bottomWidth - 2
-	if m.focusArea == FocusActions {
-		actionsWidth = bottomWidth - 6
-	}
-	if m.focusArea == FocusDice {
-		diceWidth = bottomWidth - 6
-	}
+	// Always account for border padding
+	actionsWidth := bottomWidth - 6
+	diceWidth := bottomWidth - 6
 
-	// Actions panel with focus indicator
+	// Actions panel with border (focused = pink, unfocused = gray)
 	actionsView := m.actionsPanel.View(actionsWidth, bottomHeight)
-	if m.focusArea == FocusActions {
-		actionsPanelStyle := lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("205")).
-			Padding(0, 1)
-		actionsView = actionsPanelStyle.Render(actionsView)
-	}
+	actionsPanelStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		Padding(0, 1)
 
-	// Dice panel with focus indicator
-	diceView := m.dicePanel.View(diceWidth, bottomHeight)
-	if m.focusArea == FocusDice {
-		dicePanelStyle := lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("205")).
-			Padding(0, 1)
-		diceView = dicePanelStyle.Render(diceView)
+	if m.focusArea == FocusActions {
+		actionsPanelStyle = actionsPanelStyle.BorderForeground(lipgloss.Color("205"))
+	} else {
+		actionsPanelStyle = actionsPanelStyle.BorderForeground(lipgloss.Color("240"))
 	}
+	actionsView = actionsPanelStyle.Render(actionsView)
+
+	// Dice panel with border (focused = pink, unfocused = gray)
+	diceView := m.dicePanel.View(diceWidth, bottomHeight)
+	dicePanelStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		Padding(0, 1)
+
+	if m.focusArea == FocusDice {
+		dicePanelStyle = dicePanelStyle.BorderForeground(lipgloss.Color("205"))
+	} else {
+		dicePanelStyle = dicePanelStyle.BorderForeground(lipgloss.Color("240"))
+	}
+	diceView = dicePanelStyle.Render(diceView)
 
 	// Bottom row (actions + dice)
 	bottomRow := lipgloss.JoinHorizontal(

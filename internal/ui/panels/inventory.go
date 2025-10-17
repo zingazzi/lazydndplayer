@@ -32,11 +32,11 @@ func (p *InventoryPanel) View(width, height int) string {
 
 	// Initialize viewport if not ready
 	if !p.ready {
-		p.viewport = viewport.New(width-4, height-2)
+		p.viewport = viewport.New(width, height)
 		p.ready = true
 	}
-	p.viewport.Width = width - 4
-	p.viewport.Height = height - 2
+	p.viewport.Width = width
+	p.viewport.Height = height
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -117,19 +117,15 @@ func (p *InventoryPanel) View(width, height int) string {
 	content := strings.Join(lines, "\n")
 	p.viewport.SetContent(content)
 
-	// Add scroll indicators
+	// Add scroll indicators at bottom of viewport
 	scrollInfo := ""
 	if p.viewport.ScrollPercent() < 1.0 {
-		scrollInfo = lipgloss.NewStyle().
+		scrollInfo = "\n" + lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
-			Render(fmt.Sprintf(" ↓ %d%%", int(p.viewport.ScrollPercent()*100)))
+			Render(fmt.Sprintf("↓ Scroll: %d%%", int(p.viewport.ScrollPercent()*100)))
 	}
 
-	return lipgloss.NewStyle().
-		Width(width).
-		Height(height).
-		Padding(1, 2).
-		Render(p.viewport.View() + scrollInfo)
+	return p.viewport.View() + scrollInfo
 }
 
 // Update handles updates for the inventory panel
