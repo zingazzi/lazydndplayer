@@ -181,12 +181,7 @@ func (p *DicePanel) View(width, height int) string {
 	// Combine all sections
 	content := headerContent + "\n" + historyContent + "\n\n" + hint
 
-	panelStyle := lipgloss.NewStyle().
-		Width(width).
-		Height(height).
-		Padding(1, 2)
-
-	return panelStyle.Render(content)
+	return content
 }
 
 // Update handles updates for the dice panel

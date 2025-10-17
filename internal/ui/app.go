@@ -494,13 +494,13 @@ func (m *Model) View() string {
 		statusBarHeight = 1
 	}
 
-	// First row: Main panel (2/3) + Character stats (1/3)
-	mainPanelWidth := int(float64(m.width) * 0.67)
-	charStatsWidth := m.width - mainPanelWidth
+	// First row: Main panel (55%) + Character stats (43%)
+	mainPanelWidth := int(float64(m.width) * 0.55)
+	charStatsWidth := int(float64(m.width) * 0.43)
 
-	// Calculate panel heights: 45% each for top and bottom rows (reduced to account for gaps)
-	topRowHeight := int(float64(m.height) * 0.45)
-	bottomHeight := int(float64(m.height) * 0.45)
+	// Calculate panel heights: top row 48%, bottom row 42%
+	topRowHeight := int(float64(m.height) * 0.48)
+	bottomHeight := int(float64(m.height) * 0.42)
 
 	// Ensure minimum heights
 	if topRowHeight < 10 {
@@ -543,10 +543,11 @@ func (m *Model) View() string {
 	)
 
 	// Add border to combined tabs + main panel (focused = pink, unfocused = gray)
-	// Set explicit height to match character stats panel
+	// Set explicit height and width to fill space properly
 	mainPanelStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		Padding(1, 2). // Match skills/inventory padding
+		Width(mainPanelWidth).
 		Height(topRowHeight)
 
 	if m.focusArea == FocusMain {
@@ -557,15 +558,16 @@ func (m *Model) View() string {
 
 	mainPanelWithTabs := mainPanelStyle.Render(tabsAndContent)
 
-	// Character stats panel (always visible, 1/3 of width)
+	// Character stats panel (always visible, 45% of width)
 	// Height should match the main panel exactly
 	charStatsInnerWidth := charStatsWidth - 8 // Account for border + padding (2 for border, 4 for padding)
-	charStatsInnerHeight := topRowHeight - 6 // Full height minus border and padding
+	charStatsInnerHeight := topRowHeight - 6 // Account for border (2) + vertical padding (4)
 	charStatsView := m.characterStatsPanel.View(charStatsInnerWidth, charStatsInnerHeight)
 	charStatsPanelStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		Padding(1, 2). // Match skills/inventory padding
-		Height(topRowHeight) // Set explicit height to match main panel
+		Width(charStatsWidth).
+		Height(topRowHeight)
 
 	if m.focusArea == FocusCharStats {
 		charStatsPanelStyle = charStatsPanelStyle.BorderForeground(lipgloss.Color("205"))
@@ -581,18 +583,22 @@ func (m *Model) View() string {
 		charStatsWithBorder,
 	)
 
-	// Bottom panels (split 50/50)
-	bottomWidth := m.width / 2
+	// Bottom panels: Actions (50%) + Dice Roller (48%)
+	actionsWidthRatio := int(float64(m.width) * 0.50)
+	diceWidthRatio := int(float64(m.width) * 0.48)
 
-	// Always account for border + padding (2 for border, 4 for padding)
-	actionsWidth := bottomWidth - 8
-	diceWidth := bottomWidth - 8
+	// Calculate inner dimensions: account for border + padding (2 for border, 4 for padding)
+	actionsWidth := actionsWidthRatio - 8
+	diceWidth := diceWidthRatio - 8
+	bottomInnerHeight := bottomHeight - 6 // Account for border (2) + vertical padding (4)
 
 	// Actions panel with border (focused = pink, unfocused = gray)
-	actionsView := m.actionsPanel.View(actionsWidth, bottomHeight)
+	actionsView := m.actionsPanel.View(actionsWidth, bottomInnerHeight)
 	actionsPanelStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(1, 2) // Match skills/inventory padding
+		Padding(1, 2). // Match skills/inventory padding
+		Width(actionsWidthRatio). // Set explicit width to fill space
+		Height(bottomHeight) // Enforce 45% height
 
 	if m.focusArea == FocusActions {
 		actionsPanelStyle = actionsPanelStyle.BorderForeground(lipgloss.Color("205"))
@@ -602,10 +608,12 @@ func (m *Model) View() string {
 	actionsView = actionsPanelStyle.Render(actionsView)
 
 	// Dice panel with border (focused = pink, unfocused = gray)
-	diceView := m.dicePanel.View(diceWidth, bottomHeight)
+	diceView := m.dicePanel.View(diceWidth, bottomInnerHeight)
 	dicePanelStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(1, 2) // Match skills/inventory padding
+		Padding(1, 2). // Match skills/inventory padding
+		Width(diceWidthRatio). // Set explicit width to fill space
+		Height(bottomHeight) // Enforce 45% height
 
 	if m.focusArea == FocusDice {
 		dicePanelStyle = dicePanelStyle.BorderForeground(lipgloss.Color("205"))

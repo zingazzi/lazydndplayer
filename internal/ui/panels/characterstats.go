@@ -123,12 +123,7 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 
 	content := strings.Join(lines, "\n")
 
-	panelStyle := lipgloss.NewStyle().
-		Width(width).
-		Height(height).
-		Padding(1, 2)
-
-	return panelStyle.Render(content)
+	return content
 }
 
 // Update handles updates for the character stats panel
