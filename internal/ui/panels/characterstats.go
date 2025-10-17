@@ -168,7 +168,7 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	// Add help text
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	if p.editMode == CharStatsNormal {
-		lines = append(lines, helpStyle.Render("[n] Name • [r] Race • [h] HP • [+/-] HP±1 • [i] Init"))
+		lines = append(lines, helpStyle.Render("[n] Name • [r] Species • [h] HP • [+/-] ±1 • [i] Init"))
 	} else if p.editMode == CharStatsEditHP {
 		// Don't show help here, it's in the popup
 	} else {

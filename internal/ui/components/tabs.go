@@ -27,6 +27,8 @@ func NewTabs() *Tabs {
 			{Label: "Skills", Key: "2"},
 			{Label: "Inventory", Key: "3"},
 			{Label: "Spells", Key: "4"},
+			{Label: "Abilities", Key: "5"},
+			{Label: "Traits", Key: "6"},
 		},
 		SelectedIndex: 0,
 	}

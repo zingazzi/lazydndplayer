@@ -98,10 +98,20 @@ func GetSpellsBindings() []HelpBinding {
 func GetCharacterStatsBindings() []HelpBinding {
 	return []HelpBinding{
 		{"n", "Edit character name"},
-		{"r", "Edit race"},
+		{"r", "Select species (from D&D 5e 2024 species)"},
 		{"h", "Adjust HP (popup)"},
 		{"+/-", "Quick HP adjust (±1)"},
 		{"i", "Roll initiative (1d20 + DEX)"},
+	}
+}
+
+// GetTraitsBindings returns traits panel bindings
+func GetTraitsBindings() []HelpBinding {
+	return []HelpBinding{
+		{"↑/↓ or j/k", "Navigate traits"},
+		{"a", "Add language/resistance/feat"},
+		{"d", "Delete selected"},
+		{"", "Darkvision & resistances from species"},
 	}
 }
 

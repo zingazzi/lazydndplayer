@@ -21,6 +21,8 @@ const (
 	SkillsPanel
 	InventoryPanel
 	SpellsPanel
+	ActionsPanel
+	TraitsPanel
 )
 
 // FocusArea represents which area of the UI has focus
@@ -41,15 +43,17 @@ type Model struct {
 	// UI Components
 	tabs         *components.Tabs
 	help         *components.Help
+	speciesSelector *components.SpeciesSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
 	skillsPanel    *panels.SkillsPanel
 	inventoryPanel *panels.InventoryPanel
 	spellsPanel    *panels.SpellsPanel
+	actionsPanel   *panels.ActionsPanel
+	traitsPanel    *panels.TraitsPanel
 
 	// Fixed Panels (always visible)
-	actionsPanel      *panels.ActionsPanel
 	dicePanel         *panels.DicePanel
 	characterStatsPanel *panels.CharacterStatsPanel
 
@@ -70,11 +74,13 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		storage:             store,
 		tabs:                components.NewTabs(),
 		help:                components.NewHelp(),
+		speciesSelector:     components.NewSpeciesSelector(),
 		statsPanel:          panels.NewStatsPanel(char),
 		skillsPanel:         panels.NewSkillsPanel(char),
 		inventoryPanel:      panels.NewInventoryPanel(char),
 		spellsPanel:         panels.NewSpellsPanel(char),
 		actionsPanel:        panels.NewActionsPanel(char),
+		traitsPanel:         panels.NewTraitsPanel(char),
 		dicePanel:           panels.NewDicePanel(char),
 		characterStatsPanel: panels.NewCharacterStatsPanel(char),
 		currentPanel:        StatsPanel,
@@ -175,6 +181,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// If not in main focus, let the focused panel handle it
 		}
 
+		// Check if species selector is active first
+		if m.speciesSelector.IsVisible() {
+			return m.handleSpeciesSelectorKeys(msg)
+		}
+
 		// Handle input based on current focus
 		switch m.focusArea {
 		case FocusMain:
@@ -208,6 +219,10 @@ func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleInventoryPanel(msg)
 	case SpellsPanel:
 		return m.handleSpellsPanel(msg)
+	case ActionsPanel:
+		return m.handleActionsMainPanel(msg)
+	case TraitsPanel:
+		return m.handleTraitsPanel(msg)
 	}
 	return m, nil
 }
@@ -358,6 +373,37 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleActionsMainPanel handles actions panel when shown in main area
+func (m *Model) handleActionsMainPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.actionsPanel.Prev()
+	case "down", "j":
+		m.actionsPanel.Next()
+	case "enter":
+		m.message = "Action activated (not fully implemented)"
+	}
+	return m, nil
+}
+
+// handleTraitsPanel handles traits panel specific keys
+func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.traitsPanel.Prev()
+	case "down", "j":
+		m.traitsPanel.Next()
+	case "a":
+		// Add a sample language or feat
+		m.traitsPanel.AddLanguage("Elvish")
+		m.message = "Language added (full implementation pending)"
+	case "d", "x":
+		m.traitsPanel.RemoveSelected()
+		m.message = "Item removed"
+	}
+	return m, nil
+}
+
 // handleCharStatsPanelKeys handles character stats panel specific keys
 func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	editMode := m.characterStatsPanel.GetEditMode()
@@ -397,8 +443,8 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.characterStatsPanel.EditName()
 		m.message = "Editing name..."
 	case "r":
-		m.characterStatsPanel.EditRace()
-		m.message = "Editing race..."
+		m.speciesSelector.Show()
+		m.message = "Select a species..."
 	case "h":
 		m.characterStatsPanel.EditHP()
 		m.message = "Enter HP change (+/- amount)..."
@@ -418,6 +464,29 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleSpeciesSelectorKeys handles species selector specific keys
+func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.speciesSelector.Prev()
+	case "down", "j":
+		m.speciesSelector.Next()
+	case "enter":
+		selectedSpecies := m.speciesSelector.GetSelectedSpecies()
+		if selectedSpecies != nil {
+			oldSpecies := m.character.Race
+			// Apply new species
+			models.ApplySpeciesToCharacter(m.character, selectedSpecies.Name)
+			m.message = fmt.Sprintf("Species changed from %s to %s. Speed updated to %d ft.", oldSpecies, selectedSpecies.Name, m.character.Speed)
+		}
+		m.speciesSelector.Hide()
+	case "esc":
+		m.speciesSelector.Hide()
+		m.message = "Species selection cancelled"
+	}
+	return m, nil
+}
+
 // getContextualHelp returns the panel name and contextual help bindings based on current focus
 func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 	switch m.focusArea {
@@ -431,6 +500,10 @@ func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 			return "Inventory", components.GetInventoryBindings()
 		case SpellsPanel:
 			return "Spells", components.GetSpellsBindings()
+		case ActionsPanel:
+			return "Abilities", components.GetActionsBindings()
+		case TraitsPanel:
+			return "Traits", components.GetTraitsBindings()
 		}
 	case FocusCharStats:
 		return "Character Info", components.GetCharacterStatsBindings()
@@ -481,10 +554,16 @@ func (m *Model) buildStatusBar() string {
 		case SpellsPanel:
 			panelName = "Spells"
 			contextHelp = "[a] Add • [r] Rest"
+		case ActionsPanel:
+			panelName = "Abilities"
+			contextHelp = "[↑/↓] Navigate • [Enter] Activate"
+		case TraitsPanel:
+			panelName = "Traits"
+			contextHelp = "[↑/↓] Navigate • [a] Add • [d] Delete"
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
-		contextHelp = "[n] Name • [r] Race • [h] HP • [+/-] HP ±1 • [i] Init"
+		contextHelp = "[n] Name • [r] Species • [h] HP • [+/-] ±1 • [i] Init"
 	case FocusActions:
 		panelName = "Actions"
 		contextHelp = "[↑/↓] Navigate • [Enter] Activate"
@@ -588,6 +667,10 @@ func (m *Model) View() string {
 		mainPanelView = m.inventoryPanel.View(mainWidth, mainContentHeight)
 	case SpellsPanel:
 		mainPanelView = m.spellsPanel.View(mainWidth, mainContentHeight)
+	case ActionsPanel:
+		mainPanelView = m.actionsPanel.View(mainWidth, mainContentHeight)
+	case TraitsPanel:
+		mainPanelView = m.traitsPanel.View(mainWidth, mainContentHeight)
 	}
 
 	// Combine tabs and content vertically (tabs inside the panel)
@@ -696,7 +779,13 @@ func (m *Model) View() string {
 		statusBar,
 	)
 
-	// Render HP popup overlay if active
+	// Render popups/overlays
+	// Species selector takes priority
+	if m.speciesSelector.IsVisible() {
+		return m.speciesSelector.View(m.width, m.height)
+	}
+
+	// HP popup overlay if active
 	hpPopup := m.characterStatsPanel.RenderHPPopup(m.width, m.height)
 	if hpPopup != "" {
 		return hpPopup

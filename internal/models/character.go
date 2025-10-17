@@ -41,6 +41,12 @@ type Character struct {
 	// Magic
 	SpellBook SpellBook `json:"spellbook"`
 
+	// Traits
+	Languages   []string `json:"languages"`
+	Feats       []string `json:"feats"`
+	Resistances []string `json:"resistances"`
+	Darkvision  int      `json:"darkvision"` // Range in feet, 0 if none
+
 	// Misc
 	Notes string `json:"notes"`
 }
@@ -76,6 +82,10 @@ func NewCharacter() *Character {
 			Spells: []Spell{},
 			SpellcastingMod: Intelligence,
 		},
+		Languages:   []string{"Common"},
+		Feats:       []string{},
+		Resistances: []string{},
+		Darkvision:  0,
 	}
 	char.UpdateDerivedStats()
 	return char
