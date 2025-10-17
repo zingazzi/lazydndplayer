@@ -2,163 +2,192 @@
 
 A terminal user interface (TUI) application for managing D&D 5e 2024 characters, inspired by lazygit.
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Go](https://img.shields.io/badge/go-1.21+-00ADD8)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 ## Features
 
-- **Full TUI Interface**: Beautiful, keyboard-driven terminal interface
-- **Character Management**: Complete character sheet with all D&D 5e attributes
-- **Ability Scores & Stats**: Track STR, DEX, CON, INT, WIS, CHA with automatic modifier calculation
-- **Skills System**: All 18 D&D skills with proficiency and expertise tracking
-- **Inventory Management**: Track items, equipment, and encumbrance
-- **Spell Management**: Organize spells by level, track spell slots
-- **Action Tracking**: Manage actions, bonus actions, and reactions
-- **Dice Roller**: Built-in dice roller with advantage/disadvantage support
-- **Level Up System**: Track XP and level progression
-- **JSON Import/Export**: Easy character data portability
+### Core Features
+- 🎮 **Full TUI Interface** - Beautiful keyboard-driven terminal interface
+- 📊 **Complete Character Sheet** - All D&D 5e 2024 attributes and stats
+- 🎲 **Advanced Dice Roller** - Support for `1d20+3`, `2d6`, advantage/disadvantage, complex rolls
+- 🧙 **Species System** - All 14 D&D 5e 2024 species with traits, resistances, and darkvision
+- 📦 **JSON Storage** - Easy character import/export and data management
 
-## Installation
+### Character Management
+- **Ability Scores** - Track STR, DEX, CON, INT, WIS, CHA with automatic modifiers
+- **Skills** - All 18 D&D skills with proficiency and expertise tracking
+- **Inventory** - Track items, equipment, weight, and encumbrance
+- **Spells** - Organize spells by level, track slots and prepared spells
+- **Actions** - Manage actions, bonus actions, and reactions
+- **Traits** - Languages, feats, resistances, darkvision, and species traits
 
-### Prerequisites
+### Species Support
+Aasimar, Dragonborn, Dwarf, Elf (Drow/High/Wood), Gnome, Goliath, Halfling, Human, Orc, Tiefling (Abyssal/Chthonic/Infernal)
 
-- Go 1.21 or higher
+## Quick Start
 
-### Build from Source
+### Installation
+
+**Prerequisites:** Go 1.21 or higher
 
 ```bash
+# Clone and build
 git clone <repository-url>
 cd lazydndplayer
 go build -o lazydndplayer .
-```
 
-## Usage
-
-### Basic Usage
-
-Run the application:
-
-```bash
+# Run
 ./lazydndplayer
 ```
 
-This will create a default character file at `~/.lazydndplayer/character.json`.
+### First Time Setup
+
+On first run, a default character file is created at `~/.lazydndplayer/character.json`.
 
 ### Command Line Options
 
 ```bash
-# Use a specific character file
+# Use specific character file
 ./lazydndplayer -file /path/to/character.json
 
-# Import a character from another file
-./lazydndplayer -import /path/to/import.json
+# Import character
+./lazydndplayer -import /path/to/backup.json
 
-# Export your character
-./lazydndplayer -export /path/to/export.json
+# Export character
+./lazydndplayer -export /path/to/backup.json
 ```
 
-## Keyboard Shortcuts
+## User Interface
 
-### Global Navigation
+### Layout
 
-- `↑/↓` or `j/k` - Navigate lists
-- `Tab` / `Shift+Tab` - Switch tabs
-- `1-5` - Quick jump to tab (1=Overview, 2=Stats, 3=Skills, 4=Inventory, 5=Spells)
-- `s` - Save character
-- `l` - Level up (when enough XP)
-- `Shift+R` - Long rest (restore HP, spells, and abilities)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Main Panel (Tabs: Stats/Skills/Inventory/Spells/Abilities/     │
+│                   Traits)                                       │
+│                                                                 │
+│ [55% width]                          Character Stats [45%]     │
+│                                      - Name, Species, Level     │
+│                                      - HP, AC, Initiative       │
+│                                      - Speed, Proficiency       │
+├─────────────────────────────────────┬───────────────────────────┤
+│ Actions Panel [50%]                 │ Dice Roller [50%]        │
+│ - List of available actions         │ - Input field            │
+│ - Quick reference                   │ - Roll history           │
+└─────────────────────────────────────┴───────────────────────────┘
+│ Status Bar: App • Help • Navigation                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Keyboard Shortcuts
+
+#### Global
+- `q` - Quit application
 - `?` - Toggle help
-- `q` or `Ctrl+C` - Quit
+- `f` - Cycle focus between panels
+- `Tab` - Switch tabs (in main panel)
+- `1-6` - Quick jump to tab (when main panel focused)
+- `ctrl+s` - Save character
 
-### Quick Dice Rolling (Always Available)
+#### Navigation
+- `↑/↓` or `j/k` - Navigate lists
+- `←/→` or `h/l` - Navigate horizontally (where applicable)
+- `Esc` - Cancel/close popup
 
-- `d` + `1-7` - Quick roll (d1=d4, d2=d6, d3=d8, d4=d10, d5=d12, d6=d20, d7=d100)
-- Examples: Press `d6` for d20, `d2` for d6
-
-### Panel-Specific Keys
-
-#### Skills Panel
-- `r` - Roll selected skill check (automatically adds modifiers)
-- `e` - Toggle proficiency (Not Proficient → Proficient → Expertise)
-
-#### Inventory Panel
+#### Main Panel (Stats/Skills/Inventory/Spells/Abilities/Traits)
+- `e` - Edit selected item
 - `a` - Add new item
-- `e` - Toggle equipped status
-- Note: Delete functionality available in JSON editing
+- `d` - Delete selected item
+- `space` - Toggle (proficiency, equipped, prepared, etc.)
 
-#### Spells Panel
-- `a` - Add new spell
-- Note: Spell slots restored with Shift+R (long rest)
+#### Character Stats Panel
+- `n` - Edit name
+- `r` - Change species
+- `+/-` - Add/remove HP
+- `i` - Roll initiative
 
-### Fixed Panels (Always Visible)
+#### Dice Roller
+- `Enter` - Start typing dice expression (input mode)
+- `h` - View history mode
+- `r` - Reroll last dice
+- `↑/↓` - Navigate history (in history mode)
+- `Esc` - Exit input/history mode
 
-The **Actions** and **Dice Roller** panels are always visible at the bottom of the screen for quick access during gameplay.
+##### Dice Notation
+- Basic: `1d20`, `2d6+3`
+- Advantage/Disadvantage: `1d20 adv`, `1d20 dis`
+- Complex: `2d8+3d4+2`
+- Multiple rolls: `1d20+3, 2d6, 1d4` (comma-separated)
 
-## UI Layout
+## Species System
 
-The interface uses a modern tab-based layout with fixed panels at the bottom:
+### Selecting a Species
 
-```
-┌────────────────────────────────────────────────────────┐
-│ Title: Character Name, Class, Level                    │
-├────────────────────────────────────────────────────────┤
-│ [Overview] [Stats] [Skills] [Inventory] [Spells]      │
-├────────────────────────────────────────────────────────┤
-│                                                         │
-│            Main Panel (Switchable via tabs)            │
-│                                                         │
-├───────────────────────────┬─────────────────────────────┤
-│    Actions Panel          │     Dice Roller Panel       │
-│    (Always Visible)       │     (Always Visible)        │
-└───────────────────────────┴─────────────────────────────┘
-```
+1. Focus on Character Stats panel (`f` key)
+2. Press `r` to open species selector
+3. Navigate with `↑/↓`
+4. Press `Enter` to select
+5. If prompted, select additional language
+6. If prompted, select skill proficiency
 
-### Main Panels (Switch with Tab or 1-5)
+### Automatic Features
 
-**1. Overview**
-Displays character name, race, class, level, XP, HP, AC, and other core stats.
+When you select a species:
+- ✅ Speed updated
+- ✅ Languages applied
+- ✅ Resistances applied
+- ✅ Darkvision set
+- ✅ Species traits added
+- ✅ Automatic skill proficiencies applied (e.g., Elf → Perception)
+- ✅ Old species proficiencies removed
 
-**2. Stats**
-Shows all six ability scores with modifiers and saving throw proficiencies.
+### Adding Custom Species
 
-**3. Skills**
-Lists all 18 D&D skills with calculated bonuses. Roll skill checks directly from here.
-
-**4. Inventory**
-Manage your character's items, track weight and encumbrance, mark items as equipped.
-
-**5. Spells**
-View and manage spells organized by level, track spell slots, mark spells as prepared.
-
-### Fixed Panels (Always Visible at Bottom)
-
-**Actions** (Bottom Left)
-List available actions, bonus actions, and reactions. Track limited-use abilities.
-
-**Dice Roller** (Bottom Right)
-Roll dice using standard D&D notation (e.g., "2d6+3", "1d20"). Quick roll with `d` + number keys.
-
-## Character Data Format
-
-Character data is stored in JSON format for easy editing and portability:
+Edit `data/species.json`:
 
 ```json
 {
-  "name": "Thorin Oakenshield",
-  "race": "Dwarf",
-  "class": "Fighter",
-  "level": 5,
-  "experience": 6500,
-  "max_hp": 52,
-  "current_hp": 52,
-  "armor_class": 18,
-  "ability_scores": {
-    "strength": 16,
-    "dexterity": 12,
-    "constitution": 16,
-    "intelligence": 10,
-    "wisdom": 12,
-    "charisma": 10
-  }
+  "name": "Your Species",
+  "size": "Medium",
+  "speed": 30,
+  "description": "Species description",
+  "traits": [
+    {
+      "name": "Trait Name",
+      "description": "Trait description"
+    }
+  ],
+  "languages": ["Common", "Other Language"],
+  "resistances": ["Fire"],
+  "darkvision": 60
 }
 ```
+
+See `data/README.md` for full documentation.
+
+## Data Management
+
+### Character Files
+
+Default location: `~/.lazydndplayer/character.json`
+
+#### Backup Character
+```bash
+cp ~/.lazydndplayer/character.json ~/backup.json
+```
+
+#### Load Backup
+```bash
+./lazydndplayer -file ~/backup.json
+```
+
+### Species Data
+
+Species definitions: `data/species.json`
+
+Edit this file to add or modify species. Changes take effect on next application start (no recompilation needed).
 
 ## Development
 
@@ -166,46 +195,87 @@ Character data is stored in JSON format for easy editing and portability:
 
 ```
 lazydndplayer/
-├── main.go                    # Entry point
+├── main.go              # Entry point
+├── data/
+│   └── species.json     # Species data
 ├── internal/
-│   ├── models/               # D&D data models
-│   ├── storage/              # JSON persistence
-│   ├── dice/                 # Dice rolling engine
-│   ├── leveling/             # Level-up logic
-│   └── ui/                   # TUI components
-│       ├── panels/           # UI panels
-│       └── components/       # Reusable components
-└── data/                     # Character data
+│   ├── dice/            # Dice rolling engine
+│   ├── leveling/        # Level up system
+│   ├── models/          # Data models
+│   ├── storage/         # JSON persistence
+│   └── ui/              # TUI components
+│       ├── app.go       # Main application
+│       ├── components/  # Reusable UI components
+│       └── panels/      # Panel implementations
+└── README.md
 ```
 
-### Tech Stack
+### Building
 
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
-- [Lipgloss](https://github.com/charmbracelet/lipgloss) - Styling
-- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
+```bash
+# Build
+go build -o lazydndplayer .
 
-## Roadmap
+# Run tests
+go test ./...
 
-- [ ] Full level-up wizard implementation
-- [ ] Complete spell list database
-- [ ] Class-specific features
-- [ ] Character creation wizard
-- [ ] Multiple character management
-- [ ] Combat tracker
-- [ ] Initiative roller
-- [ ] Condition tracking
-- [ ] Rest management (short/long rest)
+# Clean build
+rm lazydndplayer
+go build -o lazydndplayer .
+```
 
-## Contributing
+### Adding Features
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. **New Species**: Edit `data/species.json`
+2. **New Panel**: Create file in `internal/ui/panels/`
+3. **New Component**: Create file in `internal/ui/components/`
+4. **Data Models**: Add to `internal/models/`
+
+## Troubleshooting
+
+### Character File Issues
+
+**Reset to default:**
+```bash
+rm ~/.lazydndplayer/character.json
+./lazydndplayer
+```
+
+### Display Issues
+
+Ensure your terminal:
+- Supports 256 colors
+- Has minimum size of 120x30
+- Uses a modern terminal emulator (iTerm2, Alacritty, Windows Terminal, etc.)
+
+### Species Not Loading
+
+Check `data/species.json` for valid JSON syntax:
+```bash
+cat data/species.json | jq .
+```
+
+## Changelog
+
+See `CHANGELOG.md` for version history and updates.
 
 ## License
 
-This project is open source and available under the MIT License.
+MIT License - see LICENSE file for details.
 
-## Acknowledgments
+## Contributing
 
-- Inspired by [lazygit](https://github.com/jesseduffield/lazygit)
-- Built with [Charm](https://charm.sh/) tools
-- D&D 5e is a trademark of Wizards of the Coast
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## Credits
+
+Built with:
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
+- [Lipgloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
+- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
+
+Inspired by [lazygit](https://github.com/jesseduffield/lazygit).
