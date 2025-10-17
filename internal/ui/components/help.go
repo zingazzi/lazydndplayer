@@ -94,6 +94,16 @@ func GetSpellsBindings() []HelpBinding {
 	}
 }
 
+// GetCharacterStatsBindings returns character stats panel bindings
+func GetCharacterStatsBindings() []HelpBinding {
+	return []HelpBinding{
+		{"n", "Edit character name"},
+		{"r", "Edit race"},
+		{"+/-", "Add/Remove HP"},
+		{"i", "Roll initiative (1d20 + DEX)"},
+	}
+}
+
 // GetActionsBindings returns actions panel bindings
 func GetActionsBindings() []HelpBinding {
 	return []HelpBinding{

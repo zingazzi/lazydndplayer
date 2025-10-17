@@ -5,19 +5,46 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
+)
+
+// CharStatsEditMode represents what is being edited
+type CharStatsEditMode int
+
+const (
+	CharStatsNormal CharStatsEditMode = iota
+	CharStatsEditName
+	CharStatsEditRace
 )
 
 // CharacterStatsPanel displays key character statistics
 type CharacterStatsPanel struct {
 	character *models.Character
+	editMode  CharStatsEditMode
+	nameInput textinput.Model
+	raceInput textinput.Model
 }
 
 // NewCharacterStatsPanel creates a new character stats panel
 func NewCharacterStatsPanel(char *models.Character) *CharacterStatsPanel {
+	nameInput := textinput.New()
+	nameInput.Placeholder = "Character name"
+	nameInput.CharLimit = 30
+	nameInput.Width = 30
+
+	raceInput := textinput.New()
+	raceInput.Placeholder = "Race"
+	raceInput.CharLimit = 20
+	raceInput.Width = 20
+
 	return &CharacterStatsPanel{
 		character: char,
+		editMode:  CharStatsNormal,
+		nameInput: nameInput,
+		raceInput: raceInput,
 	}
 }
 
@@ -84,9 +111,17 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 			criticalStatStyle.Render(fmt.Sprintf("+%d", char.ProficiencyBonus)),
 	)
 
-	// Character name and race
+	// Character name and race (editable)
 	var lines []string
-	lines = append(lines, nameStyle.Render("⚔ "+char.Name)+" "+raceStyle.Render(char.Race))
+
+	// Show input fields when editing, otherwise show static text
+	if p.editMode == CharStatsEditName {
+		lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render("Name: ")+p.nameInput.View())
+	} else if p.editMode == CharStatsEditRace {
+		lines = append(lines, nameStyle.Render("⚔ "+char.Name)+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("170")).Render("Race: ")+p.raceInput.View())
+	} else {
+		lines = append(lines, nameStyle.Render("⚔ "+char.Name)+" "+raceStyle.Render(char.Race))
+	}
 	lines = append(lines, "")
 
 	// Class and level
@@ -120,6 +155,15 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 		profBox,
 	)
 	lines = append(lines, statBoxesRow2)
+	lines = append(lines, "")
+
+	// Add help text
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	if p.editMode == CharStatsNormal {
+		lines = append(lines, helpStyle.Render("[n] Name • [r] Race • [+/-] HP • [i] Initiative"))
+	} else {
+		lines = append(lines, helpStyle.Render("[Enter] Save • [Esc] Cancel"))
+	}
 
 	content := strings.Join(lines, "\n")
 
@@ -129,6 +173,78 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 // Update handles updates for the character stats panel
 func (p *CharacterStatsPanel) Update(char *models.Character) {
 	p.character = char
+}
+
+// EditName starts editing the character name
+func (p *CharacterStatsPanel) EditName() {
+	p.editMode = CharStatsEditName
+	p.nameInput.SetValue(p.character.Name)
+	p.nameInput.Focus()
+}
+
+// EditRace starts editing the character race
+func (p *CharacterStatsPanel) EditRace() {
+	p.editMode = CharStatsEditRace
+	p.raceInput.SetValue(p.character.Race)
+	p.raceInput.Focus()
+}
+
+// SaveName saves the edited name
+func (p *CharacterStatsPanel) SaveName() {
+	p.character.Name = p.nameInput.Value()
+	p.editMode = CharStatsNormal
+	p.nameInput.Blur()
+}
+
+// SaveRace saves the edited race
+func (p *CharacterStatsPanel) SaveRace() {
+	p.character.Race = p.raceInput.Value()
+	p.editMode = CharStatsNormal
+	p.raceInput.Blur()
+}
+
+// CancelEdit cancels editing
+func (p *CharacterStatsPanel) CancelEdit() {
+	p.editMode = CharStatsNormal
+	p.nameInput.Blur()
+	p.raceInput.Blur()
+}
+
+// AddHP adds HP to the character
+func (p *CharacterStatsPanel) AddHP(amount int) {
+	p.character.CurrentHP += amount
+	if p.character.CurrentHP > p.character.MaxHP {
+		p.character.CurrentHP = p.character.MaxHP
+	}
+}
+
+// RemoveHP removes HP from the character
+func (p *CharacterStatsPanel) RemoveHP(amount int) {
+	p.character.CurrentHP -= amount
+	if p.character.CurrentHP < 0 {
+		p.character.CurrentHP = 0
+	}
+}
+
+// GetInitiativeModifier returns the initiative modifier
+func (p *CharacterStatsPanel) GetInitiativeModifier() int {
+	return p.character.AbilityScores.GetModifier(models.Dexterity)
+}
+
+// GetEditMode returns the current edit mode
+func (p *CharacterStatsPanel) GetEditMode() CharStatsEditMode {
+	return p.editMode
+}
+
+// HandleInput handles text input updates
+func (p *CharacterStatsPanel) HandleInput(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	if p.editMode == CharStatsEditName {
+		p.nameInput, cmd = p.nameInput.Update(msg)
+	} else if p.editMode == CharStatsEditRace {
+		p.raceInput, cmd = p.raceInput.Update(msg)
+	}
+	return cmd
 }
 
 // getLevelXP returns the XP required to reach a given level (simplified)

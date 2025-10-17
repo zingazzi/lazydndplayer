@@ -180,8 +180,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case FocusMain:
 			return m.handleMainPanelKeys(msg)
 		case FocusCharStats:
-			// Character stats panel is read-only, no special handling
-			return m, nil
+			return m.handleCharStatsPanelKeys(msg)
 		case FocusActions:
 			return m.handleActionsPanelKeys(msg)
 		case FocusDice:
@@ -359,6 +358,55 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleCharStatsPanelKeys handles character stats panel specific keys
+func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	editMode := m.characterStatsPanel.GetEditMode()
+
+	// If in edit mode, handle save/cancel
+	if editMode != panels.CharStatsNormal {
+		switch msg.String() {
+		case "enter":
+			if editMode == panels.CharStatsEditName {
+				m.characterStatsPanel.SaveName()
+				m.message = "Name updated"
+			} else if editMode == panels.CharStatsEditRace {
+				m.characterStatsPanel.SaveRace()
+				m.message = "Race updated"
+			}
+			return m, nil
+		case "esc":
+			m.characterStatsPanel.CancelEdit()
+			m.message = "Edit cancelled"
+			return m, nil
+		default:
+			// Pass key to input field
+			return m, m.characterStatsPanel.HandleInput(msg)
+		}
+	}
+
+	// Normal mode - handle actions
+	switch msg.String() {
+	case "n":
+		m.characterStatsPanel.EditName()
+		m.message = "Editing name..."
+	case "r":
+		m.characterStatsPanel.EditRace()
+		m.message = "Editing race..."
+	case "+", "=":
+		m.characterStatsPanel.AddHP(1)
+		m.message = fmt.Sprintf("HP: %d/%d", m.character.CurrentHP, m.character.MaxHP)
+	case "-", "_":
+		m.characterStatsPanel.RemoveHP(1)
+		m.message = fmt.Sprintf("HP: %d/%d", m.character.CurrentHP, m.character.MaxHP)
+	case "i":
+		// Roll initiative
+		initMod := m.characterStatsPanel.GetInitiativeModifier()
+		expr := fmt.Sprintf("1d20%+d", initMod)
+		m.dicePanel.Roll(expr)
+		m.message = fmt.Sprintf("Initiative rolled: %s", m.dicePanel.LastMessage)
+	}
+	return m, nil
+}
 
 // getContextualHelp returns the panel name and contextual help bindings based on current focus
 func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
@@ -375,9 +423,7 @@ func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 			return "Spells", components.GetSpellsBindings()
 		}
 	case FocusCharStats:
-		return "Character Info", []components.HelpBinding{
-			{Key: "", Desc: "Read-only panel - Press [f] to cycle focus"},
-		}
+		return "Character Info", components.GetCharacterStatsBindings()
 	case FocusActions:
 		return "Actions", components.GetActionsBindings()
 	case FocusDice:
@@ -428,7 +474,7 @@ func (m *Model) buildStatusBar() string {
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
-		contextHelp = "Read-only view"
+		contextHelp = "[n] Name • [r] Race • [+/-] HP • [i] Initiative"
 	case FocusActions:
 		panelName = "Actions"
 		contextHelp = "[↑/↓] Navigate • [Enter] Activate"
