@@ -18,6 +18,7 @@ const (
 	CharStatsNormal CharStatsEditMode = iota
 	CharStatsEditName
 	CharStatsEditRace
+	CharStatsEditHP
 )
 
 // CharacterStatsPanel displays key character statistics
@@ -26,6 +27,7 @@ type CharacterStatsPanel struct {
 	editMode  CharStatsEditMode
 	nameInput textinput.Model
 	raceInput textinput.Model
+	hpInput   textinput.Model
 }
 
 // NewCharacterStatsPanel creates a new character stats panel
@@ -40,11 +42,17 @@ func NewCharacterStatsPanel(char *models.Character) *CharacterStatsPanel {
 	raceInput.CharLimit = 20
 	raceInput.Width = 20
 
+	hpInput := textinput.New()
+	hpInput.Placeholder = "+5 or -3"
+	hpInput.CharLimit = 5
+	hpInput.Width = 15
+
 	return &CharacterStatsPanel{
 		character: char,
 		editMode:  CharStatsNormal,
 		nameInput: nameInput,
 		raceInput: raceInput,
+		hpInput:   hpInput,
 	}
 }
 
@@ -160,7 +168,9 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	// Add help text
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	if p.editMode == CharStatsNormal {
-		lines = append(lines, helpStyle.Render("[n] Name • [r] Race • [+/-] HP • [i] Initiative"))
+		lines = append(lines, helpStyle.Render("[n] Name • [r] Race • [h] HP • [+/-] HP±1 • [i] Init"))
+	} else if p.editMode == CharStatsEditHP {
+		// Don't show help here, it's in the popup
 	} else {
 		lines = append(lines, helpStyle.Render("[Enter] Save • [Esc] Cancel"))
 	}
@@ -189,6 +199,13 @@ func (p *CharacterStatsPanel) EditRace() {
 	p.raceInput.Focus()
 }
 
+// EditHP starts editing HP with a popup
+func (p *CharacterStatsPanel) EditHP() {
+	p.editMode = CharStatsEditHP
+	p.hpInput.SetValue("")
+	p.hpInput.Focus()
+}
+
 // SaveName saves the edited name
 func (p *CharacterStatsPanel) SaveName() {
 	p.character.Name = p.nameInput.Value()
@@ -203,11 +220,40 @@ func (p *CharacterStatsPanel) SaveRace() {
 	p.raceInput.Blur()
 }
 
+// SaveHP applies HP change from input
+func (p *CharacterStatsPanel) SaveHP() (int, error) {
+	value := p.hpInput.Value()
+	if value == "" {
+		return 0, fmt.Errorf("no value entered")
+	}
+
+	// Parse the value (supports +5, -3, or just 5)
+	var amount int
+	_, err := fmt.Sscanf(value, "%d", &amount)
+	if err != nil {
+		return 0, err
+	}
+
+	// Apply HP change
+	p.character.CurrentHP += amount
+	if p.character.CurrentHP > p.character.MaxHP {
+		p.character.CurrentHP = p.character.MaxHP
+	}
+	if p.character.CurrentHP < 0 {
+		p.character.CurrentHP = 0
+	}
+
+	p.editMode = CharStatsNormal
+	p.hpInput.Blur()
+	return amount, nil
+}
+
 // CancelEdit cancels editing
 func (p *CharacterStatsPanel) CancelEdit() {
 	p.editMode = CharStatsNormal
 	p.nameInput.Blur()
 	p.raceInput.Blur()
+	p.hpInput.Blur()
 }
 
 // AddHP adds HP to the character
@@ -243,8 +289,46 @@ func (p *CharacterStatsPanel) HandleInput(msg tea.Msg) tea.Cmd {
 		p.nameInput, cmd = p.nameInput.Update(msg)
 	} else if p.editMode == CharStatsEditRace {
 		p.raceInput, cmd = p.raceInput.Update(msg)
+	} else if p.editMode == CharStatsEditHP {
+		p.hpInput, cmd = p.hpInput.Update(msg)
 	}
 	return cmd
+}
+
+// RenderHPPopup renders the HP input popup overlay
+func (p *CharacterStatsPanel) RenderHPPopup(screenWidth, screenHeight int) string {
+	if p.editMode != CharStatsEditHP {
+		return ""
+	}
+
+	// Create popup content
+	popupStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("205")).
+		Padding(1, 2).
+		Background(lipgloss.Color("235"))
+
+	titleStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205")).
+		Bold(true)
+
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240"))
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStyle.Render("Adjust HP"),
+		"",
+		"Enter amount (e.g., +5 or -3):",
+		p.hpInput.View(),
+		"",
+		helpStyle.Render("[Enter] Apply • [Esc] Cancel"),
+	)
+
+	popup := popupStyle.Render(content)
+
+	// Center the popup on screen using Place
+	return lipgloss.Place(screenWidth, screenHeight, lipgloss.Center, lipgloss.Center, popup)
 }
 
 // getLevelXP returns the XP required to reach a given level (simplified)

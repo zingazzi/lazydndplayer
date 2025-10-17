@@ -372,6 +372,13 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else if editMode == panels.CharStatsEditRace {
 				m.characterStatsPanel.SaveRace()
 				m.message = "Race updated"
+			} else if editMode == panels.CharStatsEditHP {
+				amount, err := m.characterStatsPanel.SaveHP()
+				if err != nil {
+					m.message = fmt.Sprintf("Invalid HP value: %v", err)
+				} else {
+					m.message = fmt.Sprintf("HP adjusted by %+d. Current: %d/%d", amount, m.character.CurrentHP, m.character.MaxHP)
+				}
 			}
 			return m, nil
 		case "esc":
@@ -392,6 +399,9 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		m.characterStatsPanel.EditRace()
 		m.message = "Editing race..."
+	case "h":
+		m.characterStatsPanel.EditHP()
+		m.message = "Enter HP change (+/- amount)..."
 	case "+", "=":
 		m.characterStatsPanel.AddHP(1)
 		m.message = fmt.Sprintf("HP: %d/%d", m.character.CurrentHP, m.character.MaxHP)
@@ -474,7 +484,7 @@ func (m *Model) buildStatusBar() string {
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
-		contextHelp = "[n] Name • [r] Race • [+/-] HP • [i] Initiative"
+		contextHelp = "[n] Name • [r] Race • [h] HP • [+/-] HP ±1 • [i] Init"
 	case FocusActions:
 		panelName = "Actions"
 		contextHelp = "[↑/↓] Navigate • [Enter] Activate"
@@ -679,12 +689,20 @@ func (m *Model) View() string {
 	statusBar := m.buildStatusBar()
 
 	// Combine all parts vertically
-	return lipgloss.JoinVertical(
+	mainView := lipgloss.JoinVertical(
 		lipgloss.Left,
 		topRow,
 		bottomRow,
 		statusBar,
 	)
+
+	// Render HP popup overlay if active
+	hpPopup := m.characterStatsPanel.RenderHPPopup(m.width, m.height)
+	if hpPopup != "" {
+		return hpPopup
+	}
+
+	return mainView
 }
 
 // Run runs the application

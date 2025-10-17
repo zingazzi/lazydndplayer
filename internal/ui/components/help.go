@@ -99,7 +99,8 @@ func GetCharacterStatsBindings() []HelpBinding {
 	return []HelpBinding{
 		{"n", "Edit character name"},
 		{"r", "Edit race"},
-		{"+/-", "Add/Remove HP"},
+		{"h", "Adjust HP (popup)"},
+		{"+/-", "Quick HP adjust (±1)"},
 		{"i", "Roll initiative (1d20 + DEX)"},
 	}
 }
