@@ -119,6 +119,19 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 			criticalStatStyle.Render(fmt.Sprintf("+%d", char.ProficiencyBonus)),
 	)
 
+	// Calculate passive scores
+	passivePerception := p.calculatePassiveScore(char, models.Perception)
+	passiveInvestigation := p.calculatePassiveScore(char, models.Investigation)
+	passiveInsight := p.calculatePassiveScore(char, models.Insight)
+
+	// Passive stat styles
+	passiveTextStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240"))
+
+	passiveNumberStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("141")).
+		Bold(true)
+
 	// Character name and race (editable)
 	var lines []string
 
@@ -165,6 +178,12 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	lines = append(lines, statBoxesRow2)
 	lines = append(lines, "")
 
+	// Passive stats (one per line, text in gray, numbers in purple)
+	lines = append(lines, passiveTextStyle.Render("Passive Perception ")+" "+passiveNumberStyle.Render(fmt.Sprintf("%d", passivePerception)))
+	lines = append(lines, passiveTextStyle.Render("Passive Investigation ")+" "+passiveNumberStyle.Render(fmt.Sprintf("%d", passiveInvestigation)))
+	lines = append(lines, passiveTextStyle.Render("Passive Insight ")+" "+passiveNumberStyle.Render(fmt.Sprintf("%d", passiveInsight)))
+	lines = append(lines, "")
+
 	// Inspiration
 	inspirationIcon := "☐"
 	inspirationColor := lipgloss.Color("240")
@@ -181,17 +200,6 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	}
 
 	lines = append(lines, inspirationLabel)
-	lines = append(lines, "")
-
-	// Add help text
-	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	if p.editMode == CharStatsNormal {
-		lines = append(lines, helpStyle.Render("[n] Name • [r] Species • [h] HP • [+/-] ±1 • [i] Init • [I] Inspiration"))
-	} else if p.editMode == CharStatsEditHP {
-		// Don't show help here, it's in the popup
-	} else {
-		lines = append(lines, helpStyle.Render("[Enter] Save • [Esc] Cancel"))
-	}
 
 	content := strings.Join(lines, "\n")
 
@@ -352,6 +360,25 @@ func (p *CharacterStatsPanel) RenderHPPopup(screenWidth, screenHeight int) strin
 // ToggleInspiration toggles the inspiration state
 func (p *CharacterStatsPanel) ToggleInspiration() {
 	p.character.Inspiration = !p.character.Inspiration
+}
+
+// calculatePassiveScore calculates a passive score for a given skill
+// Passive score = 10 + ability modifier + proficiency bonus (if proficient)
+func (p *CharacterStatsPanel) calculatePassiveScore(char *models.Character, skillName models.SkillType) int {
+	// Get the skill
+	skill := char.Skills.GetSkill(skillName)
+	if skill == nil {
+		return 10 // Default if skill not found
+	}
+
+	// Get ability modifier for the skill
+	abilityMod := char.AbilityScores.GetModifier(skill.Ability)
+
+	// Calculate skill bonus (includes proficiency if applicable)
+	skillBonus := skill.CalculateBonus(abilityMod, char.ProficiencyBonus)
+
+	// Passive score = 10 + skill bonus
+	return 10 + skillBonus
 }
 
 // getLevelXP returns the XP required to reach a given level (simplified)

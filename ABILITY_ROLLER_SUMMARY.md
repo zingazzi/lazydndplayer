@@ -13,10 +13,10 @@ ROLL ABILITY
 
   ▶ Strength     15 (+2) ●
     Dexterity    14 (+2) ●
-    Constitution 13 (+1)  
-    Intelligence  8 (-1)  
-    Wisdom       12 (+1)  
-    Charisma     10 (+0)  
+    Constitution 13 (+1)
+    Intelligence  8 (-1)
+    Wisdom       12 (+1)
+    Charisma     10 (+0)
 
   SELECT TYPE:
 
@@ -92,11 +92,11 @@ For each roll type:
 
 ## Benefits
 
-✅ **Fast**: 4 key presses vs 7+ steps  
-✅ **No Math**: Calculates bonuses automatically  
-✅ **Clear**: Shows exactly what you're rolling  
-✅ **Smart**: Adds proficiency bonus when appropriate  
-✅ **Integrated**: Results appear in Dice panel  
+✅ **Fast**: 4 key presses vs 7+ steps
+✅ **No Math**: Calculates bonuses automatically
+✅ **Clear**: Shows exactly what you're rolling
+✅ **Smart**: Adds proficiency bonus when appropriate
+✅ **Integrated**: Results appear in Dice panel
 
 ## Files Created/Modified
 
@@ -202,4 +202,3 @@ The Ability Roller gives you instant access to:
 - One-key access from Stats panel
 
 **From Stats → `t` → Roll!** 🎲
-
