@@ -82,6 +82,7 @@ func (is *ItemSelector) Show() {
 	is.quantityInput.SetValue("")
 	is.currentCategory = ""
 	is.items = []models.ItemDefinition{}
+	is.selectedDef = nil
 }
 
 // Hide hides the item selector
@@ -94,11 +95,17 @@ func (is *ItemSelector) Hide() {
 	is.quantityInput.SetValue("")
 	is.searchInput.Blur()
 	is.quantityInput.Blur()
+	is.selectedDef = nil
 }
 
 // IsVisible returns whether the selector is visible
 func (is *ItemSelector) IsVisible() bool {
 	return is.visible
+}
+
+// IsInQuantityMode returns whether the selector is in quantity mode
+func (is *ItemSelector) IsInQuantityMode() bool {
+	return is.mode == ItemModeQuantity
 }
 
 // GetSelectedItem returns the selected item definition and quantity

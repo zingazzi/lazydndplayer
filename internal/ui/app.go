@@ -1134,8 +1134,8 @@ func (m *Model) handleItemSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle the key once and store the result
 	cmd := m.itemSelector.HandleKey(msg)
 
-	// Check if we're confirming quantity entry (in quantity mode)
-	if msg.String() == "enter" {
+	// Check if we're confirming quantity entry (only in quantity mode)
+	if msg.String() == "enter" && m.itemSelector.IsInQuantityMode() {
 		selectedDef, quantity := m.itemSelector.GetSelectedItem()
 		if selectedDef != nil {
 			// Convert to inventory item and add
