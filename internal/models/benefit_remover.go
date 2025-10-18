@@ -2,6 +2,7 @@
 package models
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -40,6 +41,8 @@ func (br *BenefitRemover) RemoveAllBenefits(sourceType, sourceName string) error
 			br.removeHP(benefit)
 		case BenefitSpell:
 			br.removeSpell(benefit)
+		case "feature":
+			br.removeFeature(benefit)
 		}
 	}
 
@@ -144,6 +147,19 @@ func (br *BenefitRemover) removeSpell(benefit GrantedBenefit) {
 	for i, spell := range br.char.SpellBook.Spells {
 		if strings.EqualFold(spell.Name, benefit.Target) {
 			br.char.SpellBook.Spells = append(br.char.SpellBook.Spells[:i], br.char.SpellBook.Spells[i+1:]...)
+			break
+		}
+	}
+}
+
+func (br *BenefitRemover) removeFeature(benefit GrantedBenefit) {
+	// Find and remove the feature by name and source
+	sourceName := fmt.Sprintf("%s: %s", benefit.Source.Type, benefit.Source.Name)
+
+	for i := len(br.char.Features.Features) - 1; i >= 0; i-- {
+		feature := br.char.Features.Features[i]
+		if feature.Name == benefit.Target && feature.Source == sourceName {
+			br.char.Features.RemoveFeature(i)
 			break
 		}
 	}

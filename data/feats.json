@@ -196,7 +196,17 @@
         "Each creature gains temporary hit points equal to your level + your Charisma modifier",
         "A creature can't gain temporary hit points from this feat again until it has finished a short or long rest"
       ],
-      "description": "You can spend 10 minutes inspiring your companions, giving them temporary hit points."
+      "description": "You can spend 10 minutes inspiring your companions, giving them temporary hit points.",
+      "features": [
+        {
+          "name": "Inspiring Speech",
+          "description": "Spend 10 minutes inspiring up to 6 friendly creatures within 30 feet. Each gains temporary hit points equal to your level + your Charisma modifier.",
+          "max_uses": "1",
+          "rest_type": "Short Rest",
+          "uses_formula": "1",
+          "effect_formula": "level"
+        }
+      ]
     },
     {
       "name": "Keen Mind",
@@ -228,6 +238,16 @@
         "You regain your expended luck points when you finish a long rest"
       ],
       "description": "You have inexplicable luck that seems to kick in at just the right moment.",
+      "features": [
+        {
+          "name": "Luck Point",
+          "description": "Spend a luck point to roll an additional d20 for an attack roll, ability check, or saving throw. You choose which d20 to use.",
+          "max_uses": "3",
+          "rest_type": "Long Rest",
+          "uses_formula": "3",
+          "effect_formula": "1d20"
+        }
+      ],
       "note": "You have 3 luck points. Regain all spent luck points on a long rest."
     },
     {
@@ -270,7 +290,17 @@
         "This die is added to any superiority dice you have from another source",
         "You regain your expended superiority die when you finish a short or long rest"
       ],
-      "description": "You have martial training that allows you to perform special combat maneuvers."
+      "description": "You have martial training that allows you to perform special combat maneuvers.",
+      "features": [
+        {
+          "name": "Superiority Die",
+          "description": "Use a superiority die (d6) to fuel a Battle Master maneuver. Maneuver save DC = 8 + proficiency + STR/DEX modifier.",
+          "max_uses": "1",
+          "rest_type": "Short Rest",
+          "uses_formula": "1",
+          "effect_formula": "1d6"
+        }
+      ]
     },
     {
       "name": "Medium Armor Master",

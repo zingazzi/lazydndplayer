@@ -198,3 +198,23 @@ func (ba *BenefitApplier) AddSpell(source BenefitSource, spellName string) error
 
 	return nil
 }
+
+// AddFeature adds a limited-use feature and tracks it
+func (ba *BenefitApplier) AddFeature(source BenefitSource, featureDef FeatureDefinition) error {
+	// Convert definition to actual feature
+	feature := featureDef.ToFeature(ba.char, fmt.Sprintf("%s: %s", source.Type, source.Name))
+
+	// Add to character's feature list
+	ba.char.Features.AddFeature(feature)
+
+	// Track in benefit system (use feature name as target)
+	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+		Source:      source,
+		Type:        "feature", // New benefit type for features
+		Target:      feature.Name,
+		Value:       feature.MaxUses,
+		Description: fmt.Sprintf("Feature: %s (%d uses, %s)", feature.Name, feature.MaxUses, feature.RestType),
+	})
+
+	return nil
+}

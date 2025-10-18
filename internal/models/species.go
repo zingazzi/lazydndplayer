@@ -826,11 +826,40 @@ func RemoveSpeciesFeatures(char *Character) {
 
 // ApplySpeciesFeatures adds features from species traits to the character
 func ApplySpeciesFeatures(char *Character, species *SpeciesInfo) {
+	source := BenefitSource{
+		Type: "species",
+		Name: species.Name,
+	}
+	applier := NewBenefitApplier(char)
+
 	for _, trait := range species.Traits {
 		if trait.IsFeature {
-			feature := ConvertTraitToFeature(trait, char, species.Name)
-			char.Features.AddFeature(feature)
+			// Convert trait to feature definition
+			featureDef := FeatureDefinition{
+				Name:          trait.Name,
+				Description:   trait.Description,
+				MaxUses:       trait.MaxUses,
+				RestType:      parseRestType(trait.RestType),
+				UsesFormula:   trait.UsesFormula,
+				EffectFormula: trait.EffectFormula,
+			}
+
+			// Apply using benefit applier (tracks in BenefitTracker)
+			applier.AddFeature(source, featureDef)
 		}
+	}
+}
+
+func parseRestType(restTypeStr string) RestType {
+	switch strings.ToLower(restTypeStr) {
+	case "short rest":
+		return ShortRest
+	case "long rest":
+		return LongRest
+	case "daily":
+		return Daily
+	default:
+		return LongRest
 	}
 }
 

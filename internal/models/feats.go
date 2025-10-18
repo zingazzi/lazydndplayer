@@ -26,6 +26,7 @@ type Feat struct {
 	AbilityIncreases   *FeatAbilityIncrease  `json:"ability_increases,omitempty"`
 	SkillProficiencies []string              `json:"skill_proficiencies,omitempty"`
 	Languages          []string              `json:"languages,omitempty"`
+	Features           []FeatureDefinition   `json:"features,omitempty"`           // Limited-use features granted
 	GrantsSpells       []string              `json:"grants_spells,omitempty"`
 	Note               string                `json:"note,omitempty"`
 }
@@ -235,6 +236,11 @@ func ApplyFeatBenefits(char *Character, feat Feat, chosenAbility string) error {
 	// Apply languages
 	for _, lang := range feat.Languages {
 		applier.AddLanguage(source, lang)
+	}
+
+	// Apply features (limited-use abilities)
+	for _, featureDef := range feat.Features {
+		applier.AddFeature(source, featureDef)
 	}
 
 	// Apply special benefits
