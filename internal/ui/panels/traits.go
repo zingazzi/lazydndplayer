@@ -374,6 +374,19 @@ func (p *TraitsPanel) RemoveSelected() {
 	// Note: Species traits cannot be removed manually, they come from the species
 }
 
+// GetSelectedFeat returns the currently selected feat name (if any)
+func (p *TraitsPanel) GetSelectedFeat() string {
+	if p.selectedType == "feat" && p.selectedIndex >= 0 && p.selectedIndex < len(p.character.Feats) {
+		return p.character.Feats[p.selectedIndex]
+	}
+	return ""
+}
+
+// IsOnFeat returns true if currently on a feat
+func (p *TraitsPanel) IsOnFeat() bool {
+	return p.selectedType == "feat" && len(p.character.Feats) > 0
+}
+
 // wrapText wraps text to a specified width
 func wrapText(text string, width int) []string {
 	words := strings.Fields(text)

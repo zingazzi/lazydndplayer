@@ -49,6 +49,7 @@ type Model struct {
 	skillSelector    *components.SkillSelector
 	spellSelector    *components.SpellSelector
 	featSelector          *components.FeatSelector
+	featDetailPopup       *components.FeatDetailPopup
 	statGenerator         *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
@@ -90,6 +91,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		skillSelector:       components.NewSkillSelector(),
 		spellSelector:       components.NewSpellSelector(),
 		featSelector:          components.NewFeatSelector(),
+		featDetailPopup:       components.NewFeatDetailPopup(),
 		statGenerator:         components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
@@ -220,6 +222,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if feat selector is active
 		if m.featSelector.IsVisible() {
 			return m.handleFeatSelectorKeys(msg)
+		}
+
+		// Check if feat detail popup is active
+		if m.featDetailPopup.IsVisible() {
+			return m.handleFeatDetailPopupKeys(msg)
 		}
 
 		// Check if ability choice selector is active (for feat ability choices)
@@ -521,6 +528,15 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+e":
 		// Scroll down without changing selection
 		m.traitsPanel.ScrollDown()
+	case "enter":
+		// Show feat detail popup if on a feat
+		if m.traitsPanel.IsOnFeat() {
+			featName := m.traitsPanel.GetSelectedFeat()
+			if featName != "" {
+				m.featDetailPopup.Show(featName, m.character)
+				m.message = "Viewing feat details..."
+			}
+		}
 	case "l":
 		// Add language
 		m.languageSelector.SetExcludeLanguages(m.character.Languages)
@@ -1166,6 +1182,16 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleFeatDetailPopupKeys handles keyboard input for the feat detail popup
+func (m *Model) handleFeatDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.featDetailPopup.Hide()
+		m.message = "Closed feat details"
+	}
+	return m, nil
+}
+
 // handleAbilityChoiceSelectorKeys handles keyboard input for the ability choice selector
 func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -1517,6 +1543,11 @@ func (m *Model) View() string {
 	// Feat selector takes second priority
 	if m.featSelector.IsVisible() {
 		return m.featSelector.View(m.width, m.height)
+	}
+
+	// Feat detail popup
+	if m.featDetailPopup.IsVisible() {
+		return m.featDetailPopup.View(m.width, m.height)
 	}
 
 	// Ability choice selector (for feat ability choices)
