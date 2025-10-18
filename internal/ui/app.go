@@ -1330,6 +1330,10 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.featSelector.PageUp()
 	case "pgdown", "ctrl+d":
 		m.featSelector.PageDown()
+	case "left", "h":
+		m.featSelector.PrevCategory()
+	case "right", "l":
+		m.featSelector.NextCategory()
 	case "enter":
 		selectedFeat := m.featSelector.GetSelectedFeat()
 		if selectedFeat != nil {
@@ -1349,6 +1353,12 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.storage.Save(m.character)
 				m.featSelector.Hide()
 			} else {
+				// Check if the feat can be selected (prerequisites met)
+				if !m.featSelector.CanSelectCurrentFeat() {
+					m.message = fmt.Sprintf("Cannot select %s: Prerequisites not met!", selectedFeat.Name)
+					return m, nil
+				}
+
 				// Add mode: Check if character already has this feat
 				if models.HasFeat(m.character, selectedFeat.Name) && !selectedFeat.Repeatable {
 					m.message = fmt.Sprintf("You already have %s and it's not repeatable", selectedFeat.Name)

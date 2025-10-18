@@ -12,24 +12,30 @@ import (
 
 // FeatSelector is a component for selecting feats
 type FeatSelector struct {
-	feats         []models.Feat
-	selectedIndex int
-	visible       bool
-	title         string
-	character     *models.Character
-	filterOrigin  bool // Only show origin-appropriate feats
-	deleteMode    bool // If true, shows known feats for deletion
+	feats          []models.Feat
+	allFeats       []models.Feat // All feats before filtering
+	selectedIndex  int
+	visible        bool
+	title          string
+	character      *models.Character
+	filterOrigin   bool   // Only show origin-appropriate feats
+	deleteMode     bool   // If true, shows known feats for deletion
+	categoryFilter string // Current category filter ("All", "General", etc.)
+	categories     []string
 }
 
 // NewFeatSelector creates a new feat selector
 func NewFeatSelector() *FeatSelector {
 	return &FeatSelector{
-		feats:         []models.Feat{},
-		selectedIndex: 0,
-		visible:       false,
-		title:         "SELECT FEAT",
-		filterOrigin:  false,
-		deleteMode:    false,
+		feats:          []models.Feat{},
+		allFeats:       []models.Feat{},
+		selectedIndex:  0,
+		visible:        false,
+		title:          "SELECT FEAT",
+		filterOrigin:   false,
+		deleteMode:     false,
+		categoryFilter: "All",
+		categories:     []string{"All", "General", "Combat", "Magic", "Skill"},
 	}
 }
 
@@ -38,15 +44,30 @@ func (f *FeatSelector) Show(char *models.Character, originFeat bool) {
 	f.character = char
 	f.filterOrigin = originFeat
 	f.deleteMode = false
+	f.categoryFilter = "All"
 
 	if originFeat {
 		f.title = "SELECT ORIGIN FEAT (HUMAN)"
-		// For origin feats, show all feats the character can take
-		f.feats = models.GetFeatsForCharacter(char)
 	} else {
 		f.title = "SELECT FEAT"
-		f.feats = models.GetFeatsForCharacter(char)
 	}
+
+	// Load ALL feats (not just available ones)
+	f.allFeats = models.GetAllFeats()
+
+	// Remove already-taken non-repeatable feats
+	availableFeats := []models.Feat{}
+	for _, feat := range f.allFeats {
+		// Skip if character already has this feat and it's not repeatable
+		if models.HasFeat(char, feat.Name) && !feat.Repeatable {
+			continue
+		}
+		availableFeats = append(availableFeats, feat)
+	}
+	f.allFeats = availableFeats
+
+	// Apply category filter
+	f.applyFilter()
 
 	f.selectedIndex = 0
 	f.visible = true
@@ -92,6 +113,63 @@ func (f *FeatSelector) Hide() {
 // IsDeleteMode returns whether the selector is in delete mode
 func (f *FeatSelector) IsDeleteMode() bool {
 	return f.deleteMode
+}
+
+// applyFilter filters feats based on the current category filter
+func (f *FeatSelector) applyFilter() {
+	if f.categoryFilter == "All" {
+		f.feats = f.allFeats
+	} else {
+		filtered := []models.Feat{}
+		for _, feat := range f.allFeats {
+			if feat.Category == f.categoryFilter {
+				filtered = append(filtered, feat)
+			}
+		}
+		f.feats = filtered
+	}
+
+	// Reset selection if out of bounds
+	if f.selectedIndex >= len(f.feats) {
+		f.selectedIndex = 0
+	}
+}
+
+// NextCategory cycles to the next category filter
+func (f *FeatSelector) NextCategory() {
+	for i, cat := range f.categories {
+		if cat == f.categoryFilter {
+			f.categoryFilter = f.categories[(i+1)%len(f.categories)]
+			break
+		}
+	}
+	f.applyFilter()
+}
+
+// PrevCategory cycles to the previous category filter
+func (f *FeatSelector) PrevCategory() {
+	for i, cat := range f.categories {
+		if cat == f.categoryFilter {
+			newIndex := (i - 1 + len(f.categories)) % len(f.categories)
+			f.categoryFilter = f.categories[newIndex]
+			break
+		}
+	}
+	f.applyFilter()
+}
+
+// CanSelectCurrentFeat returns true if the currently selected feat can be taken
+func (f *FeatSelector) CanSelectCurrentFeat() bool {
+	if f.selectedIndex < 0 || f.selectedIndex >= len(f.feats) {
+		return false
+	}
+
+	if f.deleteMode {
+		return true // In delete mode, all feats shown can be selected
+	}
+
+	feat := f.feats[f.selectedIndex]
+	return models.CanTakeFeat(f.character, feat)
 }
 
 // IsVisible returns whether the selector is visible
@@ -152,6 +230,10 @@ func (f *FeatSelector) Update(msg tea.KeyMsg) tea.Cmd {
 		f.PageUp()
 	case "pgdown", "ctrl+d":
 		f.PageDown()
+	case "left", "h":
+		f.PrevCategory()
+	case "right", "l":
+		f.NextCategory()
 	case "esc":
 		f.Hide()
 	}
@@ -183,12 +265,25 @@ func (f *FeatSelector) View(width, height int) string {
 	normalFeatStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("252"))
 
+	disabledFeatStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Strikethrough(true)
+
+	selectedDisabledFeatStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Strikethrough(true).
+		Background(lipgloss.Color("237"))
+
 	categoryStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("141")).
 		Italic(true)
 
 	prerequisiteStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("214")).
+		Bold(true)
+
+	prerequisiteUnmetStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("196")).
 		Bold(true)
 
 	abilityStyle := lipgloss.NewStyle().
@@ -211,6 +306,12 @@ func (f *FeatSelector) View(width, height int) string {
 	// Build content
 	var content []string
 	content = append(content, titleStyle.Render(f.title))
+
+	// Category filter display
+	if !f.deleteMode {
+		categoryFilter := fmt.Sprintf("Category: ← %s → (%d feats)", f.categoryFilter, len(f.feats))
+		content = append(content, lipgloss.NewStyle().Foreground(lipgloss.Color("141")).Render(categoryFilter))
+	}
 	content = append(content, "")
 
 	// Left side: Feat list (scrollable)
@@ -233,17 +334,34 @@ func (f *FeatSelector) View(width, height int) string {
 
 	for i := visibleStart; i < visibleEnd; i++ {
 		feat := f.feats[i]
+
+		// Check if character can take this feat
+		canTake := f.deleteMode || models.CanTakeFeat(f.character, feat)
+
 		featLine := fmt.Sprintf(" %s", feat.Name)
 
 		// Add indicator for prerequisites
 		if feat.Prerequisite != "None" && feat.Prerequisite != "" {
-			featLine += " *"
+			if canTake {
+				featLine += " ✓"
+			} else {
+				featLine += " 🔒"
+			}
 		}
 
+		// Apply appropriate style
 		if i == f.selectedIndex {
-			featList = append(featList, selectedFeatStyle.Render(featLine))
+			if canTake {
+				featList = append(featList, selectedFeatStyle.Render(featLine))
+			} else {
+				featList = append(featList, selectedDisabledFeatStyle.Render(featLine))
+			}
 		} else {
-			featList = append(featList, normalFeatStyle.Render(featLine))
+			if canTake {
+				featList = append(featList, normalFeatStyle.Render(featLine))
+			} else {
+				featList = append(featList, disabledFeatStyle.Render(featLine))
+			}
 		}
 	}
 
@@ -273,7 +391,13 @@ func (f *FeatSelector) View(width, height int) string {
 
 		// Prerequisite
 		if selectedFeat.Prerequisite != "None" && selectedFeat.Prerequisite != "" {
-			featDetails = append(featDetails, prerequisiteStyle.Render("Prerequisite: "+selectedFeat.Prerequisite))
+			canTake := f.deleteMode || models.CanTakeFeat(f.character, *selectedFeat)
+			prereqText := "Prerequisite: " + selectedFeat.Prerequisite
+			if canTake {
+				featDetails = append(featDetails, prerequisiteStyle.Render(prereqText+" ✓"))
+			} else {
+				featDetails = append(featDetails, prerequisiteUnmetStyle.Render(prereqText+" ✗ NOT MET"))
+			}
 			featDetails = append(featDetails, "")
 		}
 
@@ -356,8 +480,8 @@ func (f *FeatSelector) View(width, height int) string {
 	if f.deleteMode {
 		content = append(content, helpStyle.Render("[↑/↓] Navigate • [PgUp/PgDn] Scroll • [Enter] Remove • [Esc] Cancel"))
 	} else {
-		content = append(content, helpStyle.Render("[↑/↓] Navigate • [PgUp/PgDn] Scroll • [Enter] Select • [Esc] Cancel"))
-		content = append(content, helpStyle.Render("* = Has prerequisites"))
+		content = append(content, helpStyle.Render("[↑/↓] Navigate • [←/→] Category • [PgUp/PgDn] Scroll • [Enter] Select • [Esc] Cancel"))
+		content = append(content, helpStyle.Render("✓ = Prerequisites met  •  🔒 = Prerequisites NOT met (unselectable)"))
 	}
 
 	// Wrap in a styled box
