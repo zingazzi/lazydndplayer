@@ -17,6 +17,7 @@ const (
 	BenefitInitiative   BenefitType = "initiative"
 	BenefitAC           BenefitType = "ac"
 	BenefitPassive      BenefitType = "passive" // Passive Perception, Investigation, Insight
+	BenefitTool         BenefitType = "tool"    // Tool proficiencies
 )
 
 // BenefitSource represents where a benefit came from

@@ -23,6 +23,7 @@ const (
 	SpellsPanel
 	FeaturesPanel
 	TraitsPanel
+	OriginPanel
 )
 
 // FocusArea represents which area of the UI has focus
@@ -50,6 +51,8 @@ type Model struct {
 	spellSelector    *components.SpellSelector
 	featSelector          *components.FeatSelector
 	featDetailPopup       *components.FeatDetailPopup
+	originSelector        *components.OriginSelector
+	toolSelector          *components.ToolSelector
 	statGenerator         *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
@@ -61,6 +64,7 @@ type Model struct {
 	spellsPanel    *panels.SpellsPanel
 	featuresPanel  *panels.FeaturesPanel
 	traitsPanel    *panels.TraitsPanel
+	originPanel    *panels.OriginPanel
 
 	// Fixed Panels (always visible)
 	dicePanel           *panels.DicePanel
@@ -75,7 +79,8 @@ type Model struct {
 	ready              bool
 	message            string
 	quitting           bool
-	pendingFeat        *models.Feat // Temporarily store feat while choosing ability
+	pendingFeat        *models.Feat   // Temporarily store feat while choosing ability
+	pendingOrigin      *models.Origin // Temporarily store origin while choosing ability
 }
 
 // NewModel creates a new application model
@@ -92,15 +97,18 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		spellSelector:       components.NewSpellSelector(),
 		featSelector:          components.NewFeatSelector(),
 		featDetailPopup:       components.NewFeatDetailPopup(),
+		originSelector:        components.NewOriginSelector(),
+		toolSelector:          components.NewToolSelector(),
 		statGenerator:         components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
 		statsPanel:            panels.NewStatsPanel(char),
-		skillsPanel:         panels.NewSkillsPanel(char),
-		inventoryPanel:      panels.NewInventoryPanel(char),
-		spellsPanel:         panels.NewSpellsPanel(char),
-		featuresPanel:       panels.NewFeaturesPanel(char),
-		traitsPanel:         panels.NewTraitsPanel(char),
+		skillsPanel:           panels.NewSkillsPanel(char),
+		inventoryPanel:        panels.NewInventoryPanel(char),
+		spellsPanel:           panels.NewSpellsPanel(char),
+		featuresPanel:         panels.NewFeaturesPanel(char),
+		traitsPanel:           panels.NewTraitsPanel(char),
+		originPanel:           panels.NewOriginPanel(char),
 		dicePanel:           panels.NewDicePanel(char),
 		characterStatsPanel: panels.NewCharacterStatsPanel(char),
 		actionsPanel:        panels.NewActionsPanel(char),
@@ -229,6 +237,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleFeatDetailPopupKeys(msg)
 		}
 
+		// Check if origin selector is active
+		if m.originSelector.IsVisible() {
+			return m.handleOriginSelectorKeys(msg)
+		}
+
 		// Check if ability choice selector is active (for feat ability choices)
 		if m.abilityChoiceSelector.IsVisible() {
 			return m.handleAbilityChoiceSelectorKeys(msg)
@@ -247,6 +260,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if language selector is active
 		if m.languageSelector.IsVisible() {
 			return m.handleLanguageSelectorKeys(msg)
+		}
+
+		// Check if tool selector is active
+		if m.toolSelector.IsVisible() {
+			return m.handleToolSelectorKeys(msg)
 		}
 
 		// Check if species selector is active
@@ -293,6 +311,8 @@ func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFeaturesPanel(msg)
 	case TraitsPanel:
 		return m.handleTraitsPanel(msg)
+	case OriginPanel:
+		return m.handleOriginPanel(msg)
 	}
 	return m, nil
 }
@@ -505,6 +525,34 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.character.LongRest()
 		m.message = "Long rest completed - all features recovered"
 		m.storage.Save(m.character)
+	}
+	return m, nil
+}
+
+// handleOriginPanel handles origin panel specific keys
+func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.originPanel.ScrollUp()
+	case "down", "j":
+		m.originPanel.ScrollDown()
+	case "ctrl+u", "pgup":
+		m.originPanel.PageUp()
+	case "ctrl+d", "pgdown":
+		m.originPanel.PageDown()
+	case "o":
+		// Open origin selector
+		m.originSelector.Show(m.character)
+		m.message = "Select an origin..."
+	case "t":
+		// Add tool proficiency
+		m.toolSelector.SetExcludeTools(m.character.ToolProficiencies)
+		m.toolSelector.Show()
+		m.message = "Select tool proficiency to add..."
+	case "T":
+		// Remove tool proficiency
+		m.toolSelector.ShowForDeletion(m.character.ToolProficiencies)
+		m.message = "Select tool proficiency to remove..."
 	}
 	return m, nil
 }
@@ -985,6 +1033,59 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 	return m, nil
 }
 
+// handleToolSelectorKeys handles tool selector specific keys
+func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.toolSelector.Prev()
+	case "down", "j":
+		m.toolSelector.Next()
+	case "enter":
+		selectedTool := m.toolSelector.GetSelected()
+		if selectedTool != "" {
+			// Check if we're in delete mode
+			if m.toolSelector.IsDeleteMode() {
+				// Remove the tool proficiency using benefit remover
+				// Find and remove from ToolProficiencies
+				for i, tool := range m.character.ToolProficiencies {
+					if tool == selectedTool {
+						m.character.ToolProficiencies = append(m.character.ToolProficiencies[:i], m.character.ToolProficiencies[i+1:]...)
+						break
+					}
+				}
+				
+				// Also remove from BenefitTracker (all sources that granted this tool)
+				// This is more complex - we need to iterate through all benefits
+				allBenefits := m.character.BenefitTracker.Benefits
+				for _, benefit := range allBenefits {
+					if benefit.Type == models.BenefitTool && benefit.Target == selectedTool {
+						m.character.BenefitTracker.RemoveBenefitsBySource(benefit.Source.Type, benefit.Source.Name)
+						break
+					}
+				}
+				
+				m.message = fmt.Sprintf("Tool proficiency removed: %s", selectedTool)
+				m.storage.Save(m.character)
+				m.toolSelector.Hide()
+			} else {
+				// Add mode: Add tool proficiency directly (not from origin)
+				// We'll add it as a "manual" benefit
+				source := models.BenefitSource{Type: "manual", Name: "Tool Proficiency"}
+				applier := models.NewBenefitApplier(m.character)
+				applier.AddToolProficiency(source, selectedTool)
+				
+				m.message = fmt.Sprintf("Tool proficiency learned: %s!", selectedTool)
+				m.storage.Save(m.character)
+				m.toolSelector.Hide()
+			}
+		}
+	case "esc":
+		m.toolSelector.Hide()
+		m.message = "Tool selection cancelled"
+	}
+	return m, nil
+}
+
 // handleSkillSelectorKeys handles skill selector specific keys
 func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -1192,6 +1293,49 @@ func (m *Model) handleFeatDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleOriginSelectorKeys handles keyboard input for the origin selector
+func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.originSelector.Prev()
+	case "down", "j":
+		m.originSelector.Next()
+	case "enter":
+		selectedOrigin := m.originSelector.GetSelected()
+		if selectedOrigin != nil {
+			// Check if origin has ability choice
+			if models.HasOriginAbilityChoice(*selectedOrigin) {
+				// Store origin temporarily and show ability choice selector
+				m.pendingOrigin = selectedOrigin
+				m.originSelector.Hide()
+				choices := models.GetOriginAbilityChoices(*selectedOrigin)
+				m.abilityChoiceSelector.Show(selectedOrigin.Name, choices, m.character)
+				m.message = "Choose an ability score to increase..."
+			} else {
+				// Apply origin directly (no choice needed)
+				// Remove old origin first
+				if m.character.Origin != "" {
+					oldOrigin := models.GetOriginByName(m.character.Origin)
+					if oldOrigin != nil {
+						models.RemoveOriginBenefits(m.character, *oldOrigin)
+					}
+				}
+				
+				// Apply new origin
+				m.character.Origin = selectedOrigin.Name
+				models.ApplyOriginBenefits(m.character, *selectedOrigin, "")
+				m.storage.Save(m.character)
+				m.originSelector.Hide()
+				m.message = fmt.Sprintf("Origin changed to: %s", selectedOrigin.Name)
+			}
+		}
+	case "esc":
+		m.originSelector.Hide()
+		m.message = "Origin selection cancelled"
+	}
+	return m, nil
+}
+
 // handleAbilityChoiceSelectorKeys handles keyboard input for the ability choice selector
 func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -1200,21 +1344,41 @@ func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 	case "down", "j":
 		m.abilityChoiceSelector.Next()
 	case "enter":
+		chosenAbility := m.abilityChoiceSelector.GetSelectedAbility()
+		if chosenAbility == "" {
+			return m, nil
+		}
+
+		// Handle feat ability choice
 		if m.pendingFeat != nil {
-			chosenAbility := m.abilityChoiceSelector.GetSelectedAbility()
-			if chosenAbility != "" {
-				// Apply feat benefits with the chosen ability
-				models.ApplyFeatBenefits(m.character, *m.pendingFeat, chosenAbility)
-				m.message = fmt.Sprintf("Feat gained: %s (+1 %s)!", m.pendingFeat.Name, chosenAbility)
-				// Save character after feat selection
-				m.storage.Save(m.character)
-				// Clear pending feat and hide selector
-				m.pendingFeat = nil
-				m.abilityChoiceSelector.Hide()
+			// Apply feat benefits with the chosen ability
+			models.ApplyFeatBenefits(m.character, *m.pendingFeat, chosenAbility)
+			m.message = fmt.Sprintf("Feat gained: %s (+1 %s)!", m.pendingFeat.Name, chosenAbility)
+			m.storage.Save(m.character)
+			m.pendingFeat = nil
+			m.abilityChoiceSelector.Hide()
+		}
+
+		// Handle origin ability choice
+		if m.pendingOrigin != nil {
+			// Remove old origin first
+			if m.character.Origin != "" {
+				oldOrigin := models.GetOriginByName(m.character.Origin)
+				if oldOrigin != nil {
+					models.RemoveOriginBenefits(m.character, *oldOrigin)
+				}
 			}
+
+			// Apply new origin with chosen ability
+			m.character.Origin = m.pendingOrigin.Name
+			models.ApplyOriginBenefits(m.character, *m.pendingOrigin, chosenAbility)
+			m.message = fmt.Sprintf("Origin changed to: %s (+1 %s)!", m.pendingOrigin.Name, chosenAbility)
+			m.storage.Save(m.character)
+			m.pendingOrigin = nil
+			m.abilityChoiceSelector.Hide()
 		}
 	case "esc":
-		// Cancel ability choice, remove the feat that was just added
+		// Cancel ability choice
 		if m.pendingFeat != nil {
 			// Remove the feat from character since we're cancelling
 			for i, featName := range m.character.Feats {
@@ -1227,6 +1391,12 @@ func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 			m.message = "Feat selection cancelled"
 			m.pendingFeat = nil
 		}
+
+		if m.pendingOrigin != nil {
+			m.message = "Origin selection cancelled"
+			m.pendingOrigin = nil
+		}
+
 		m.abilityChoiceSelector.Hide()
 	}
 	return m, nil
@@ -1249,6 +1419,8 @@ func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 			return "Features", components.GetFeaturesBindings()
 		case TraitsPanel:
 			return "Traits", components.GetTraitsBindings()
+		case OriginPanel:
+			return "Origin", components.GetGeneralBindings()
 		}
 	case FocusCharStats:
 		return "Character Info", components.GetCharacterStatsBindings()
@@ -1305,6 +1477,9 @@ func (m *Model) buildStatusBar() string {
 		case TraitsPanel:
 			panelName = "Traits"
 			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [L] Del Lang • [f] Add Feat • [F] Del Feat"
+		case OriginPanel:
+			panelName = "Origin"
+			contextHelp = "[o] Change Origin • [t] Add Tool • [T] Remove Tool"
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
@@ -1416,6 +1591,8 @@ func (m *Model) View() string {
 		mainPanelView = m.featuresPanel.View(mainWidth, mainContentHeight)
 	case TraitsPanel:
 		mainPanelView = m.traitsPanel.View(mainWidth, mainContentHeight)
+	case OriginPanel:
+		mainPanelView = m.originPanel.View(mainWidth, mainContentHeight)
 	}
 
 	// Combine tabs and content vertically (tabs inside the panel)
@@ -1550,6 +1727,11 @@ func (m *Model) View() string {
 		return m.featDetailPopup.View(m.width, m.height)
 	}
 
+	// Origin selector
+	if m.originSelector.IsVisible() {
+		return m.originSelector.View(m.width, m.height)
+	}
+
 	// Ability choice selector (for feat ability choices)
 	if m.abilityChoiceSelector.IsVisible() {
 		return m.abilityChoiceSelector.View(m.width, m.height)
@@ -1570,7 +1752,12 @@ func (m *Model) View() string {
 		return m.languageSelector.View(m.width, m.height)
 	}
 
-	// Species selector takes fourth priority
+	// Tool selector takes fourth priority
+	if m.toolSelector.IsVisible() {
+		return m.toolSelector.View(m.width, m.height)
+	}
+
+	// Species selector takes fifth priority
 	if m.speciesSelector.IsVisible() {
 		return m.speciesSelector.View(m.width, m.height)
 	}

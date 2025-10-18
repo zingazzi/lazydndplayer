@@ -49,6 +49,8 @@ func (br *BenefitRemover) RemoveAllBenefits(sourceType, sourceName string) error
 			br.removeACBonus(benefit)
 		case BenefitPassive:
 			br.removePassiveBonus(benefit)
+		case BenefitTool:
+			br.removeToolProficiency(benefit)
 		}
 	}
 
@@ -201,6 +203,26 @@ func (br *BenefitRemover) removePassiveBonus(benefit GrantedBenefit) {
 		br.char.PassiveInsightBonus -= benefit.Value
 		if br.char.PassiveInsightBonus < 0 {
 			br.char.PassiveInsightBonus = 0
+		}
+	}
+}
+
+func (br *BenefitRemover) removeToolProficiency(benefit GrantedBenefit) {
+	// Check if any other source also grants this tool proficiency
+	remainingSources := 0
+	for _, b := range br.char.BenefitTracker.Benefits {
+		if b.Type == BenefitTool && strings.EqualFold(b.Target, benefit.Target) {
+			remainingSources++
+		}
+	}
+
+	// Only remove if no other source grants it
+	if remainingSources == 0 {
+		for i, tool := range br.char.ToolProficiencies {
+			if strings.EqualFold(tool, benefit.Target) {
+				br.char.ToolProficiencies = append(br.char.ToolProficiencies[:i], br.char.ToolProficiencies[i+1:]...)
+				break
+			}
 		}
 	}
 }

@@ -9,6 +9,7 @@ type Character struct {
 	Subtype    string `json:"subtype,omitempty"` // For species with subtypes (Elf, Tiefling, Dragonborn)
 	Class      string `json:"class"`
 	Background string `json:"background"`
+	Origin     string `json:"origin"`     // Character origin (2024 rules)
 	Alignment  string `json:"alignment"`
 
 	// Level & Experience
@@ -30,8 +31,9 @@ type Character struct {
 	SavingThrows  SavingThrows  `json:"saving_throws"`
 
 	// Skills & Proficiencies
-	Skills            Skills `json:"skills"`
-	ProficiencyBonus  int    `json:"proficiency_bonus"`
+	Skills            Skills   `json:"skills"`
+	ProficiencyBonus  int      `json:"proficiency_bonus"`
+	ToolProficiencies []string `json:"tool_proficiencies"` // Tool proficiencies from origins/classes
 
 	// Combat & Features
 	Initiative       int         `json:"initiative"`
@@ -98,11 +100,12 @@ func NewCharacter() *Character {
 			Spells: []Spell{},
 			SpellcastingMod: Intelligence,
 		},
-		Languages:      []string{"Common"},
-		Feats:          []string{},
-		Resistances:    []string{},
-		BenefitTracker: NewBenefitTracker(),
-		Darkvision:    0,
+		Languages:         []string{"Common"},
+		Feats:             []string{},
+		Resistances:       []string{},
+		ToolProficiencies: []string{},
+		BenefitTracker:    NewBenefitTracker(),
+		Darkvision:        0,
 		SpeciesTraits: []SpeciesTrait{},
 		SpeciesSkills: []SkillType{},
 		SpeciesSpells: []string{},

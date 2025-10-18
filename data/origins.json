@@ -1,0 +1,321 @@
+{
+  "origins": [
+    {
+      "name": "Acolyte",
+      "description": "You devoted yourself to service in a temple, either nestled in a town or secluded in a sacred grove. There you performed rites in honor of a god or pantheon. You served under a priest and studied religion.",
+      "ability_increases": {
+        "choices": ["Intelligence", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Magic Initiate (Cleric)",
+      "skill_proficiencies": ["Insight", "Religion"],
+      "tool_proficiencies": ["Calligrapher's Supplies"],
+      "equipment": [
+        "Calligrapher's Supplies",
+        "Book (prayers)",
+        "Holy Symbol",
+        "Parchment (10 sheets)",
+        "Robe",
+        "50 GP"
+      ]
+    },
+    {
+      "name": "Artisan",
+      "description": "You began mopping floors and scrubbing counters in an artisan's workshop. After you graduated from those tasks, you learned the craft and saved enough to open your own business.",
+      "ability_increases": {
+        "choices": ["Intelligence", "Charisma"],
+        "amount": 1
+      },
+      "feat": "Crafter",
+      "skill_proficiencies": ["Investigation", "Persuasion"],
+      "tool_proficiencies": ["Artisan's Tools (choose one)"],
+      "equipment": [
+        "Artisan's Tools (same as tool proficiency)",
+        "Belt Pouch",
+        "Book (history of your craft)",
+        "Traveler's Clothes",
+        "32 GP"
+      ]
+    },
+    {
+      "name": "Charlatan",
+      "description": "Once you were old enough to order an ale, you soon had a favorite stool in every tavern within ten miles of where you were born. As you developed your skills at games of chance, you attracted a crowd of admirers.",
+      "ability_increases": {
+        "choices": ["Dexterity", "Charisma"],
+        "amount": 1
+      },
+      "feat": "Skilled",
+      "skill_proficiencies": ["Deception", "Sleight of Hand"],
+      "tool_proficiencies": ["Forgery Kit"],
+      "equipment": [
+        "Forgery Kit",
+        "Fine Clothes",
+        "Costume",
+        "Belt Pouch",
+        "15 GP"
+      ]
+    },
+    {
+      "name": "Criminal",
+      "description": "You learned your skills in streets and back alleys among rogues, spies, and assassins. You have a history of breaking the law and have spent time among other criminals.",
+      "ability_increases": {
+        "choices": ["Dexterity", "Intelligence"],
+        "amount": 1
+      },
+      "feat": "Alert",
+      "skill_proficiencies": ["Sleight of Hand", "Stealth"],
+      "tool_proficiencies": ["Thieves' Tools"],
+      "equipment": [
+        "Thieves' Tools",
+        "Crowbar",
+        "Hooded Cloak (dark)",
+        "Belt Pouch",
+        "16 GP"
+      ]
+    },
+    {
+      "name": "Entertainer",
+      "description": "You spent much of your youth following roving fairs and carnivals, performing odd jobs for musicians and acrobats in exchange for lessons. You may have learned how to walk a tightrope, how to entrance an audience, or how to perform magic tricks.",
+      "ability_increases": {
+        "choices": ["Dexterity", "Charisma"],
+        "amount": 1
+      },
+      "feat": "Musician",
+      "skill_proficiencies": ["Acrobatics", "Performance"],
+      "tool_proficiencies": ["Musical Instrument (choose one)"],
+      "equipment": [
+        "Musical Instrument (same as tool proficiency)",
+        "Costume (2)",
+        "Mirror",
+        "Perfume",
+        "Belt Pouch",
+        "11 GP"
+      ]
+    },
+    {
+      "name": "Farmer",
+      "description": "You grew up close to the land. Years tending animals and cultivating the earth rewarded you with patience and good health. You have a keen appreciation for nature's bounty alongside a healthy respect for nature's wrath.",
+      "ability_increases": {
+        "choices": ["Constitution", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Tough",
+      "skill_proficiencies": ["Animal Handling", "Nature"],
+      "tool_proficiencies": ["Carpenter's Tools"],
+      "equipment": [
+        "Carpenter's Tools",
+        "Sickle",
+        "Healer's Kit",
+        "Iron Pot",
+        "Shovel",
+        "Traveler's Clothes",
+        "Belt Pouch",
+        "22 GP"
+      ]
+    },
+    {
+      "name": "Guard",
+      "description": "Your feet have trodden the cobblestones or dirt roads of many cities, towns, and villages. You've rousted drunks, collared pickpockets, and served as an on-duty arm of the law.",
+      "ability_increases": {
+        "choices": ["Strength", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Alert",
+      "skill_proficiencies": ["Athletics", "Perception"],
+      "tool_proficiencies": ["Gaming Set (choose one)"],
+      "equipment": [
+        "Gaming Set (same as tool proficiency)",
+        "Hooded Lantern",
+        "Manacles",
+        "Quiver with 20 Arrows",
+        "Traveler's Clothes",
+        "Belt Pouch",
+        "12 GP"
+      ]
+    },
+    {
+      "name": "Guide",
+      "description": "You came of age in the outdoors, far from settled lands. Your home was the wilderness, and you learned to survive in harsh conditions and lead others through dangers.",
+      "ability_increases": {
+        "choices": ["Dexterity", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Magic Initiate (Druid)",
+      "skill_proficiencies": ["Stealth", "Survival"],
+      "tool_proficiencies": ["Cartographer's Tools"],
+      "equipment": [
+        "Cartographer's Tools",
+        "Bedroll",
+        "Belt Pouch",
+        "Quiver with 20 Arrows",
+        "Tent",
+        "Tinderbox",
+        "Torch (5)",
+        "Traveler's Clothes",
+        "22 GP"
+      ]
+    },
+    {
+      "name": "Hermit",
+      "description": "You lived in seclusion for part of your early life. In your isolation, you found quiet, solitude, and perhaps some answers you were looking for.",
+      "ability_increases": {
+        "choices": ["Constitution", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Magic Initiate (Cleric)",
+      "skill_proficiencies": ["Medicine", "Religion"],
+      "tool_proficiencies": ["Herbalism Kit"],
+      "equipment": [
+        "Herbalism Kit",
+        "Bedroll",
+        "Belt Pouch",
+        "Book (philosophy)",
+        "Lamp",
+        "Oil (3 flasks)",
+        "Traveler's Clothes",
+        "13 GP"
+      ]
+    },
+    {
+      "name": "Merchant",
+      "description": "You apprenticed to a trader and worked in a store, a market stall, or a trading post. You learned to appraise goods, conduct trade, and navigate the social nuances of commerce.",
+      "ability_increases": {
+        "choices": ["Intelligence", "Charisma"],
+        "amount": 1
+      },
+      "feat": "Lucky",
+      "skill_proficiencies": ["Animal Handling", "Persuasion"],
+      "tool_proficiencies": ["Navigator's Tools"],
+      "equipment": [
+        "Navigator's Tools",
+        "Merchant's Scale",
+        "Belt Pouch",
+        "Fine Clothes",
+        "Riding Horse with Saddle and Saddlebags",
+        "22 GP"
+      ]
+    },
+    {
+      "name": "Noble",
+      "description": "You were raised in a castle as the child of a noble, or you earned a position of privilege later in life. You're accustomed to wealth and authority and perhaps command a small army or have political connections.",
+      "ability_increases": {
+        "choices": ["Intelligence", "Charisma"],
+        "amount": 1
+      },
+      "feat": "Skilled",
+      "skill_proficiencies": ["History", "Persuasion"],
+      "tool_proficiencies": ["Gaming Set (choose one)"],
+      "equipment": [
+        "Gaming Set (same as tool proficiency)",
+        "Fine Clothes",
+        "Perfume",
+        "Signet Ring",
+        "Purse",
+        "29 GP"
+      ]
+    },
+    {
+      "name": "Sage",
+      "description": "You spent your formative years traveling between manors and monasteries, performing various odd jobs and services in exchange for access to their libraries. You whiled away many a long evening studying books and scrolls, learning the lore of the multiverse.",
+      "ability_increases": {
+        "choices": ["Intelligence", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Magic Initiate (Wizard)",
+      "skill_proficiencies": ["Arcana", "History"],
+      "tool_proficiencies": ["Calligrapher's Supplies"],
+      "equipment": [
+        "Calligrapher's Supplies",
+        "Book (history)",
+        "Ink (1 ounce bottle)",
+        "Ink Pen",
+        "Parchment (10 sheets)",
+        "Belt Pouch",
+        "Robe",
+        "8 GP"
+      ]
+    },
+    {
+      "name": "Sailor",
+      "description": "You lived on a ship for years. In that time, you faced down mighty storms, monsters of the deep, and foes both cunning and cruel. Your first love is the distant line of the horizon, but your second is the rolling deck of a ship at sea.",
+      "ability_increases": {
+        "choices": ["Strength", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Tavern Brawler",
+      "skill_proficiencies": ["Acrobatics", "Perception"],
+      "tool_proficiencies": ["Navigator's Tools"],
+      "equipment": [
+        "Navigator's Tools",
+        "Belaying Pin (Club)",
+        "Rope (50 feet)",
+        "Traveler's Clothes",
+        "Belt Pouch",
+        "20 GP"
+      ]
+    },
+    {
+      "name": "Scribe",
+      "description": "You are skilled with words and letters, having served as a scribe in service to important people or institutions. You spent years copying books, transcribing legal documents, and recording important events.",
+      "ability_increases": {
+        "choices": ["Intelligence", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Skilled",
+      "skill_proficiencies": ["Investigation", "Perception"],
+      "tool_proficiencies": ["Calligrapher's Supplies"],
+      "equipment": [
+        "Calligrapher's Supplies",
+        "Fine Clothes",
+        "Ink (1 ounce bottle)",
+        "Ink Pen",
+        "Lamp",
+        "Parchment (10 sheets)",
+        "Belt Pouch",
+        "23 GP"
+      ]
+    },
+    {
+      "name": "Soldier",
+      "description": "You began your martial career in an established army, militia, or guard force. You know how to work and fight as a unit, following orders and supporting your fellows in battle.",
+      "ability_increases": {
+        "choices": ["Strength", "Constitution"],
+        "amount": 1
+      },
+      "feat": "Savage Attacker",
+      "skill_proficiencies": ["Athletics", "Intimidation"],
+      "tool_proficiencies": ["Gaming Set (choose one)"],
+      "equipment": [
+        "Gaming Set (same as tool proficiency)",
+        "Healer's Kit",
+        "Hooded Cloak",
+        "Traveler's Clothes",
+        "Belt Pouch",
+        "14 GP"
+      ]
+    },
+    {
+      "name": "Wayfarer",
+      "description": "You grew up on the road, never settling in one place for long. You might have been part of a nomadic tribe, traveling with merchant caravans, or simply wandering from place to place.",
+      "ability_increases": {
+        "choices": ["Dexterity", "Wisdom"],
+        "amount": 1
+      },
+      "feat": "Lucky",
+      "skill_proficiencies": ["Insight", "Stealth"],
+      "tool_proficiencies": ["Thieves' Tools"],
+      "equipment": [
+        "Thieves' Tools",
+        "Bedroll",
+        "Belt Pouch",
+        "Rope (50 feet)",
+        "Tent",
+        "Tinderbox",
+        "Torch (5)",
+        "Traveler's Clothes",
+        "24 GP"
+      ]
+    }
+  ]
+}
+

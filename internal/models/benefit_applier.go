@@ -270,3 +270,28 @@ func (ba *BenefitApplier) AddPassiveBonus(source BenefitSource, skillName string
 
 	return nil
 }
+
+// AddToolProficiency adds a tool proficiency and tracks it
+func (ba *BenefitApplier) AddToolProficiency(source BenefitSource, toolName string) error {
+	// Check if already proficient
+	for _, tool := range ba.char.ToolProficiencies {
+		if tool == toolName {
+			// Already have this proficiency, don't add duplicate
+			return nil
+		}
+	}
+
+	// Add tool proficiency
+	ba.char.ToolProficiencies = append(ba.char.ToolProficiencies, toolName)
+
+	// Track the benefit
+	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+		Source:      source,
+		Type:        BenefitTool,
+		Target:      toolName,
+		Value:       1,
+		Description: fmt.Sprintf("Tool proficiency: %s", toolName),
+	})
+
+	return nil
+}
