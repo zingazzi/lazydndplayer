@@ -85,8 +85,36 @@ func CalculateModifier(score int) int {
 }
 
 // GetModifier returns the modifier for a given ability
-func (a *AbilityScores) GetModifier(ability AbilityType) int {
-	return CalculateModifier(a.GetScore(ability))
+func (a *AbilityScores) GetModifier(ability interface{}) int {
+	var abilityType AbilityType
+
+	// Handle both string and AbilityType
+	switch v := ability.(type) {
+	case string:
+		// Convert string to AbilityType
+		switch v {
+		case "Strength", "STR":
+			abilityType = Strength
+		case "Dexterity", "DEX":
+			abilityType = Dexterity
+		case "Constitution", "CON":
+			abilityType = Constitution
+		case "Intelligence", "INT":
+			abilityType = Intelligence
+		case "Wisdom", "WIS":
+			abilityType = Wisdom
+		case "Charisma", "CHA":
+			abilityType = Charisma
+		default:
+			return 0
+		}
+	case AbilityType:
+		abilityType = v
+	default:
+		return 0
+	}
+
+	return CalculateModifier(a.GetScore(abilityType))
 }
 
 // SavingThrows tracks proficiency in saving throws

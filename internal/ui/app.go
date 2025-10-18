@@ -740,7 +740,7 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.characterStatsPanel.HandleInput(msg)
 		}
 	}
-	
+
 	// In normal mode, allow class change
 	switch msg.String() {
 	case "c":
@@ -1215,8 +1215,13 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		selectedClass := m.classSelector.GetSelectedClass()
 		if selectedClass != "" {
-			m.character.Class = selectedClass
-			m.message = fmt.Sprintf("Class changed to: %s", selectedClass)
+			// Apply class and calculate HP
+			err := models.ApplyClassToCharacter(m.character, selectedClass)
+			if err != nil {
+				m.message = fmt.Sprintf("Error applying class: %v", err)
+			} else {
+				m.message = fmt.Sprintf("Class changed to: %s (HP: %d/%d)", selectedClass, m.character.CurrentHP, m.character.MaxHP)
+			}
 			m.storage.Save(m.character)
 			m.classSelector.Hide()
 		}

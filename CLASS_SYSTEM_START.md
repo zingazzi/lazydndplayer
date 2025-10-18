@@ -109,10 +109,10 @@ Character Info Panel
 
 ## ✨ What's Ready
 
-✅ **Complete Class Database** - All 12 classes with full D&D 2024 data  
-✅ **Class Selector UI** - Clean, navigable interface  
-✅ **Character Info Integration** - Easy access with 'c' key  
-✅ **Immediate Class Change** - Updates character instantly  
+✅ **Complete Class Database** - All 12 classes with full D&D 2024 data
+✅ **Class Selector UI** - Clean, navigable interface
+✅ **Character Info Integration** - Easy access with 'c' key
+✅ **Immediate Class Change** - Updates character instantly
 
 ---
 
@@ -203,9 +203,8 @@ Press Enter
 
 ## 🎉 Summary
 
-✨ **Initial class system complete!**  
-📚 **All 12 D&D 2024 classes available!**  
-🎮 **Easy class selection from Character Info panel!**  
+✨ **Initial class system complete!**
+📚 **All 12 D&D 2024 classes available!**
+🎮 **Easy class selection from Character Info panel!**
 
 The foundation is ready for implementing class benefits, spellcasting, and level progression! 🚀
-
