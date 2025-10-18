@@ -39,7 +39,7 @@ func (h *Help) Toggle() {
 // GetGeneralBindings returns common keyboard shortcuts
 func GetGeneralBindings() []HelpBinding {
 	return []HelpBinding{
-		{"f", "Cycle focus (Main → CharStats → Actions → Dice)"},
+		{"p / Shift+P", "Cycle focus (forward / backward)"},
 		{"Tab / Shift+Tab", "Switch tabs (when in Main panel)"},
 		{"1-4", "Quick tab select (when in Main panel)"},
 		{"↑/↓ or j/k", "Navigate lists"},
@@ -115,6 +115,7 @@ func GetTraitsBindings() []HelpBinding {
 		{"l", "Add language"},
 		{"Shift+L", "Remove language"},
 		{"f", "Add feat"},
+		{"Shift+F", "Remove feat"},
 		{"d", "Delete selected"},
 	}
 }

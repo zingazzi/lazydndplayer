@@ -149,10 +149,26 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Note: 'l' and 'L' keys are now handled in Traits panel for language management
 		// Removed global 'l' handler (was for level up) to avoid conflicts
+		// Note: 'f' and 'F' keys are now handled in Traits panel for feat management
 
-		// Focus cycling - f key cycles through Main, CharStats, Actions, Dice
-		case "f":
+		// Focus cycling - p key cycles through Main, CharStats, Actions, Dice
+		case "p":
 			m.focusArea = (m.focusArea + 1) % 4
+			switch m.focusArea {
+			case FocusMain:
+				m.message = "Focus: Main Panel"
+			case FocusCharStats:
+				m.message = "Focus: Character Stats"
+			case FocusActions:
+				m.message = "Focus: Actions Panel"
+			case FocusDice:
+				m.message = "Focus: Dice Roller"
+			}
+			return m, nil
+
+		// Focus cycling backwards - Shift+P
+		case "P":
+			m.focusArea = (m.focusArea - 1 + 4) % 4
 			switch m.focusArea {
 			case FocusMain:
 				m.message = "Focus: Main Panel"
@@ -514,6 +530,14 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Add feat
 		m.featSelector.Show(m.character, false) // false = not an origin feat
 		m.message = "Select a feat to acquire..."
+	case "F": // Shift+F
+		// Remove feat
+		if len(m.character.Feats) == 0 {
+			m.message = "No feats to remove"
+		} else {
+			m.featSelector.ShowForDeletion(m.character)
+			m.message = "Select a feat to remove..."
+		}
 	case "d", "x":
 		m.traitsPanel.RemoveSelected()
 		m.message = "Item removed"
@@ -1080,24 +1104,38 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		selectedFeat := m.featSelector.GetSelectedFeat()
 		if selectedFeat != nil {
-			// Check if character already has this feat
-			if models.HasFeat(m.character, selectedFeat.Name) && !selectedFeat.Repeatable {
-				m.message = fmt.Sprintf("You already have %s and it's not repeatable", selectedFeat.Name)
-			} else {
-				// Add feat to character
-				err := models.AddFeatToCharacter(m.character, selectedFeat.Name)
-				if err != nil {
-					m.message = fmt.Sprintf("Error adding feat: %v", err)
-				} else {
-					// Apply feat benefits automatically
-					models.ApplyFeatBenefits(m.character, *selectedFeat)
-					m.message = fmt.Sprintf("Feat gained: %s!", selectedFeat.Name)
-					// Save character after feat selection
-					m.storage.Save(m.character)
+			// Check if we're in delete mode
+			if m.featSelector.IsDeleteMode() {
+				// Remove the feat
+				for i, featName := range m.character.Feats {
+					if featName == selectedFeat.Name {
+						m.character.Feats = append(m.character.Feats[:i], m.character.Feats[i+1:]...)
+						break
+					}
 				}
+				m.message = fmt.Sprintf("Feat removed: %s", selectedFeat.Name)
+				m.storage.Save(m.character)
+				m.featSelector.Hide()
+			} else {
+				// Add mode: Check if character already has this feat
+				if models.HasFeat(m.character, selectedFeat.Name) && !selectedFeat.Repeatable {
+					m.message = fmt.Sprintf("You already have %s and it's not repeatable", selectedFeat.Name)
+				} else {
+					// Add feat to character
+					err := models.AddFeatToCharacter(m.character, selectedFeat.Name)
+					if err != nil {
+						m.message = fmt.Sprintf("Error adding feat: %v", err)
+					} else {
+						// Apply feat benefits automatically
+						models.ApplyFeatBenefits(m.character, *selectedFeat)
+						m.message = fmt.Sprintf("Feat gained: %s!", selectedFeat.Name)
+						// Save character after feat selection
+						m.storage.Save(m.character)
+					}
+				}
+				m.featSelector.Hide()
 			}
 		}
-		m.featSelector.Hide()
 	case "esc":
 		m.featSelector.Hide()
 		m.message = "Feat selection cancelled"
@@ -1177,7 +1215,7 @@ func (m *Model) buildStatusBar() string {
 			contextHelp = "[↑/↓] Navigate • [u] Use • [+] Restore"
 		case TraitsPanel:
 			panelName = "Traits"
-			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [L] Remove Lang • [f] Add Feat • [d] Delete"
+			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [L] Del Lang • [f] Add Feat • [F] Del Feat"
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
@@ -1206,7 +1244,7 @@ func (m *Model) buildStatusBar() string {
 
 	// Build right section: global shortcuts
 	rightSection := keyStyle.Render("[Tab]") + helpStyle.Render(" Switch tabs • ") +
-		keyStyle.Render("[f]") + helpStyle.Render(" Focus • ") +
+		keyStyle.Render("[p/P]") + helpStyle.Render(" Focus • ") +
 		keyStyle.Render("[s]") + helpStyle.Render(" Save • ") +
 		keyStyle.Render("[?]") + helpStyle.Render(" Help • ") +
 		keyStyle.Render("[q]") + helpStyle.Render(" Quit ")

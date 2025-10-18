@@ -18,6 +18,7 @@ type FeatSelector struct {
 	title         string
 	character     *models.Character
 	filterOrigin  bool // Only show origin-appropriate feats
+	deleteMode    bool // If true, shows known feats for deletion
 }
 
 // NewFeatSelector creates a new feat selector
@@ -28,6 +29,7 @@ func NewFeatSelector() *FeatSelector {
 		visible:       false,
 		title:         "SELECT FEAT",
 		filterOrigin:  false,
+		deleteMode:    false,
 	}
 }
 
@@ -35,6 +37,7 @@ func NewFeatSelector() *FeatSelector {
 func (f *FeatSelector) Show(char *models.Character, originFeat bool) {
 	f.character = char
 	f.filterOrigin = originFeat
+	f.deleteMode = false
 
 	if originFeat {
 		f.title = "SELECT ORIGIN FEAT (HUMAN)"
@@ -49,9 +52,46 @@ func (f *FeatSelector) Show(char *models.Character, originFeat bool) {
 	f.visible = true
 }
 
+// ShowForDeletion displays the feat selector with known feats (for deleting)
+func (f *FeatSelector) ShowForDeletion(char *models.Character) {
+	f.character = char
+	f.filterOrigin = false
+	f.deleteMode = true
+	f.title = "SELECT FEAT TO REMOVE"
+
+	// Get all feats and filter to only show ones the character has
+	allFeats := models.GetAllFeats()
+	f.feats = []models.Feat{}
+
+	for _, featName := range char.Feats {
+		// Find the feat details
+		for _, feat := range allFeats {
+			if feat.Name == featName {
+				f.feats = append(f.feats, feat)
+				break
+			}
+		}
+	}
+
+	f.selectedIndex = 0
+
+	// If no feats, close selector
+	if len(f.feats) == 0 {
+		f.visible = false
+	} else {
+		f.visible = true
+	}
+}
+
 // Hide hides the feat selector
 func (f *FeatSelector) Hide() {
 	f.visible = false
+	f.deleteMode = false
+}
+
+// IsDeleteMode returns whether the selector is in delete mode
+func (f *FeatSelector) IsDeleteMode() bool {
+	return f.deleteMode
 }
 
 // IsVisible returns whether the selector is visible
@@ -232,9 +272,15 @@ func (f *FeatSelector) View(width, height int) string {
 		Italic(true)
 
 	content.WriteString("\n\n")
-	content.WriteString(helpStyle.Render("[↑/↓] Navigate • [Enter] Select • [Esc] Cancel"))
-	content.WriteString("\n")
-	content.WriteString(helpStyle.Render("* = Has prerequisites"))
+
+	// Show different help text based on mode
+	if f.deleteMode {
+		content.WriteString(helpStyle.Render("[↑/↓] Navigate • [Enter] Remove • [Esc] Cancel"))
+	} else {
+		content.WriteString(helpStyle.Render("[↑/↓] Navigate • [Enter] Select • [Esc] Cancel"))
+		content.WriteString("\n")
+		content.WriteString(helpStyle.Render("* = Has prerequisites"))
+	}
 
 	// Wrap in border
 	boxWidth := width - 20
