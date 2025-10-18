@@ -48,9 +48,10 @@ type Model struct {
 	languageSelector *components.LanguageSelector
 	skillSelector    *components.SkillSelector
 	spellSelector    *components.SpellSelector
-	featSelector     *components.FeatSelector
-	statGenerator    *components.StatGenerator
-	abilityRoller    *components.AbilityRoller
+	featSelector          *components.FeatSelector
+	statGenerator         *components.StatGenerator
+	abilityRoller         *components.AbilityRoller
+	abilityChoiceSelector *components.AbilityChoiceSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -66,13 +67,14 @@ type Model struct {
 	actionsPanel        *panels.ActionsPanel // Bottom panel for quick actions
 
 	// State
-	currentPanel PanelType
-	focusArea    FocusArea
-	width        int
-	height       int
-	ready        bool
-	message      string
-	quitting     bool
+	currentPanel       PanelType
+	focusArea          FocusArea
+	width              int
+	height             int
+	ready              bool
+	message            string
+	quitting           bool
+	pendingFeat        *models.Feat // Temporarily store feat while choosing ability
 }
 
 // NewModel creates a new application model
@@ -87,10 +89,11 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		languageSelector:    components.NewLanguageSelector(),
 		skillSelector:       components.NewSkillSelector(),
 		spellSelector:       components.NewSpellSelector(),
-		featSelector:        components.NewFeatSelector(),
-		statGenerator:       components.NewStatGenerator(),
-		abilityRoller:       components.NewAbilityRoller(),
-		statsPanel:          panels.NewStatsPanel(char),
+		featSelector:          components.NewFeatSelector(),
+		statGenerator:         components.NewStatGenerator(),
+		abilityRoller:         components.NewAbilityRoller(),
+		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
+		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:         panels.NewSkillsPanel(char),
 		inventoryPanel:      panels.NewInventoryPanel(char),
 		spellsPanel:         panels.NewSpellsPanel(char),
@@ -217,6 +220,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if feat selector is active
 		if m.featSelector.IsVisible() {
 			return m.handleFeatSelectorKeys(msg)
+		}
+
+		// Check if ability choice selector is active (for feat ability choices)
+		if m.abilityChoiceSelector.IsVisible() {
+			return m.handleAbilityChoiceSelectorKeys(msg)
 		}
 
 		// Check if subtype selector is active
@@ -1113,32 +1121,87 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						break
 					}
 				}
-				m.message = fmt.Sprintf("Feat removed: %s", selectedFeat.Name)
+				// Remove feat benefits (ability increases, HP, speed, etc.)
+				models.RemoveFeatBenefits(m.character, *selectedFeat)
+
+				m.message = fmt.Sprintf("Feat removed: %s (benefits reversed)", selectedFeat.Name)
 				m.storage.Save(m.character)
 				m.featSelector.Hide()
 			} else {
 				// Add mode: Check if character already has this feat
 				if models.HasFeat(m.character, selectedFeat.Name) && !selectedFeat.Repeatable {
 					m.message = fmt.Sprintf("You already have %s and it's not repeatable", selectedFeat.Name)
+					m.featSelector.Hide()
 				} else {
 					// Add feat to character
 					err := models.AddFeatToCharacter(m.character, selectedFeat.Name)
 					if err != nil {
 						m.message = fmt.Sprintf("Error adding feat: %v", err)
+						m.featSelector.Hide()
 					} else {
-						// Apply feat benefits automatically
-						models.ApplyFeatBenefits(m.character, *selectedFeat)
-						m.message = fmt.Sprintf("Feat gained: %s!", selectedFeat.Name)
-						// Save character after feat selection
-						m.storage.Save(m.character)
+						// Check if this feat has ability choices
+						if models.HasAbilityChoice(*selectedFeat) {
+							// Store the feat and show ability choice selector
+							m.pendingFeat = selectedFeat
+							m.featSelector.Hide()
+							choices := models.GetAbilityChoices(*selectedFeat)
+							m.abilityChoiceSelector.Show(selectedFeat.Name, choices, m.character)
+							m.message = "Choose which ability to increase"
+						} else {
+							// Apply feat benefits automatically (no ability choice)
+							models.ApplyFeatBenefits(m.character, *selectedFeat, "")
+							m.message = fmt.Sprintf("Feat gained: %s!", selectedFeat.Name)
+							// Save character after feat selection
+							m.storage.Save(m.character)
+							m.featSelector.Hide()
+						}
 					}
 				}
-				m.featSelector.Hide()
 			}
 		}
 	case "esc":
 		m.featSelector.Hide()
 		m.message = "Feat selection cancelled"
+	}
+	return m, nil
+}
+
+// handleAbilityChoiceSelectorKeys handles keyboard input for the ability choice selector
+func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.abilityChoiceSelector.Prev()
+	case "down", "j":
+		m.abilityChoiceSelector.Next()
+	case "enter":
+		if m.pendingFeat != nil {
+			chosenAbility := m.abilityChoiceSelector.GetSelectedAbility()
+			if chosenAbility != "" {
+				// Apply feat benefits with the chosen ability
+				models.ApplyFeatBenefits(m.character, *m.pendingFeat, chosenAbility)
+				m.message = fmt.Sprintf("Feat gained: %s (+1 %s)!", m.pendingFeat.Name, chosenAbility)
+				// Save character after feat selection
+				m.storage.Save(m.character)
+				// Clear pending feat and hide selector
+				m.pendingFeat = nil
+				m.abilityChoiceSelector.Hide()
+			}
+		}
+	case "esc":
+		// Cancel ability choice, remove the feat that was just added
+		if m.pendingFeat != nil {
+			// Remove the feat from character since we're cancelling
+			for i, featName := range m.character.Feats {
+				if featName == m.pendingFeat.Name {
+					m.character.Feats = append(m.character.Feats[:i], m.character.Feats[i+1:]...)
+					break
+				}
+			}
+			m.storage.Save(m.character)
+			m.message = "Feat selection cancelled"
+			m.pendingFeat = nil
+		}
+		m.abilityChoiceSelector.Hide()
 	}
 	return m, nil
 }
@@ -1454,6 +1517,11 @@ func (m *Model) View() string {
 	// Feat selector takes second priority
 	if m.featSelector.IsVisible() {
 		return m.featSelector.View(m.width, m.height)
+	}
+
+	// Ability choice selector (for feat ability choices)
+	if m.abilityChoiceSelector.IsVisible() {
+		return m.abilityChoiceSelector.View(m.width, m.height)
 	}
 
 	// Subtype selector takes third priority

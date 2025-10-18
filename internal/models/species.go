@@ -662,53 +662,6 @@ func RemoveSpeciesFeats(char *Character) {
 	char.Feats = []string{}
 }
 
-// RemoveFeatBenefits removes the mechanical benefits of a feat from a character
-func RemoveFeatBenefits(char *Character, feat Feat) {
-	// Remove ability score increases
-	for ability, increase := range feat.AbilityIncreases {
-		abilityLower := strings.ToLower(ability)
-
-		// Handle multiple choice abilities
-		if strings.Contains(abilityLower, "or") {
-			// Can't auto-remove, skip
-			continue
-		}
-
-		// Remove specific ability increases
-		if strings.Contains(abilityLower, "strength") {
-			char.AbilityScores.Strength = max(char.AbilityScores.Strength-increase, 1)
-		} else if strings.Contains(abilityLower, "dexterity") {
-			char.AbilityScores.Dexterity = max(char.AbilityScores.Dexterity-increase, 1)
-		} else if strings.Contains(abilityLower, "constitution") {
-			char.AbilityScores.Constitution = max(char.AbilityScores.Constitution-increase, 1)
-		} else if strings.Contains(abilityLower, "intelligence") {
-			char.AbilityScores.Intelligence = max(char.AbilityScores.Intelligence-increase, 1)
-		} else if strings.Contains(abilityLower, "wisdom") {
-			char.AbilityScores.Wisdom = max(char.AbilityScores.Wisdom-increase, 1)
-		} else if strings.Contains(abilityLower, "charisma") {
-			char.AbilityScores.Charisma = max(char.AbilityScores.Charisma-increase, 1)
-		}
-	}
-
-	// Remove special benefits
-	featNameLower := strings.ToLower(feat.Name)
-
-	// Tough feat: -2 HP per level
-	if featNameLower == "tough" {
-		char.MaxHP -= char.Level * 2
-		if char.CurrentHP > char.MaxHP {
-			char.CurrentHP = char.MaxHP
-		}
-	}
-
-	// Mobile feat: -10 speed
-	if featNameLower == "mobile" {
-		char.Speed -= 10
-	}
-
-	// Update derived stats after removing benefits
-	char.UpdateDerivedStats()
-}
 
 func max(a, b int) int {
 	if a > b {

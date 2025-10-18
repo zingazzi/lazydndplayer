@@ -174,21 +174,74 @@ func AddFeatToCharacter(char *Character, featName string) error {
 	return nil
 }
 
+// HasAbilityChoice returns true if the feat requires choosing an ability
+func HasAbilityChoice(feat Feat) bool {
+	for ability := range feat.AbilityIncreases {
+		abilityLower := strings.ToLower(ability)
+		if strings.Contains(abilityLower, "or") || strings.Contains(abilityLower, "any") {
+			return true
+		}
+	}
+	return false
+}
+
+// GetAbilityChoices returns the list of abilities that can be chosen for a feat
+func GetAbilityChoices(feat Feat) []string {
+	for ability := range feat.AbilityIncreases {
+		abilityLower := strings.ToLower(ability)
+
+		// Handle "Strength or Dexterity" format
+		if strings.Contains(abilityLower, "or") {
+			parts := strings.Split(ability, " or ")
+			choices := make([]string, len(parts))
+			for i, part := range parts {
+				choices[i] = strings.TrimSpace(part)
+			}
+			return choices
+		}
+
+		// Handle "Any ability" format
+		if strings.Contains(abilityLower, "any") {
+			return []string{"Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"}
+		}
+
+		// Handle comma-separated format
+		if strings.Contains(ability, ",") {
+			parts := strings.Split(ability, ",")
+			choices := make([]string, len(parts))
+			for i, part := range parts {
+				choices[i] = strings.TrimSpace(part)
+			}
+			return choices
+		}
+	}
+	return []string{}
+}
+
 // ApplyFeatBenefits applies the mechanical benefits of a feat to a character
-// This includes ability score increases, HP increases, etc.
-func ApplyFeatBenefits(char *Character, feat Feat) {
+// chosenAbility is used when the feat has multiple ability choices
+func ApplyFeatBenefits(char *Character, feat Feat, chosenAbility string) {
+	// Initialize FeatChoices if needed
+	if char.FeatChoices == nil {
+		char.FeatChoices = make(map[string]string)
+	}
+
 	// Apply ability score increases
 	for ability, increase := range feat.AbilityIncreases {
 		abilityLower := strings.ToLower(ability)
 
-		// Handle multiple choice abilities (e.g., "Strength or Dexterity")
-		if strings.Contains(abilityLower, "or") {
-			// This will need to be chosen by the player in the UI
-			// For now, we'll skip automatic application
+		// Handle multiple choice abilities
+		if strings.Contains(abilityLower, "or") || strings.Contains(abilityLower, "any") || strings.Contains(ability, ",") {
+			if chosenAbility != "" {
+				// Store the choice
+				char.FeatChoices[feat.Name] = chosenAbility
+				// Apply the increase to the chosen ability
+				applyAbilityIncrease(char, chosenAbility, increase)
+			}
 			continue
 		}
 
-		// Apply specific ability increases
+		// Apply specific ability increases (single ability)
 		if strings.Contains(abilityLower, "strength") {
 			char.AbilityScores.Strength = min(char.AbilityScores.Strength+increase, 20)
 		} else if strings.Contains(abilityLower, "dexterity") {
@@ -218,12 +271,115 @@ func ApplyFeatBenefits(char *Character, feat Feat) {
 		char.Speed += 10
 	}
 
-	// Durable feat: Already has Constitution increase handled above
-
-	// Alert feat: +5 initiative (we'll add this when implementing initiative modifiers)
-
 	// Update derived stats after applying benefits
 	char.UpdateDerivedStats()
+}
+
+// RemoveFeatBenefits removes the mechanical benefits of a feat from a character
+func RemoveFeatBenefits(char *Character, feat Feat) {
+	// Get the ability increase amount
+	var increase int
+	for _, inc := range feat.AbilityIncreases {
+		increase = inc
+		break
+	}
+
+	// Check if this feat had a choice recorded
+	if chosenAbility, exists := char.FeatChoices[feat.Name]; exists {
+		// Remove the increase from the chosen ability
+		removeAbilityIncrease(char, chosenAbility, increase)
+		// Remove the choice record
+		delete(char.FeatChoices, feat.Name)
+	} else {
+		// Remove ability score increases for feats without choices
+		for ability, inc := range feat.AbilityIncreases {
+			abilityLower := strings.ToLower(ability)
+
+			// Skip if it had choices (should have been recorded)
+			if strings.Contains(abilityLower, "or") || strings.Contains(abilityLower, "any") {
+				continue
+			}
+
+			// Remove specific ability increases
+			if strings.Contains(abilityLower, "strength") {
+				char.AbilityScores.Strength = max(char.AbilityScores.Strength-inc, 1)
+			} else if strings.Contains(abilityLower, "dexterity") {
+				char.AbilityScores.Dexterity = max(char.AbilityScores.Dexterity-inc, 1)
+			} else if strings.Contains(abilityLower, "constitution") {
+				char.AbilityScores.Constitution = max(char.AbilityScores.Constitution-inc, 1)
+			} else if strings.Contains(abilityLower, "intelligence") {
+				char.AbilityScores.Intelligence = max(char.AbilityScores.Intelligence-inc, 1)
+			} else if strings.Contains(abilityLower, "wisdom") {
+				char.AbilityScores.Wisdom = max(char.AbilityScores.Wisdom-inc, 1)
+			} else if strings.Contains(abilityLower, "charisma") {
+				char.AbilityScores.Charisma = max(char.AbilityScores.Charisma-inc, 1)
+			}
+		}
+	}
+
+	// Remove special benefits
+	featNameLower := strings.ToLower(feat.Name)
+
+	// Tough feat: remove +2 HP per level
+	if featNameLower == "tough" {
+		hpReduction := char.Level * 2
+		char.MaxHP -= hpReduction
+		if char.MaxHP < 1 {
+			char.MaxHP = 1
+		}
+		if char.CurrentHP > char.MaxHP {
+			char.CurrentHP = char.MaxHP
+		}
+	}
+
+	// Mobile feat: remove +10 speed
+	if featNameLower == "mobile" {
+		char.Speed -= 10
+		if char.Speed < 0 {
+			char.Speed = 0
+		}
+	}
+
+	// Update derived stats after removing benefits
+	char.UpdateDerivedStats()
+}
+
+// applyAbilityIncrease applies an increase to a specific ability
+func applyAbilityIncrease(char *Character, ability string, increase int) {
+	abilityLower := strings.ToLower(ability)
+
+	if strings.Contains(abilityLower, "strength") {
+		char.AbilityScores.Strength = min(char.AbilityScores.Strength+increase, 20)
+	} else if strings.Contains(abilityLower, "dexterity") {
+		char.AbilityScores.Dexterity = min(char.AbilityScores.Dexterity+increase, 20)
+	} else if strings.Contains(abilityLower, "constitution") {
+		char.AbilityScores.Constitution = min(char.AbilityScores.Constitution+increase, 20)
+	} else if strings.Contains(abilityLower, "intelligence") {
+		char.AbilityScores.Intelligence = min(char.AbilityScores.Intelligence+increase, 20)
+	} else if strings.Contains(abilityLower, "wisdom") {
+		char.AbilityScores.Wisdom = min(char.AbilityScores.Wisdom+increase, 20)
+	} else if strings.Contains(abilityLower, "charisma") {
+		char.AbilityScores.Charisma = min(char.AbilityScores.Charisma+increase, 20)
+	}
+}
+
+// removeAbilityIncrease removes an increase from a specific ability
+func removeAbilityIncrease(char *Character, ability string, increase int) {
+	abilityLower := strings.ToLower(ability)
+
+	if strings.Contains(abilityLower, "strength") {
+		char.AbilityScores.Strength = max(char.AbilityScores.Strength-increase, 1)
+	} else if strings.Contains(abilityLower, "dexterity") {
+		char.AbilityScores.Dexterity = max(char.AbilityScores.Dexterity-increase, 1)
+	} else if strings.Contains(abilityLower, "constitution") {
+		char.AbilityScores.Constitution = max(char.AbilityScores.Constitution-increase, 1)
+	} else if strings.Contains(abilityLower, "intelligence") {
+		char.AbilityScores.Intelligence = max(char.AbilityScores.Intelligence-increase, 1)
+	} else if strings.Contains(abilityLower, "wisdom") {
+		char.AbilityScores.Wisdom = max(char.AbilityScores.Wisdom-increase, 1)
+	} else if strings.Contains(abilityLower, "charisma") {
+		char.AbilityScores.Charisma = max(char.AbilityScores.Charisma-increase, 1)
+	}
 }
 
 // GetFeatCategories returns all unique feat categories

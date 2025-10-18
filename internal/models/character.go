@@ -47,6 +47,7 @@ type Character struct {
 	// Traits
 	Languages           []string       `json:"languages"`
 	Feats               []string       `json:"feats"`
+	FeatChoices         map[string]string `json:"feat_choices,omitempty"` // feat name -> ability chosen (for feats with choices)
 	Resistances         []string       `json:"resistances"`
 	Darkvision          int            `json:"darkvision"` // Range in feet, 0 if none
 	SpeciesTraits       []SpeciesTrait `json:"species_traits"`
@@ -94,6 +95,7 @@ func NewCharacter() *Character {
 		},
 		Languages:     []string{"Common"},
 		Feats:         []string{},
+		FeatChoices:   make(map[string]string),
 		Resistances:   []string{},
 		Darkvision:    0,
 		SpeciesTraits: []SpeciesTrait{},
