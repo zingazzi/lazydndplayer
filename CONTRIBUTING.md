@@ -103,10 +103,10 @@ Example test structure:
 func TestFeatureName(t *testing.T) {
     // Setup
     char := models.NewCharacter()
-    
+
     // Execute
     result := SomeFunction(char)
-    
+
     // Verify
     if result != expected {
         t.Errorf("Expected %v, got %v", expected, result)
@@ -234,4 +234,3 @@ If you have questions or need help:
 - Help others learn and grow
 
 Thank you for contributing! 🎉
-

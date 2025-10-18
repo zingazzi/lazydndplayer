@@ -81,15 +81,23 @@ func GetFeatByName(name string) *Feat {
 }
 
 // GetFeatsForCharacter returns feats that the character can take
-// based on prerequisites
+// based on prerequisites and excludes already-owned non-repeatable feats
 func GetFeatsForCharacter(char *Character) []Feat {
 	allFeats := GetAllFeats()
 	availableFeats := []Feat{}
 
 	for _, feat := range allFeats {
-		if CanTakeFeat(char, feat) {
-			availableFeats = append(availableFeats, feat)
+		// Check if character can take this feat (prerequisites)
+		if !CanTakeFeat(char, feat) {
+			continue
 		}
+
+		// Skip if character already has this feat and it's not repeatable
+		if HasFeat(char, feat.Name) && !feat.Repeatable {
+			continue
+		}
+
+		availableFeats = append(availableFeats, feat)
 	}
 
 	return availableFeats

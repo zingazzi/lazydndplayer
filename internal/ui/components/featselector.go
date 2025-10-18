@@ -159,7 +159,7 @@ func (f *FeatSelector) Update(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-// View renders the feat selector
+// View renders the feat selector with two-column layout
 func (f *FeatSelector) View(width, height int) string {
 	if !f.visible {
 		return ""
@@ -167,158 +167,231 @@ func (f *FeatSelector) View(width, height int) string {
 
 	// Styles
 	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("170")).
-		Padding(0, 1)
-
-	selectedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("170")).
 		Bold(true).
-		Padding(0, 1)
+		Align(lipgloss.Center)
 
-	normalStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252")).
-		Padding(0, 1)
+	featNameStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("170")).
+		Bold(true)
 
-	detailStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Padding(0, 2)
+	selectedFeatStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("170")).
+		Bold(true).
+		Background(lipgloss.Color("237"))
+
+	normalFeatStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	categoryStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("141")).
+		Italic(true)
 
 	prerequisiteStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("214")).
-		Italic(true)
+		Bold(true)
 
-	// Border style
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("170")).
-		Padding(1, 2)
+	abilityStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("86"))
 
-	// Build content
-	var content strings.Builder
+	benefitStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
 
-	content.WriteString(titleStyle.Render(f.title) + "\n\n")
-
-	// Calculate visible range (show 10 feats at a time)
-	visibleStart := f.selectedIndex - 5
-	if visibleStart < 0 {
-		visibleStart = 0
-	}
-	visibleEnd := visibleStart + 10
-	if visibleEnd > len(f.feats) {
-		visibleEnd = len(f.feats)
-	}
-
-	// Show feats
-	for i := visibleStart; i < visibleEnd; i++ {
-		feat := f.feats[i]
-
-		if i == f.selectedIndex {
-			// Selected feat - show full details
-			content.WriteString(selectedStyle.Render(fmt.Sprintf("▶ %s", feat.Name)) + "\n")
-
-			// Show prerequisite
-			if feat.Prerequisite != "None" && feat.Prerequisite != "" {
-				content.WriteString(detailStyle.Render(
-					prerequisiteStyle.Render(fmt.Sprintf("Requires: %s", feat.Prerequisite)),
-				) + "\n")
-			}
-
-			// Show ability increases
-			if feat.AbilityIncreases != nil {
-				if len(feat.AbilityIncreases.Choices) > 0 {
-					content.WriteString(detailStyle.Render(
-						fmt.Sprintf("  +%d to one: %s",
-							feat.AbilityIncreases.Amount,
-							strings.Join(feat.AbilityIncreases.Choices, " or ")),
-					) + "\n")
-				} else if feat.AbilityIncreases.Ability != "" {
-					content.WriteString(detailStyle.Render(
-						fmt.Sprintf("  +%d %s",
-							feat.AbilityIncreases.Amount,
-							feat.AbilityIncreases.Ability),
-					) + "\n")
-				}
-			}
-
-			// Show description
-			desc := feat.Description
-			if len(desc) > 80 {
-				desc = desc[:77] + "..."
-			}
-			content.WriteString(detailStyle.Render(fmt.Sprintf("  %s", desc)) + "\n")
-
-			// Show first benefit
-			if len(feat.Benefits) > 0 {
-				benefit := feat.Benefits[0]
-				if len(benefit) > 70 {
-					benefit = benefit[:67] + "..."
-				}
-				content.WriteString(detailStyle.Render(fmt.Sprintf("  • %s", benefit)) + "\n")
-			}
-
-			content.WriteString("\n")
-		} else {
-			// Other feats - show name only
-			featLine := fmt.Sprintf("  %s", feat.Name)
-			if feat.Prerequisite != "None" && feat.Prerequisite != "" {
-				featLine += " *"
-			}
-			content.WriteString(normalStyle.Render(featLine) + "\n")
-		}
-	}
-
-	// Show scroll indicator
-	if len(f.feats) > 10 {
-		scrollPercent := int(float64(f.selectedIndex) / float64(len(f.feats)-1) * 100)
-		content.WriteString(fmt.Sprintf("\n%d/%d feats (%d%%)", f.selectedIndex+1, len(f.feats), scrollPercent))
-	}
-
-	// Help text
-	helpStyle := lipgloss.NewStyle().
+	descStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
 
-	content.WriteString("\n\n")
+	sectionTitleStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("170")).
+		Bold(true)
 
-	// Show different help text based on mode
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240"))
+
+	// Build content
+	var content []string
+	content = append(content, titleStyle.Render(f.title))
+	content = append(content, "")
+
+	// Left side: Feat list (scrollable)
+	var featList []string
+
+	// Calculate visible range for scrolling
+	visibleHeight := 25 // Number of feats visible at once
+	visibleStart := f.selectedIndex - visibleHeight/2
+	if visibleStart < 0 {
+		visibleStart = 0
+	}
+	visibleEnd := visibleStart + visibleHeight
+	if visibleEnd > len(f.feats) {
+		visibleEnd = len(f.feats)
+		visibleStart = visibleEnd - visibleHeight
+		if visibleStart < 0 {
+			visibleStart = 0
+		}
+	}
+
+	for i := visibleStart; i < visibleEnd; i++ {
+		feat := f.feats[i]
+		featLine := fmt.Sprintf(" %s", feat.Name)
+
+		// Add indicator for prerequisites
+		if feat.Prerequisite != "None" && feat.Prerequisite != "" {
+			featLine += " *"
+		}
+
+		if i == f.selectedIndex {
+			featList = append(featList, selectedFeatStyle.Render(featLine))
+		} else {
+			featList = append(featList, normalFeatStyle.Render(featLine))
+		}
+	}
+
+	// Add scroll indicator
+	if len(f.feats) > visibleHeight {
+		scrollPercent := int(float64(f.selectedIndex) / float64(len(f.feats)-1) * 100)
+		scrollInfo := fmt.Sprintf(" %d/%d (%d%%)", f.selectedIndex+1, len(f.feats), scrollPercent)
+		featList = append(featList, "")
+		featList = append(featList, lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(scrollInfo))
+	}
+
+	// Right side: Selected feat details
+	selectedFeat := f.GetSelectedFeat()
+	var featDetails []string
+	if selectedFeat != nil {
+		// Feat name
+		featDetails = append(featDetails, featNameStyle.Render(selectedFeat.Name))
+		featDetails = append(featDetails, "")
+
+		// Category and repeatability
+		categoryInfo := selectedFeat.Category
+		if selectedFeat.Repeatable {
+			categoryInfo += " (Repeatable)"
+		}
+		featDetails = append(featDetails, categoryStyle.Render(categoryInfo))
+		featDetails = append(featDetails, "")
+
+		// Prerequisite
+		if selectedFeat.Prerequisite != "None" && selectedFeat.Prerequisite != "" {
+			featDetails = append(featDetails, prerequisiteStyle.Render("Prerequisite: "+selectedFeat.Prerequisite))
+			featDetails = append(featDetails, "")
+		}
+
+		// Ability increases
+		if selectedFeat.AbilityIncreases != nil {
+			var abilityText string
+			if len(selectedFeat.AbilityIncreases.Choices) > 0 {
+				abilityText = fmt.Sprintf("+%d to one: %s",
+					selectedFeat.AbilityIncreases.Amount,
+					strings.Join(selectedFeat.AbilityIncreases.Choices, " or "))
+			} else if selectedFeat.AbilityIncreases.Ability != "" {
+				abilityText = fmt.Sprintf("+%d %s",
+					selectedFeat.AbilityIncreases.Amount,
+					selectedFeat.AbilityIncreases.Ability)
+			}
+			if abilityText != "" {
+				featDetails = append(featDetails, abilityStyle.Render(abilityText))
+				featDetails = append(featDetails, "")
+			}
+		}
+
+		// Skill proficiencies
+		if len(selectedFeat.SkillProficiencies) > 0 {
+			featDetails = append(featDetails, abilityStyle.Render("Skill Proficiency: "+strings.Join(selectedFeat.SkillProficiencies, ", ")))
+			featDetails = append(featDetails, "")
+		}
+
+		// Languages
+		if len(selectedFeat.Languages) > 0 {
+			featDetails = append(featDetails, abilityStyle.Render("Languages: "+strings.Join(selectedFeat.Languages, ", ")))
+			featDetails = append(featDetails, "")
+		}
+
+		// Description
+		featDetails = append(featDetails, descStyle.Render(selectedFeat.Description))
+		featDetails = append(featDetails, "")
+
+		// Benefits
+		if len(selectedFeat.Benefits) > 0 {
+			featDetails = append(featDetails, sectionTitleStyle.Render("BENEFITS:"))
+			for _, benefit := range selectedFeat.Benefits {
+				featDetails = append(featDetails, "")
+				// Wrap benefit text
+				wrapped := wrapFeatText(benefit, 50)
+				for _, line := range wrapped {
+					featDetails = append(featDetails, benefitStyle.Render("• "+line))
+				}
+			}
+		}
+	}
+
+	// Combine list and details side by side
+	listBox := lipgloss.NewStyle().
+		Width(30).
+		Height(28).
+		Padding(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("86")).
+		Render(strings.Join(featList, "\n"))
+
+	detailsBox := lipgloss.NewStyle().
+		Width(55).
+		Height(28).
+		Padding(1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("170")).
+		Render(strings.Join(featDetails, "\n"))
+
+	mainContent := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		listBox,
+		" ",
+		detailsBox,
+	)
+
+	content = append(content, mainContent)
+	content = append(content, "")
+
+	// Help text
 	if f.deleteMode {
-		content.WriteString(helpStyle.Render("[↑/↓] Navigate • [Enter] Remove • [Esc] Cancel"))
+		content = append(content, helpStyle.Render("[↑/↓] Navigate • [PgUp/PgDn] Scroll • [Enter] Remove • [Esc] Cancel"))
 	} else {
-		content.WriteString(helpStyle.Render("[↑/↓] Navigate • [Enter] Select • [Esc] Cancel"))
-		content.WriteString("\n")
-		content.WriteString(helpStyle.Render("* = Has prerequisites"))
+		content = append(content, helpStyle.Render("[↑/↓] Navigate • [PgUp/PgDn] Scroll • [Enter] Select • [Esc] Cancel"))
+		content = append(content, helpStyle.Render("* = Has prerequisites"))
 	}
 
-	// Wrap in border
-	boxWidth := width - 20
-	boxHeight := height - 10
-	if boxWidth < 60 {
-		boxWidth = 60
-	}
-	if boxHeight < 20 {
-		boxHeight = 20
-	}
+	// Wrap in a styled box
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("170")).
+		Padding(1, 2).
+		Background(lipgloss.Color("235"))
 
-	contentStr := content.String()
+	popup := boxStyle.Render(strings.Join(content, "\n"))
 
-	// Center the box
-	box := borderStyle.Width(boxWidth).Height(boxHeight).Render(contentStr)
+	// Center on screen
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, popup)
+}
 
-	// Center horizontally and vertically
-	paddingTop := (height - boxHeight) / 2
-	paddingLeft := (width - boxWidth) / 2
-
-	if paddingTop < 0 {
-		paddingTop = 0
-	}
-	if paddingLeft < 0 {
-		paddingLeft = 0
+// wrapFeatText wraps text to a specified width for feat selector
+func wrapFeatText(text string, width int) []string {
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{text}
 	}
 
-	centered := lipgloss.NewStyle().
-		Padding(paddingTop, 0, 0, paddingLeft).
-		Render(box)
+	var lines []string
+	currentLine := words[0]
 
-	return centered
+	for _, word := range words[1:] {
+		if len(currentLine)+1+len(word) <= width {
+			currentLine += " " + word
+		} else {
+			lines = append(lines, currentLine)
+			currentLine = word
+		}
+	}
+	lines = append(lines, currentLine)
+
+	return lines
 }

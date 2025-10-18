@@ -36,6 +36,11 @@ Aasimar, Dragonborn, Dwarf, Elf (Drow/High/Wood), Gnome, Goliath, Halfling, Huma
 # Clone and build
 git clone <repository-url>
 cd lazydndplayer
+
+# Using Make (recommended)
+make build
+
+# Or using Go directly
 go build -o lazydndplayer .
 
 # Run
