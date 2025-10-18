@@ -26,12 +26,25 @@ const (
 	OriginPanel
 )
 
-// Popup size constants for consistent popup dimensions
+// Popup size constants for different popup types
 const (
-	PopupWidthPercent  = 0.85  // 85% of screen width
-	PopupHeightPercent = 0.85  // 85% of screen height
-	PopupMinWidth      = 80    // Minimum width in characters
-	PopupMinHeight     = 20    // Minimum height in lines
+	// Small popups (language, tool, ability choice selectors)
+	PopupSmallWidthPercent  = 0.50  // 50% of screen width
+	PopupSmallHeightPercent = 0.60  // 60% of screen height
+	PopupSmallMinWidth      = 60    // Minimum width in characters
+	PopupSmallMinHeight     = 20    // Minimum height in lines
+
+	// Medium popups (feat, origin, species selectors)
+	PopupMediumWidthPercent  = 0.75  // 75% of screen width
+	PopupMediumHeightPercent = 0.80  // 80% of screen height
+	PopupMediumMinWidth      = 80    // Minimum width in characters
+	PopupMediumMinHeight     = 25    // Minimum height in lines
+
+	// Large popups (item selector, spell selector)
+	PopupLargeWidthPercent  = 0.85  // 85% of screen width
+	PopupLargeHeightPercent = 0.85  // 85% of screen height
+	PopupLargeMinWidth      = 90    // Minimum width in characters
+	PopupLargeMinHeight     = 30    // Minimum height in lines
 )
 
 // FocusArea represents which area of the UI has focus
@@ -1766,77 +1779,87 @@ func (m *Model) View() string {
 	)
 
 	// Render popups/overlays (in priority order)
-	// Calculate standard popup dimensions (85% of screen, minimum 80x20)
-	popupWidth := max(int(float64(m.width)*PopupWidthPercent), PopupMinWidth)
-	popupHeight := max(int(float64(m.height)*PopupHeightPercent), PopupMinHeight)
+	// Calculate popup dimensions based on size category
 
-	// Stat generator takes highest priority
+	// Small popup dimensions (50% width, 60% height)
+	popupSmallWidth := max(int(float64(m.width)*PopupSmallWidthPercent), PopupSmallMinWidth)
+	popupSmallHeight := max(int(float64(m.height)*PopupSmallHeightPercent), PopupSmallMinHeight)
+
+	// Medium popup dimensions (75% width, 80% height)
+	popupMediumWidth := max(int(float64(m.width)*PopupMediumWidthPercent), PopupMediumMinWidth)
+	popupMediumHeight := max(int(float64(m.height)*PopupMediumHeightPercent), PopupMediumMinHeight)
+
+	// Large popup dimensions (85% width, 85% height)
+	popupLargeWidth := max(int(float64(m.width)*PopupLargeWidthPercent), PopupLargeMinWidth)
+	popupLargeHeight := max(int(float64(m.height)*PopupLargeHeightPercent), PopupLargeMinHeight)
+
+	// Stat generator takes highest priority (Medium)
 	if m.statGenerator.IsVisible() {
-		return m.statGenerator.View(popupWidth, popupHeight)
+		return m.statGenerator.View(popupMediumWidth, popupMediumHeight)
 	}
 
-	// Ability roller takes high priority
+	// Ability roller takes high priority (Small)
 	if m.abilityRoller.IsVisible() {
-		return m.abilityRoller.View(popupWidth, popupHeight, m.character)
+		return m.abilityRoller.View(popupSmallWidth, popupSmallHeight, m.character)
 	}
 
-	// Spell selector takes high priority
+	// Spell selector takes high priority (Large)
 	if m.spellSelector.IsVisible() {
-		return m.spellSelector.View(popupWidth, popupHeight)
+		return m.spellSelector.View(popupLargeWidth, popupLargeHeight)
 	}
 
-	// Feat selector takes second priority
+	// Feat selector takes second priority (Medium)
 	if m.featSelector.IsVisible() {
-		return m.featSelector.View(popupWidth, popupHeight)
+		return m.featSelector.View(popupMediumWidth, popupMediumHeight)
 	}
 
-	// Feat detail popup
+	// Feat detail popup (Medium)
 	if m.featDetailPopup.IsVisible() {
-		return m.featDetailPopup.View(popupWidth, popupHeight)
+		return m.featDetailPopup.View(popupMediumWidth, popupMediumHeight)
 	}
 
-	// Origin selector
+	// Origin selector (Medium)
 	if m.originSelector.IsVisible() {
-		return m.originSelector.View(popupWidth, popupHeight)
+		return m.originSelector.View(popupMediumWidth, popupMediumHeight)
 	}
 
-	// Ability choice selector (for feat ability choices)
+	// Ability choice selector (for feat ability choices) (Small)
 	if m.abilityChoiceSelector.IsVisible() {
-		return m.abilityChoiceSelector.View(popupWidth, popupHeight)
+		return m.abilityChoiceSelector.View(popupSmallWidth, popupSmallHeight)
 	}
 
-	// Subtype selector takes third priority
+	// Subtype selector takes third priority (Small)
 	if m.subtypeSelector.IsVisible() {
-		return m.subtypeSelector.View(popupWidth, popupHeight)
+		return m.subtypeSelector.View(popupSmallWidth, popupSmallHeight)
 	}
 
-	// Skill selector takes fourth priority
+	// Skill selector takes fourth priority (Small)
 	if m.skillSelector.IsVisible() {
-		return m.skillSelector.View(popupWidth, popupHeight)
+		return m.skillSelector.View(popupSmallWidth, popupSmallHeight)
 	}
 
-	// Language selector takes third priority
+	// Language selector takes third priority (Small)
 	if m.languageSelector.IsVisible() {
-		return m.languageSelector.View(popupWidth, popupHeight)
+		return m.languageSelector.View(popupSmallWidth, popupSmallHeight)
 	}
 
-	// Tool selector takes fourth priority
+	// Tool selector takes fourth priority (Small)
 	if m.toolSelector.IsVisible() {
-		return m.toolSelector.View(popupWidth, popupHeight)
+		return m.toolSelector.View(popupSmallWidth, popupSmallHeight)
 	}
 
-	// Item selector takes fifth priority
+	// Item selector takes fifth priority (Large)
 	if m.itemSelector.IsVisible() {
-		return m.itemSelector.View(popupWidth, popupHeight)
+		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
 	}
 
-	// Species selector takes sixth priority
+	// Species selector takes sixth priority (Medium)
 	if m.speciesSelector.IsVisible() {
-		return m.speciesSelector.View(popupWidth, popupHeight)
+		return m.speciesSelector.View(popupMediumWidth, popupMediumHeight)
 	}
 
-	// HP popup overlay if active
-	hpPopup := m.characterStatsPanel.RenderHPPopup(popupWidth, popupHeight)
+	// HP popup overlay if active (Small)
+	hpPopup := m.characterStatsPanel.RenderHPPopup(popupSmallWidth, popupSmallHeight)
 	if hpPopup != "" {
 		return hpPopup
 	}
