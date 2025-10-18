@@ -1053,7 +1053,7 @@ func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						break
 					}
 				}
-				
+
 				// Also remove from BenefitTracker (all sources that granted this tool)
 				// This is more complex - we need to iterate through all benefits
 				allBenefits := m.character.BenefitTracker.Benefits
@@ -1063,7 +1063,7 @@ func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						break
 					}
 				}
-				
+
 				m.message = fmt.Sprintf("Tool proficiency removed: %s", selectedTool)
 				m.storage.Save(m.character)
 				m.toolSelector.Hide()
@@ -1073,7 +1073,7 @@ func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				source := models.BenefitSource{Type: "manual", Name: "Tool Proficiency"}
 				applier := models.NewBenefitApplier(m.character)
 				applier.AddToolProficiency(source, selectedTool)
-				
+
 				m.message = fmt.Sprintf("Tool proficiency learned: %s!", selectedTool)
 				m.storage.Save(m.character)
 				m.toolSelector.Hide()
@@ -1320,7 +1320,7 @@ func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						models.RemoveOriginBenefits(m.character, *oldOrigin)
 					}
 				}
-				
+
 				// Apply new origin
 				m.character.Origin = selectedOrigin.Name
 				models.ApplyOriginBenefits(m.character, *selectedOrigin, "")

@@ -217,7 +217,7 @@ func (ts *ToolSelector) View(width, height int) string {
 
 	// Build content
 	var content strings.Builder
-	
+
 	content.WriteString(titleStyle.Render(ts.title))
 	content.WriteString("\n\n")
 
@@ -265,7 +265,7 @@ func (ts *ToolSelector) View(width, height int) string {
 		ts.viewport.SetContent(toolList.String())
 		content.WriteString(ts.viewport.View())
 		content.WriteString("\n\n")
-		
+
 		if ts.deleteMode {
 			content.WriteString(helpStyle.Render("↑/↓: Navigate • Enter: Remove • ESC: Cancel"))
 		} else {
@@ -282,4 +282,3 @@ func (ts *ToolSelector) Update(msg tea.Msg) tea.Cmd {
 	ts.viewport, cmd = ts.viewport.Update(msg)
 	return cmd
 }
-

@@ -286,16 +286,16 @@ for _, benefit := range allBenefits {
 
 ## ✨ Key Features
 
-✅ **Skills Removed** - Right column no longer shows skills  
-✅ **Tool-Focused** - Right column dedicated to tool proficiencies  
-✅ **Add/Remove** - Full CRUD operations for tool proficiencies  
-✅ **Smart Filtering** - Add mode only shows tools not yet known  
-✅ **Source Tracking** - Tools tracked in BenefitTracker with sources  
-✅ **Manual Addition** - Can add tools beyond origin grants  
-✅ **Clean Removal** - Properly removes from both array and tracker  
-✅ **Persistent** - Saves and loads with character  
-✅ **38 Tools** - Complete D&D 5e tool list  
-✅ **Intuitive UI** - Clear help text and navigation  
+✅ **Skills Removed** - Right column no longer shows skills
+✅ **Tool-Focused** - Right column dedicated to tool proficiencies
+✅ **Add/Remove** - Full CRUD operations for tool proficiencies
+✅ **Smart Filtering** - Add mode only shows tools not yet known
+✅ **Source Tracking** - Tools tracked in BenefitTracker with sources
+✅ **Manual Addition** - Can add tools beyond origin grants
+✅ **Clean Removal** - Properly removes from both array and tracker
+✅ **Persistent** - Saves and loads with character
+✅ **38 Tools** - Complete D&D 5e tool list
+✅ **Intuitive UI** - Clear help text and navigation
 
 ---
 
@@ -379,4 +379,3 @@ for _, benefit := range allBenefits {
 - ✅ Persistent storage
 
 **The Origin panel now focuses on tools with easy add/remove functionality!** 🎲
-

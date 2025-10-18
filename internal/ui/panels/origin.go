@@ -189,7 +189,7 @@ func (p *OriginPanel) View(width, height int) string {
 
 	// Get all tool proficiencies (from all sources, not just origin)
 	allTools := p.character.ToolProficiencies
-	
+
 	if len(allTools) > 0 {
 		// Show all tools character has
 		for _, tool := range allTools {
