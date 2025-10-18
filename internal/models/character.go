@@ -34,9 +34,14 @@ type Character struct {
 	ProficiencyBonus  int    `json:"proficiency_bonus"`
 
 	// Combat & Features
-	Initiative int         `json:"initiative"`
-	Actions    ActionList  `json:"actions"`
-	Features   FeatureList `json:"features"`
+	Initiative       int         `json:"initiative"`
+	InitiativeBonus  int         `json:"initiative_bonus"`  // Bonus to initiative from feats
+	ACBonus          int         `json:"ac_bonus"`          // Bonus to AC from feats
+	PassivePerceptionBonus  int  `json:"passive_perception_bonus"`  // Bonus to passive Perception
+	PassiveInvestigationBonus int `json:"passive_investigation_bonus"` // Bonus to passive Investigation
+	PassiveInsightBonus      int  `json:"passive_insight_bonus"`       // Bonus to passive Insight
+	Actions          ActionList  `json:"actions"`
+	Features         FeatureList `json:"features"`
 
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
@@ -108,8 +113,8 @@ func NewCharacter() *Character {
 
 // UpdateDerivedStats updates calculated values based on ability scores
 func (c *Character) UpdateDerivedStats() {
-	// Update initiative
-	c.Initiative = c.AbilityScores.GetModifier(Dexterity)
+	// Update initiative (DEX modifier + bonus from feats)
+	c.Initiative = c.AbilityScores.GetModifier(Dexterity) + c.InitiativeBonus
 
 	// Update carry capacity
 	c.Inventory.CarryCapacity = CalculateCarryCapacity(c.AbilityScores.Strength)

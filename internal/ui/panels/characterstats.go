@@ -88,8 +88,8 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 		Foreground(lipgloss.Color("42")).
 		Bold(true)
 
-	// Calculate initiative modifier (DEX modifier)
-	initiativeMod := char.AbilityScores.GetModifier(models.Dexterity)
+	// Calculate initiative modifier (DEX modifier + bonus from feats)
+	initiativeMod := char.AbilityScores.GetModifier(models.Dexterity) + char.InitiativeBonus
 
 	// Build stat boxes for important stats (smaller for 2-row layout)
 	boxWidth := 10
@@ -377,8 +377,19 @@ func (p *CharacterStatsPanel) calculatePassiveScore(char *models.Character, skil
 	// Calculate skill bonus (includes proficiency if applicable)
 	skillBonus := skill.CalculateBonus(abilityMod, char.ProficiencyBonus)
 
-	// Passive score = 10 + skill bonus
-	return 10 + skillBonus
+	// Add feat bonuses
+	featBonus := 0
+	switch skillName {
+	case models.Perception:
+		featBonus = char.PassivePerceptionBonus
+	case models.Investigation:
+		featBonus = char.PassiveInvestigationBonus
+	case models.Insight:
+		featBonus = char.PassiveInsightBonus
+	}
+
+	// Passive score = 10 + skill bonus + feat bonus
+	return 10 + skillBonus + featBonus
 }
 
 // getLevelXP returns the XP required to reach a given level (simplified)

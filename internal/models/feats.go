@@ -256,6 +256,22 @@ func ApplyFeatBenefits(char *Character, feat Feat, chosenAbility string) error {
 		applier.AddSpeed(source, 10)
 	}
 
+	// Alert feat: +5 initiative
+	if featNameLower == "alert" {
+		applier.AddInitiative(source, 5)
+	}
+
+	// Dual Wielder feat: +1 AC (when wielding two weapons)
+	if featNameLower == "dual wielder" {
+		applier.AddACBonus(source, 1)
+	}
+
+	// Observant feat: +5 passive Perception and Investigation
+	if featNameLower == "observant" {
+		applier.AddPassiveBonus(source, "Perception", 5)
+		applier.AddPassiveBonus(source, "Investigation", 5)
+	}
+
 	// Update derived stats after applying benefits
 	char.UpdateDerivedStats()
 	return nil

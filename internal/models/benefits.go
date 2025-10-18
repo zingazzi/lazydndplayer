@@ -13,6 +13,10 @@ const (
 	BenefitHP           BenefitType = "hp"
 	BenefitSpell        BenefitType = "spell"
 	BenefitSkill        BenefitType = "skill"
+	BenefitFeature      BenefitType = "feature"
+	BenefitInitiative   BenefitType = "initiative"
+	BenefitAC           BenefitType = "ac"
+	BenefitPassive      BenefitType = "passive" // Passive Perception, Investigation, Insight
 )
 
 // BenefitSource represents where a benefit came from

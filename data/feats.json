@@ -10,7 +10,10 @@
         "You can't be surprised while you are conscious",
         "Other creatures don't gain advantage on attack rolls against you as a result of being hidden from you"
       ],
-      "description": "Always on the lookout for danger, you gain the following benefits."
+      "description": "Always on the lookout for danger, you gain the following benefits.",
+      "grants_bonus": {
+        "initiative": 5
+      }
     },
     {
       "name": "Actor",
@@ -88,7 +91,10 @@
         "You can use two-weapon fighting even when the one-handed melee weapons you are wielding aren't light",
         "You can draw or stow two one-handed weapons when you would normally be able to draw or stow only one"
       ],
-      "description": "You master fighting with two weapons, gaining the following benefits."
+      "description": "You master fighting with two weapons, gaining the following benefits.",
+      "grants_bonus": {
+        "ac": 1
+      }
     },
     {
       "name": "Durable",
@@ -339,6 +345,10 @@
       "ability_increases": {
         "choices": ["Intelligence", "Wisdom"],
         "amount": 1
+      },
+      "grants_bonus": {
+        "passive_perception": 5,
+        "passive_investigation": 5
       }
     },
     {

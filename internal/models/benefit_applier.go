@@ -210,10 +210,62 @@ func (ba *BenefitApplier) AddFeature(source BenefitSource, featureDef FeatureDef
 	// Track in benefit system (use feature name as target)
 	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
 		Source:      source,
-		Type:        "feature", // New benefit type for features
+		Type:        BenefitFeature,
 		Target:      feature.Name,
 		Value:       feature.MaxUses,
 		Description: fmt.Sprintf("Feature: %s (%d uses, %s)", feature.Name, feature.MaxUses, feature.RestType),
+	})
+
+	return nil
+}
+
+// AddInitiative adds an initiative bonus and tracks it
+func (ba *BenefitApplier) AddInitiative(source BenefitSource, bonus int) error {
+	ba.char.InitiativeBonus += bonus
+
+	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+		Source:      source,
+		Type:        BenefitInitiative,
+		Target:      "initiative",
+		Value:       bonus,
+		Description: fmt.Sprintf("+%d initiative", bonus),
+	})
+
+	return nil
+}
+
+// AddACBonus adds an AC bonus and tracks it
+func (ba *BenefitApplier) AddACBonus(source BenefitSource, bonus int) error {
+	ba.char.ACBonus += bonus
+
+	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+		Source:      source,
+		Type:        BenefitAC,
+		Target:      "ac",
+		Value:       bonus,
+		Description: fmt.Sprintf("+%d AC", bonus),
+	})
+
+	return nil
+}
+
+// AddPassiveBonus adds a bonus to passive skills and tracks it
+func (ba *BenefitApplier) AddPassiveBonus(source BenefitSource, skillName string, bonus int) error {
+	switch skillName {
+	case "Perception":
+		ba.char.PassivePerceptionBonus += bonus
+	case "Investigation":
+		ba.char.PassiveInvestigationBonus += bonus
+	case "Insight":
+		ba.char.PassiveInsightBonus += bonus
+	}
+
+	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+		Source:      source,
+		Type:        BenefitPassive,
+		Target:      skillName,
+		Value:       bonus,
+		Description: fmt.Sprintf("+%d passive %s", bonus, skillName),
 	})
 
 	return nil

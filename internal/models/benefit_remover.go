@@ -41,8 +41,14 @@ func (br *BenefitRemover) RemoveAllBenefits(sourceType, sourceName string) error
 			br.removeHP(benefit)
 		case BenefitSpell:
 			br.removeSpell(benefit)
-		case "feature":
+		case BenefitFeature:
 			br.removeFeature(benefit)
+		case BenefitInitiative:
+			br.removeInitiative(benefit)
+		case BenefitAC:
+			br.removeACBonus(benefit)
+		case BenefitPassive:
+			br.removePassiveBonus(benefit)
 		}
 	}
 
@@ -161,6 +167,40 @@ func (br *BenefitRemover) removeFeature(benefit GrantedBenefit) {
 		if feature.Name == benefit.Target && feature.Source == sourceName {
 			br.char.Features.RemoveFeature(i)
 			break
+		}
+	}
+}
+
+func (br *BenefitRemover) removeInitiative(benefit GrantedBenefit) {
+	br.char.InitiativeBonus -= benefit.Value
+	if br.char.InitiativeBonus < 0 {
+		br.char.InitiativeBonus = 0
+	}
+}
+
+func (br *BenefitRemover) removeACBonus(benefit GrantedBenefit) {
+	br.char.ACBonus -= benefit.Value
+	if br.char.ACBonus < 0 {
+		br.char.ACBonus = 0
+	}
+}
+
+func (br *BenefitRemover) removePassiveBonus(benefit GrantedBenefit) {
+	switch benefit.Target {
+	case "Perception":
+		br.char.PassivePerceptionBonus -= benefit.Value
+		if br.char.PassivePerceptionBonus < 0 {
+			br.char.PassivePerceptionBonus = 0
+		}
+	case "Investigation":
+		br.char.PassiveInvestigationBonus -= benefit.Value
+		if br.char.PassiveInvestigationBonus < 0 {
+			br.char.PassiveInvestigationBonus = 0
+		}
+	case "Insight":
+		br.char.PassiveInsightBonus -= benefit.Value
+		if br.char.PassiveInsightBonus < 0 {
+			br.char.PassiveInsightBonus = 0
 		}
 	}
 }
