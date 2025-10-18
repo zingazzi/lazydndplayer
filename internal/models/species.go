@@ -37,6 +37,18 @@ type SubtypeProperties struct {
 	Resistances []string `json:"resistances,omitempty"`
 }
 
+// SkillChoice represents a choice of skill proficiencies
+type SkillChoice struct {
+	Choose int      `json:"choose"` // Number of skills to choose
+	From   []string `json:"from"`   // List of skills to choose from
+}
+
+// LanguageChoice represents a choice of languages
+type LanguageChoice struct {
+	Choose int      `json:"choose"` // Number of languages to choose
+	From   []string `json:"from"`   // List of languages to choose from (empty = any)
+}
+
 // SpeciesInfo contains all information about a D&D 5e 2024 species
 type SpeciesInfo struct {
 	Name             string                        `json:"name"`
@@ -52,6 +64,11 @@ type SpeciesInfo struct {
 	BaseTraits       []SpeciesTrait                `json:"base_traits,omitempty"`       // Traits all subtypes share
 	SubtypeTraits    map[string][]SpeciesTrait     `json:"subtype_traits,omitempty"`    // Traits specific to each subtype
 	SubtypeProperties map[string]SubtypeProperties `json:"subtype_properties,omitempty"` // Property overrides per subtype
+
+	// Benefit system integration
+	AbilityIncreases *FeatAbilityIncrease `json:"ability_increases,omitempty"` // Ability score increases
+	SkillChoices     *SkillChoice         `json:"skill_choices,omitempty"`     // Skill proficiency choices
+	LanguageChoices  *LanguageChoice      `json:"language_choices,omitempty"`  // Language choices
 }
 
 // SpeciesData represents the root structure of the species JSON file
@@ -431,50 +448,68 @@ func ApplySpeciesWithSubtype(char *Character, speciesName string, subtypeName st
 }
 
 // ApplySpeciesToCharacter applies species bonuses and traits to a character
-func ApplySpeciesToCharacter(char *Character, speciesName string) {
+// ApplySpeciesToCharacterWithChoices applies a species with player choices
+func ApplySpeciesToCharacterWithChoices(char *Character, speciesName string, chosenAbility string, chosenSkills []string, chosenLanguages []string) error {
 	species := GetSpeciesByName(speciesName)
 	if species == nil {
-		return
+		return fmt.Errorf("species not found: %s", speciesName)
 	}
 
-	// Remove old species skill proficiencies first
-	RemoveSpeciesSkillProficiencies(char)
+	// Remove old species benefits using benefit system
+	remover := NewBenefitRemover(char)
+	if char.Race != "" && char.Race != speciesName {
+		remover.RemoveAllBenefits("species", char.Race)
+	}
 
-	// Remove old species features
-	RemoveSpeciesFeatures(char)
+	source := BenefitSource{
+		Type: "species",
+		Name: speciesName,
+	}
+	applier := NewBenefitApplier(char)
 
-	// Remove old species spells
-	RemoveSpeciesSpells(char)
-
-	// Remove old species feats
-	RemoveSpeciesFeats(char)
-
-	// Update basic stats
+	// Update basic properties
 	char.Race = species.Name
 	char.Speed = species.Speed
-
-	// Update languages from species
-	char.Languages = make([]string, len(species.Languages))
-	copy(char.Languages, species.Languages)
-
-	// Update resistances from species
-	char.Resistances = make([]string, len(species.Resistances))
-	copy(char.Resistances, species.Resistances)
-
-	// Update darkvision from species
 	char.Darkvision = species.Darkvision
 
 	// Update species traits
 	char.SpeciesTraits = make([]SpeciesTrait, len(species.Traits))
 	copy(char.SpeciesTraits, species.Traits)
 
-	// Clear old species skills list
-	char.SpeciesSkills = []SkillType{}
+	// Apply base languages
+	for _, lang := range species.Languages {
+		applier.AddLanguage(source, lang)
+	}
 
-	// Remove old species spells
-	RemoveSpeciesSpells(char)
+	// Apply language choices
+	for _, lang := range chosenLanguages {
+		applier.AddLanguage(source, lang)
+	}
 
-	// Apply skill proficiencies from species traits
+	// Apply resistances
+	for _, res := range species.Resistances {
+		applier.AddResistance(source, res)
+	}
+
+	// Apply ability increases (if any)
+	if species.AbilityIncreases != nil {
+		if len(species.AbilityIncreases.Choices) > 0 {
+			// Choice-based ability increase
+			if chosenAbility != "" {
+				applier.AddAbilityScore(source, chosenAbility, species.AbilityIncreases.Amount)
+			}
+		} else if species.AbilityIncreases.Ability != "" {
+			// Fixed ability increase
+			applier.AddAbilityScore(source, species.AbilityIncreases.Ability, species.AbilityIncreases.Amount)
+		}
+	}
+
+	// Apply skill choices
+	for _, skill := range chosenSkills {
+		applier.AddSkillProficiency(source, skill)
+	}
+
+	// Apply skill proficiencies from traits (legacy method for existing species)
 	ApplySpeciesSkillProficiencies(char, species)
 
 	// Apply species spells based on character level
@@ -486,9 +521,16 @@ func ApplySpeciesToCharacter(char *Character, speciesName string) {
 	// Apply species HP bonuses (e.g., Dwarven Toughness)
 	ApplySpeciesHPBonus(char, species)
 
-	// Note: In D&D 5e 2024, ability score increases are more flexible
-	// and often chosen by the player rather than fixed by species.
-	// We'll handle this through the character creation/leveling system.
+	// Update derived stats
+	char.UpdateDerivedStats()
+
+	return nil
+}
+
+// ApplySpeciesToCharacter applies a species without choices (backward compatibility)
+// Deprecated: Use ApplySpeciesToCharacterWithChoices for new implementations
+func ApplySpeciesToCharacter(char *Character, speciesName string) {
+	ApplySpeciesToCharacterWithChoices(char, speciesName, "", []string{}, []string{})
 }
 
 // RemoveSpeciesSkillProficiencies removes all skill proficiencies granted by the previous species

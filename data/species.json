@@ -352,9 +352,17 @@
           "is_feature": false
         }
       ],
-      "languages": ["Common", "One additional language of your choice"],
+      "languages": ["Common"],
       "resistances": [],
-      "darkvision": 0
+      "darkvision": 0,
+      "skill_choices": {
+        "choose": 1,
+        "from": ["Acrobatics", "Animal Handling", "Arcana", "Athletics", "Deception", "History", "Insight", "Intimidation", "Investigation", "Medicine", "Nature", "Perception", "Performance", "Persuasion", "Religion", "Sleight of Hand", "Stealth", "Survival"]
+      },
+      "language_choices": {
+        "choose": 1,
+        "from": []
+      }
     },
     {
       "name": "Orc",
@@ -484,4 +492,3 @@
     }
   ]
 }
-

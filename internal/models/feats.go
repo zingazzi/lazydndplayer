@@ -8,17 +8,26 @@ import (
 	"strings"
 )
 
+// FeatAbilityIncrease represents ability score increases from a feat
+type FeatAbilityIncrease struct {
+	Ability string   `json:"ability,omitempty"` // Single ability (e.g., "Charisma")
+	Choices []string `json:"choices,omitempty"` // Multiple choice (e.g., ["Strength", "Dexterity"])
+	Amount  int      `json:"amount"`            // Amount to increase
+}
+
 // Feat represents a character feat from D&D 5e 2024
 type Feat struct {
-	Name             string                 `json:"name"`
-	Category         string                 `json:"category"`
-	Prerequisite     string                 `json:"prerequisite"`
-	Repeatable       bool                   `json:"repeatable"`
-	Benefits         []string               `json:"benefits"`
-	Description      string                 `json:"description"`
-	AbilityIncreases map[string]int         `json:"ability_increases"`
-	GrantsSpells     []string               `json:"grants_spells,omitempty"`
-	Note             string                 `json:"note,omitempty"`
+	Name               string                `json:"name"`
+	Category           string                `json:"category"`
+	Prerequisite       string                `json:"prerequisite"`
+	Repeatable         bool                  `json:"repeatable"`
+	Benefits           []string              `json:"benefits"`
+	Description        string                `json:"description"`
+	AbilityIncreases   *FeatAbilityIncrease  `json:"ability_increases,omitempty"`
+	SkillProficiencies []string              `json:"skill_proficiencies,omitempty"`
+	Languages          []string              `json:"languages,omitempty"`
+	GrantsSpells       []string              `json:"grants_spells,omitempty"`
+	Note               string                `json:"note,omitempty"`
 }
 
 // FeatsData represents the structure of feats.json
@@ -176,85 +185,48 @@ func AddFeatToCharacter(char *Character, featName string) error {
 
 // HasAbilityChoice returns true if the feat requires choosing an ability
 func HasAbilityChoice(feat Feat) bool {
-	for ability := range feat.AbilityIncreases {
-		abilityLower := strings.ToLower(ability)
-		if strings.Contains(abilityLower, "or") || strings.Contains(abilityLower, "any") {
-			return true
-		}
-	}
-	return false
+	return feat.AbilityIncreases != nil && len(feat.AbilityIncreases.Choices) > 0
 }
 
 // GetAbilityChoices returns the list of abilities that can be chosen for a feat
 func GetAbilityChoices(feat Feat) []string {
-	for ability := range feat.AbilityIncreases {
-		abilityLower := strings.ToLower(ability)
-
-		// Handle "Strength or Dexterity" format
-		if strings.Contains(abilityLower, "or") {
-			parts := strings.Split(ability, " or ")
-			choices := make([]string, len(parts))
-			for i, part := range parts {
-				choices[i] = strings.TrimSpace(part)
-			}
-			return choices
-		}
-
-		// Handle "Any ability" format
-		if strings.Contains(abilityLower, "any") {
-			return []string{"Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"}
-		}
-
-		// Handle comma-separated format
-		if strings.Contains(ability, ",") {
-			parts := strings.Split(ability, ",")
-			choices := make([]string, len(parts))
-			for i, part := range parts {
-				choices[i] = strings.TrimSpace(part)
-			}
-			return choices
-		}
+	if feat.AbilityIncreases != nil && len(feat.AbilityIncreases.Choices) > 0 {
+		return feat.AbilityIncreases.Choices
 	}
 	return []string{}
 }
 
 // ApplyFeatBenefits applies the mechanical benefits of a feat to a character
 // chosenAbility is used when the feat has multiple ability choices
-func ApplyFeatBenefits(char *Character, feat Feat, chosenAbility string) {
-	// Initialize FeatChoices if needed
-	if char.FeatChoices == nil {
-		char.FeatChoices = make(map[string]string)
+func ApplyFeatBenefits(char *Character, feat Feat, chosenAbility string) error {
+	source := BenefitSource{
+		Type: "feat",
+		Name: feat.Name,
 	}
 
-	// Apply ability score increases
-	for ability, increase := range feat.AbilityIncreases {
-		abilityLower := strings.ToLower(ability)
+	applier := NewBenefitApplier(char)
 
-		// Handle multiple choice abilities
-		if strings.Contains(abilityLower, "or") || strings.Contains(abilityLower, "any") || strings.Contains(ability, ",") {
+	// Apply ability increases
+	if feat.AbilityIncreases != nil {
+		if len(feat.AbilityIncreases.Choices) > 0 {
+			// Multiple choice - use chosenAbility
 			if chosenAbility != "" {
-				// Store the choice
-				char.FeatChoices[feat.Name] = chosenAbility
-				// Apply the increase to the chosen ability
-				applyAbilityIncrease(char, chosenAbility, increase)
+				applier.AddAbilityScore(source, chosenAbility, feat.AbilityIncreases.Amount)
 			}
-			continue
+		} else if feat.AbilityIncreases.Ability != "" {
+			// Single ability
+			applier.AddAbilityScore(source, feat.AbilityIncreases.Ability, feat.AbilityIncreases.Amount)
 		}
+	}
 
-		// Apply specific ability increases (single ability)
-		if strings.Contains(abilityLower, "strength") {
-			char.AbilityScores.Strength = min(char.AbilityScores.Strength+increase, 20)
-		} else if strings.Contains(abilityLower, "dexterity") {
-			char.AbilityScores.Dexterity = min(char.AbilityScores.Dexterity+increase, 20)
-		} else if strings.Contains(abilityLower, "constitution") {
-			char.AbilityScores.Constitution = min(char.AbilityScores.Constitution+increase, 20)
-		} else if strings.Contains(abilityLower, "intelligence") {
-			char.AbilityScores.Intelligence = min(char.AbilityScores.Intelligence+increase, 20)
-		} else if strings.Contains(abilityLower, "wisdom") {
-			char.AbilityScores.Wisdom = min(char.AbilityScores.Wisdom+increase, 20)
-		} else if strings.Contains(abilityLower, "charisma") {
-			char.AbilityScores.Charisma = min(char.AbilityScores.Charisma+increase, 20)
-		}
+	// Apply skill proficiencies
+	for _, skill := range feat.SkillProficiencies {
+		applier.AddSkillProficiency(source, skill)
+	}
+
+	// Apply languages
+	for _, lang := range feat.Languages {
+		applier.AddLanguage(source, lang)
 	}
 
 	// Apply special benefits
@@ -262,124 +234,23 @@ func ApplyFeatBenefits(char *Character, feat Feat, chosenAbility string) {
 
 	// Tough feat: +2 HP per level
 	if featNameLower == "tough" {
-		char.MaxHP += char.Level * 2
-		char.CurrentHP = char.MaxHP
+		applier.AddHP(source, char.Level*2)
 	}
 
 	// Mobile feat: +10 speed
 	if featNameLower == "mobile" {
-		char.Speed += 10
+		applier.AddSpeed(source, 10)
 	}
 
 	// Update derived stats after applying benefits
 	char.UpdateDerivedStats()
+	return nil
 }
 
 // RemoveFeatBenefits removes the mechanical benefits of a feat from a character
-func RemoveFeatBenefits(char *Character, feat Feat) {
-	// Get the ability increase amount
-	var increase int
-	for _, inc := range feat.AbilityIncreases {
-		increase = inc
-		break
-	}
-
-	// Check if this feat had a choice recorded
-	if chosenAbility, exists := char.FeatChoices[feat.Name]; exists {
-		// Remove the increase from the chosen ability
-		removeAbilityIncrease(char, chosenAbility, increase)
-		// Remove the choice record
-		delete(char.FeatChoices, feat.Name)
-	} else {
-		// Remove ability score increases for feats without choices
-		for ability, inc := range feat.AbilityIncreases {
-			abilityLower := strings.ToLower(ability)
-
-			// Skip if it had choices (should have been recorded)
-			if strings.Contains(abilityLower, "or") || strings.Contains(abilityLower, "any") {
-				continue
-			}
-
-			// Remove specific ability increases
-			if strings.Contains(abilityLower, "strength") {
-				char.AbilityScores.Strength = max(char.AbilityScores.Strength-inc, 1)
-			} else if strings.Contains(abilityLower, "dexterity") {
-				char.AbilityScores.Dexterity = max(char.AbilityScores.Dexterity-inc, 1)
-			} else if strings.Contains(abilityLower, "constitution") {
-				char.AbilityScores.Constitution = max(char.AbilityScores.Constitution-inc, 1)
-			} else if strings.Contains(abilityLower, "intelligence") {
-				char.AbilityScores.Intelligence = max(char.AbilityScores.Intelligence-inc, 1)
-			} else if strings.Contains(abilityLower, "wisdom") {
-				char.AbilityScores.Wisdom = max(char.AbilityScores.Wisdom-inc, 1)
-			} else if strings.Contains(abilityLower, "charisma") {
-				char.AbilityScores.Charisma = max(char.AbilityScores.Charisma-inc, 1)
-			}
-		}
-	}
-
-	// Remove special benefits
-	featNameLower := strings.ToLower(feat.Name)
-
-	// Tough feat: remove +2 HP per level
-	if featNameLower == "tough" {
-		hpReduction := char.Level * 2
-		char.MaxHP -= hpReduction
-		if char.MaxHP < 1 {
-			char.MaxHP = 1
-		}
-		if char.CurrentHP > char.MaxHP {
-			char.CurrentHP = char.MaxHP
-		}
-	}
-
-	// Mobile feat: remove +10 speed
-	if featNameLower == "mobile" {
-		char.Speed -= 10
-		if char.Speed < 0 {
-			char.Speed = 0
-		}
-	}
-
-	// Update derived stats after removing benefits
-	char.UpdateDerivedStats()
-}
-
-// applyAbilityIncrease applies an increase to a specific ability
-func applyAbilityIncrease(char *Character, ability string, increase int) {
-	abilityLower := strings.ToLower(ability)
-
-	if strings.Contains(abilityLower, "strength") {
-		char.AbilityScores.Strength = min(char.AbilityScores.Strength+increase, 20)
-	} else if strings.Contains(abilityLower, "dexterity") {
-		char.AbilityScores.Dexterity = min(char.AbilityScores.Dexterity+increase, 20)
-	} else if strings.Contains(abilityLower, "constitution") {
-		char.AbilityScores.Constitution = min(char.AbilityScores.Constitution+increase, 20)
-	} else if strings.Contains(abilityLower, "intelligence") {
-		char.AbilityScores.Intelligence = min(char.AbilityScores.Intelligence+increase, 20)
-	} else if strings.Contains(abilityLower, "wisdom") {
-		char.AbilityScores.Wisdom = min(char.AbilityScores.Wisdom+increase, 20)
-	} else if strings.Contains(abilityLower, "charisma") {
-		char.AbilityScores.Charisma = min(char.AbilityScores.Charisma+increase, 20)
-	}
-}
-
-// removeAbilityIncrease removes an increase from a specific ability
-func removeAbilityIncrease(char *Character, ability string, increase int) {
-	abilityLower := strings.ToLower(ability)
-
-	if strings.Contains(abilityLower, "strength") {
-		char.AbilityScores.Strength = max(char.AbilityScores.Strength-increase, 1)
-	} else if strings.Contains(abilityLower, "dexterity") {
-		char.AbilityScores.Dexterity = max(char.AbilityScores.Dexterity-increase, 1)
-	} else if strings.Contains(abilityLower, "constitution") {
-		char.AbilityScores.Constitution = max(char.AbilityScores.Constitution-increase, 1)
-	} else if strings.Contains(abilityLower, "intelligence") {
-		char.AbilityScores.Intelligence = max(char.AbilityScores.Intelligence-increase, 1)
-	} else if strings.Contains(abilityLower, "wisdom") {
-		char.AbilityScores.Wisdom = max(char.AbilityScores.Wisdom-increase, 1)
-	} else if strings.Contains(abilityLower, "charisma") {
-		char.AbilityScores.Charisma = max(char.AbilityScores.Charisma-increase, 1)
-	}
+func RemoveFeatBenefits(char *Character, feat Feat) error {
+	remover := NewBenefitRemover(char)
+	return remover.RemoveAllBenefits("feat", feat.Name)
 }
 
 // GetFeatCategories returns all unique feat categories
@@ -421,10 +292,16 @@ func FormatFeatForDisplay(feat Feat) string {
 		sb.WriteString("\n")
 	}
 
-	if len(feat.AbilityIncreases) > 0 {
+	if feat.AbilityIncreases != nil {
 		sb.WriteString("Ability Increases:\n")
-		for ability, increase := range feat.AbilityIncreases {
-			sb.WriteString(fmt.Sprintf("  • %s: +%d\n", ability, increase))
+		if len(feat.AbilityIncreases.Choices) > 0 {
+			sb.WriteString(fmt.Sprintf("  • Choose one: %s (+%d)\n",
+				strings.Join(feat.AbilityIncreases.Choices, " or "),
+				feat.AbilityIncreases.Amount))
+		} else if feat.AbilityIncreases.Ability != "" {
+			sb.WriteString(fmt.Sprintf("  • %s: +%d\n",
+				feat.AbilityIncreases.Ability,
+				feat.AbilityIncreases.Amount))
 		}
 		sb.WriteString("\n")
 	}

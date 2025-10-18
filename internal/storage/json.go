@@ -44,6 +44,11 @@ func (s *Storage) Load() (*models.Character, error) {
 		character.Features = *models.NewFeatureList()
 	}
 
+	// Initialize BenefitTracker if nil (for backwards compatibility with old saves)
+	if character.BenefitTracker == nil {
+		character.BenefitTracker = models.NewBenefitTracker()
+	}
+
 	return &character, nil
 }
 

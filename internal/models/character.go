@@ -45,10 +45,10 @@ type Character struct {
 	SpellBook SpellBook `json:"spellbook"`
 
 	// Traits
-	Languages           []string       `json:"languages"`
-	Feats               []string       `json:"feats"`
-	FeatChoices         map[string]string `json:"feat_choices,omitempty"` // feat name -> ability chosen (for feats with choices)
-	Resistances         []string       `json:"resistances"`
+	Languages           []string        `json:"languages"`
+	Feats               []string        `json:"feats"`
+	Resistances         []string        `json:"resistances"`
+	BenefitTracker      *BenefitTracker `json:"benefit_tracker"` // Unified benefit tracking
 	Darkvision          int            `json:"darkvision"` // Range in feet, 0 if none
 	SpeciesTraits       []SpeciesTrait `json:"species_traits"`
 	SpeciesSkills       []SkillType    `json:"species_skills"` // Track which skills came from species
@@ -93,10 +93,10 @@ func NewCharacter() *Character {
 			Spells: []Spell{},
 			SpellcastingMod: Intelligence,
 		},
-		Languages:     []string{"Common"},
-		Feats:         []string{},
-		FeatChoices:   make(map[string]string),
-		Resistances:   []string{},
+		Languages:      []string{"Common"},
+		Feats:          []string{},
+		Resistances:    []string{},
+		BenefitTracker: NewBenefitTracker(),
 		Darkvision:    0,
 		SpeciesTraits: []SpeciesTrait{},
 		SpeciesSkills: []SkillType{},

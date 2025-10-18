@@ -225,10 +225,18 @@ func (f *FeatSelector) View(width, height int) string {
 			}
 
 			// Show ability increases
-			if len(feat.AbilityIncreases) > 0 {
-				for ability, increase := range feat.AbilityIncreases {
+			if feat.AbilityIncreases != nil {
+				if len(feat.AbilityIncreases.Choices) > 0 {
 					content.WriteString(detailStyle.Render(
-						fmt.Sprintf("  +%d %s", increase, ability),
+						fmt.Sprintf("  +%d to one: %s",
+							feat.AbilityIncreases.Amount,
+							strings.Join(feat.AbilityIncreases.Choices, " or ")),
+					) + "\n")
+				} else if feat.AbilityIncreases.Ability != "" {
+					content.WriteString(detailStyle.Render(
+						fmt.Sprintf("  +%d %s",
+							feat.AbilityIncreases.Amount,
+							feat.AbilityIncreases.Ability),
 					) + "\n")
 				}
 			}
