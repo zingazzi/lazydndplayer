@@ -145,9 +145,13 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	}
 	lines = append(lines, "")
 
-	// Class and level
+	// Class and level (class can be changed with 'c')
 	classInfo := fmt.Sprintf("%s, Level %d", char.Class, char.Level)
-	lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfo))
+	if p.editMode == CharStatsNormal {
+		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfo)+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("(press 'c' to change)"))
+	} else {
+		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfo))
+	}
 
 	// XP information
 	xpToNext := getLevelXP(char.Level+1) - char.Experience

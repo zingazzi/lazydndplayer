@@ -75,6 +75,7 @@ type Model struct {
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
 	itemSelector          *components.ItemSelector
+	classSelector         *components.ClassSelector
 	statGenerator         *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
@@ -122,6 +123,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
 		itemSelector:          components.NewItemSelector(),
+		classSelector:         components.NewClassSelector(),
 		statGenerator:         components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
@@ -293,6 +295,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if item selector is active
 		if m.itemSelector.IsVisible() {
 			return m.handleItemSelectorKeys(msg)
+		}
+
+		// Check if class selector is active
+		if m.classSelector.IsVisible() {
+			return m.handleClassSelectorKeys(msg)
 		}
 
 		// Check if species selector is active
@@ -732,6 +739,14 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Pass key to input field
 			return m, m.characterStatsPanel.HandleInput(msg)
 		}
+	}
+	
+	// In normal mode, allow class change
+	switch msg.String() {
+	case "c":
+		m.classSelector.Show()
+		m.message = "Select a class..."
+		return m, nil
 	}
 
 	// Normal mode - handle actions
@@ -1188,6 +1203,28 @@ func (m *Model) handleItemSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+// handleClassSelectorKeys handles class selector specific keys
+func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.classSelector.Prev()
+	case "down", "j":
+		m.classSelector.Next()
+	case "enter":
+		selectedClass := m.classSelector.GetSelectedClass()
+		if selectedClass != "" {
+			m.character.Class = selectedClass
+			m.message = fmt.Sprintf("Class changed to: %s", selectedClass)
+			m.storage.Save(m.character)
+			m.classSelector.Hide()
+		}
+	case "esc":
+		m.classSelector.Hide()
+		m.message = "Class selection cancelled"
+	}
+	return m, nil
 }
 
 // handleSkillSelectorKeys handles skill selector specific keys
@@ -1890,7 +1927,12 @@ func (m *Model) View() string {
 		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
 	}
 
-	// Species selector takes sixth priority (Medium)
+	// Class selector takes sixth priority (Medium)
+	if m.classSelector.IsVisible() {
+		return m.classSelector.View(popupMediumWidth, popupMediumHeight)
+	}
+
+	// Species selector takes seventh priority (Medium)
 	if m.speciesSelector.IsVisible() {
 		return m.speciesSelector.View(popupMediumWidth, popupMediumHeight)
 	}

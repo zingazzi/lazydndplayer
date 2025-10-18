@@ -1,0 +1,490 @@
+{
+  "classes": [
+    {
+      "name": "Barbarian",
+      "description": "A fierce warrior of primitive background who can enter a battle rage.",
+      "hit_die": 12,
+      "primary_ability": "Strength",
+      "saving_throws": ["Strength", "Constitution"],
+      "armor_proficiencies": ["Light", "Medium", "Shields"],
+      "weapon_proficiencies": ["Simple", "Martial"],
+      "tool_proficiencies": [],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["Animal Handling", "Athletics", "Intimidation", "Nature", "Perception", "Survival"]
+      },
+      "starting_equipment": [
+        "Greataxe or any Martial Melee Weapon",
+        "2 Handaxes or any Simple Weapon",
+        "Explorer's Pack",
+        "4 Javelins"
+      ],
+      "spellcasting": null,
+      "level_1_features": [
+        {
+          "name": "Rage",
+          "description": "In battle, you fight with primal ferocity. On your turn, you can enter a rage as a bonus action. While raging, you gain benefits if you aren't wearing heavy armor.",
+          "uses": {
+            "max": 2,
+            "recharge": "long_rest"
+          }
+        },
+        {
+          "name": "Unarmored Defense",
+          "description": "While you are not wearing any armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit."
+        },
+        {
+          "name": "Weapon Mastery",
+          "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons of your choice with which you have proficiency."
+        }
+      ]
+    },
+    {
+      "name": "Bard",
+      "description": "An inspiring magician whose power echoes the music of creation.",
+      "hit_die": 8,
+      "primary_ability": "Charisma",
+      "saving_throws": ["Dexterity", "Charisma"],
+      "armor_proficiencies": ["Light"],
+      "weapon_proficiencies": ["Simple"],
+      "tool_proficiencies": ["Musical Instrument (3 of your choice)"],
+      "skill_choices": {
+        "choose": 3,
+        "from": ["Acrobatics", "Animal Handling", "Arcana", "Athletics", "Deception", "History", "Insight", "Intimidation", "Investigation", "Medicine", "Nature", "Perception", "Performance", "Persuasion", "Religion", "Sleight of Hand", "Stealth", "Survival"]
+      },
+      "starting_equipment": [
+        "Leather Armor",
+        "Dagger (2)",
+        "Musical Instrument",
+        "Entertainer's Pack"
+      ],
+      "spellcasting": {
+        "ability": "Charisma",
+        "cantrips_known": 2,
+        "spells_known": 4,
+        "spell_slots": {
+          "1": 2
+        }
+      },
+      "level_1_features": [
+        {
+          "name": "Spellcasting",
+          "description": "You have learned to cast spells through your bardic performance. Charisma is your spellcasting ability for your bard spells."
+        },
+        {
+          "name": "Bardic Inspiration",
+          "description": "You can inspire others through stirring words or music. To do so, you use a bonus action on your turn to choose one creature other than yourself within 60 feet of you who can hear you.",
+          "uses": {
+            "max": "proficiency_bonus",
+            "recharge": "long_rest"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleric",
+      "description": "A priestly champion who wields divine magic in service of a higher power.",
+      "hit_die": 8,
+      "primary_ability": "Wisdom",
+      "saving_throws": ["Wisdom", "Charisma"],
+      "armor_proficiencies": ["Light", "Medium", "Shields"],
+      "weapon_proficiencies": ["Simple"],
+      "tool_proficiencies": [],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["History", "Insight", "Medicine", "Persuasion", "Religion"]
+      },
+      "starting_equipment": [
+        "Chain Mail or Leather Armor",
+        "Mace or Warhammer",
+        "Light Crossbow and 20 Bolts or any Simple Weapon",
+        "Shield",
+        "Holy Symbol",
+        "Priest's Pack"
+      ],
+      "spellcasting": {
+        "ability": "Wisdom",
+        "cantrips_known": 3,
+        "spells_prepared": "level + wisdom_modifier",
+        "spell_slots": {
+          "1": 2
+        }
+      },
+      "level_1_features": [
+        {
+          "name": "Spellcasting",
+          "description": "As a conduit for divine power, you can cast cleric spells. Wisdom is your spellcasting ability for your cleric spells."
+        },
+        {
+          "name": "Divine Order",
+          "description": "You have dedicated yourself to one of the following sacred roles: Protector or Thaumaturge."
+        }
+      ]
+    },
+    {
+      "name": "Druid",
+      "description": "A priest of the Old Faith, wielding the powers of nature and adopting animal forms.",
+      "hit_die": 8,
+      "primary_ability": "Wisdom",
+      "saving_throws": ["Intelligence", "Wisdom"],
+      "armor_proficiencies": ["Light", "Medium", "Shields"],
+      "weapon_proficiencies": ["Simple"],
+      "tool_proficiencies": ["Herbalism Kit"],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["Arcana", "Animal Handling", "Insight", "Medicine", "Nature", "Perception", "Religion", "Survival"]
+      },
+      "starting_equipment": [
+        "Leather Armor",
+        "Shield",
+        "Scimitar or any Simple Melee Weapon",
+        "Druidic Focus",
+        "Explorer's Pack",
+        "Herbalism Kit"
+      ],
+      "spellcasting": {
+        "ability": "Wisdom",
+        "cantrips_known": 2,
+        "spells_prepared": "level + wisdom_modifier",
+        "spell_slots": {
+          "1": 2
+        }
+      },
+      "level_1_features": [
+        {
+          "name": "Spellcasting",
+          "description": "Drawing on the divine essence of nature itself, you can cast spells to shape that essence to your will. Wisdom is your spellcasting ability."
+        },
+        {
+          "name": "Druidic",
+          "description": "You know Druidic, the secret language of druids. You can speak the language and use it to leave hidden messages."
+        },
+        {
+          "name": "Primal Order",
+          "description": "You have dedicated yourself to one of the following sacred roles: Magician or Warden."
+        }
+      ]
+    },
+    {
+      "name": "Fighter",
+      "description": "A master of martial combat, skilled with a variety of weapons and armor.",
+      "hit_die": 10,
+      "primary_ability": "Strength or Dexterity",
+      "saving_throws": ["Strength", "Constitution"],
+      "armor_proficiencies": ["Light", "Medium", "Heavy", "Shields"],
+      "weapon_proficiencies": ["Simple", "Martial"],
+      "tool_proficiencies": [],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["Acrobatics", "Animal Handling", "Athletics", "History", "Insight", "Intimidation", "Perception", "Survival"]
+      },
+      "starting_equipment": [
+        "Chain Mail or Leather Armor + Longbow + 20 Arrows",
+        "Martial Weapon and Shield or 2 Martial Weapons",
+        "Light Crossbow and 20 Bolts or 2 Handaxes",
+        "Dungeoneer's Pack or Explorer's Pack"
+      ],
+      "spellcasting": null,
+      "level_1_features": [
+        {
+          "name": "Fighting Style",
+          "description": "You adopt a particular style of fighting as your specialty. Choose one fighting style option."
+        },
+        {
+          "name": "Second Wind",
+          "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points.",
+          "uses": {
+            "max": 1,
+            "recharge": "short_rest"
+          }
+        },
+        {
+          "name": "Weapon Mastery",
+          "description": "Your training with weapons allows you to use the mastery properties of three kinds of weapons of your choice."
+        }
+      ]
+    },
+    {
+      "name": "Monk",
+      "description": "A master of martial arts, harnessing the power of the body in pursuit of physical and spiritual perfection.",
+      "hit_die": 8,
+      "primary_ability": "Dexterity and Wisdom",
+      "saving_throws": ["Strength", "Dexterity"],
+      "armor_proficiencies": [],
+      "weapon_proficiencies": ["Simple", "Martial Arts Weapons"],
+      "tool_proficiencies": ["Artisan's Tools or Musical Instrument"],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["Acrobatics", "Athletics", "History", "Insight", "Religion", "Stealth"]
+      },
+      "starting_equipment": [
+        "Spear or any Simple Weapon",
+        "5 Daggers",
+        "Explorer's Pack",
+        "Artisan's Tools or Musical Instrument"
+      ],
+      "spellcasting": null,
+      "level_1_features": [
+        {
+          "name": "Martial Arts",
+          "description": "Your practice of martial arts gives you mastery of combat styles that use unarmed strikes and monk weapons."
+        },
+        {
+          "name": "Unarmored Defense",
+          "description": "While you are wearing no armor and not wielding a shield, your AC equals 10 + your Dexterity modifier + your Wisdom modifier."
+        }
+      ]
+    },
+    {
+      "name": "Paladin",
+      "description": "A holy warrior bound to a sacred oath.",
+      "hit_die": 10,
+      "primary_ability": "Strength and Charisma",
+      "saving_throws": ["Wisdom", "Charisma"],
+      "armor_proficiencies": ["Light", "Medium", "Heavy", "Shields"],
+      "weapon_proficiencies": ["Simple", "Martial"],
+      "tool_proficiencies": [],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["Athletics", "Insight", "Intimidation", "Medicine", "Persuasion", "Religion"]
+      },
+      "starting_equipment": [
+        "Chain Mail",
+        "Shield",
+        "Martial Weapon or 2 Martial Weapons",
+        "6 Javelins or any Simple Melee Weapon",
+        "Holy Symbol",
+        "Priest's Pack"
+      ],
+      "spellcasting": null,
+      "level_1_features": [
+        {
+          "name": "Lay on Hands",
+          "description": "Your blessed touch can heal wounds. You have a pool of healing power that replenishes when you take a long rest.",
+          "uses": {
+            "max": "level * 5",
+            "recharge": "long_rest"
+          }
+        },
+        {
+          "name": "Spellcasting (Level 2+)",
+          "description": "By 2nd level, you have learned to draw on divine magic through meditation and prayer to cast spells as a cleric does."
+        },
+        {
+          "name": "Weapon Mastery",
+          "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons."
+        }
+      ]
+    },
+    {
+      "name": "Ranger",
+      "description": "A warrior who uses martial prowess and nature magic to combat threats on the edges of civilization.",
+      "hit_die": 10,
+      "primary_ability": "Dexterity and Wisdom",
+      "saving_throws": ["Strength", "Dexterity"],
+      "armor_proficiencies": ["Light", "Medium", "Shields"],
+      "weapon_proficiencies": ["Simple", "Martial"],
+      "tool_proficiencies": [],
+      "skill_choices": {
+        "choose": 3,
+        "from": ["Animal Handling", "Athletics", "Insight", "Investigation", "Nature", "Perception", "Stealth", "Survival"]
+      },
+      "starting_equipment": [
+        "Studded Leather Armor",
+        "Scimitar or any Simple Melee Weapon (2)",
+        "Longbow and Quiver with 20 Arrows",
+        "Druidic Focus",
+        "Explorer's Pack"
+      ],
+      "spellcasting": {
+        "ability": "Wisdom",
+        "cantrips_known": 0,
+        "spells_known": 2,
+        "spell_slots": {
+          "1": 2
+        }
+      },
+      "level_1_features": [
+        {
+          "name": "Spellcasting",
+          "description": "You have learned to use the magical essence of nature to cast spells. Wisdom is your spellcasting ability."
+        },
+        {
+          "name": "Favored Enemy",
+          "description": "You can add your proficiency bonus to Wisdom (Survival) checks to track a certain type of creature."
+        },
+        {
+          "name": "Weapon Mastery",
+          "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons."
+        }
+      ]
+    },
+    {
+      "name": "Rogue",
+      "description": "A scoundrel who uses stealth and trickery to overcome obstacles and enemies.",
+      "hit_die": 8,
+      "primary_ability": "Dexterity",
+      "saving_throws": ["Dexterity", "Intelligence"],
+      "armor_proficiencies": ["Light"],
+      "weapon_proficiencies": ["Simple", "Hand Crossbow", "Longsword", "Rapier", "Shortsword"],
+      "tool_proficiencies": ["Thieves' Tools"],
+      "skill_choices": {
+        "choose": 4,
+        "from": ["Acrobatics", "Athletics", "Deception", "Insight", "Intimidation", "Investigation", "Perception", "Performance", "Persuasion", "Sleight of Hand", "Stealth"]
+      },
+      "starting_equipment": [
+        "Leather Armor",
+        "Rapier or Shortsword",
+        "Shortbow and Quiver with 20 Arrows",
+        "Burglar's Pack",
+        "Thieves' Tools",
+        "2 Daggers"
+      ],
+      "spellcasting": null,
+      "level_1_features": [
+        {
+          "name": "Expertise",
+          "description": "Choose two of your skill proficiencies. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies."
+        },
+        {
+          "name": "Sneak Attack",
+          "description": "You know how to strike subtly and exploit a foe's distraction. Once per turn, you can deal extra damage to one creature you hit with an attack."
+        },
+        {
+          "name": "Thieves' Cant",
+          "description": "You have learned thieves' cant, a secret mix of dialect, jargon, and code that allows you to hide messages in seemingly normal conversation."
+        },
+        {
+          "name": "Weapon Mastery",
+          "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons."
+        }
+      ]
+    },
+    {
+      "name": "Sorcerer",
+      "description": "A spellcaster who draws on inherent magic from a gift or bloodline.",
+      "hit_die": 6,
+      "primary_ability": "Charisma",
+      "saving_throws": ["Constitution", "Charisma"],
+      "armor_proficiencies": [],
+      "weapon_proficiencies": ["Simple"],
+      "tool_proficiencies": [],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["Arcana", "Deception", "Insight", "Intimidation", "Persuasion", "Religion"]
+      },
+      "starting_equipment": [
+        "Spear or Light Crossbow and 20 Bolts",
+        "Component Pouch or Arcane Focus",
+        "Dungeoneer's Pack",
+        "2 Daggers"
+      ],
+      "spellcasting": {
+        "ability": "Charisma",
+        "cantrips_known": 4,
+        "spells_known": 2,
+        "spell_slots": {
+          "1": 2
+        }
+      },
+      "level_1_features": [
+        {
+          "name": "Spellcasting",
+          "description": "An event in your past left an indelible mark on you, infusing you with arcane magic. Charisma is your spellcasting ability."
+        },
+        {
+          "name": "Innate Sorcery",
+          "description": "An event in your past left an indelible mark on you, infusing you with arcane magic. You can tap into this magic as a bonus action."
+        }
+      ]
+    },
+    {
+      "name": "Warlock",
+      "description": "A wielder of magic that is derived from a bargain with an extraplanar entity.",
+      "hit_die": 8,
+      "primary_ability": "Charisma",
+      "saving_throws": ["Wisdom", "Charisma"],
+      "armor_proficiencies": ["Light"],
+      "weapon_proficiencies": ["Simple"],
+      "tool_proficiencies": [],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["Arcana", "Deception", "History", "Intimidation", "Investigation", "Nature", "Religion"]
+      },
+      "starting_equipment": [
+        "Leather Armor",
+        "Sickle or any Simple Weapon (2)",
+        "Component Pouch or Arcane Focus",
+        "Scholar's Pack",
+        "Crossbow and 20 Bolts",
+        "2 Daggers"
+      ],
+      "spellcasting": {
+        "ability": "Charisma",
+        "cantrips_known": 2,
+        "spells_known": 2,
+        "spell_slots": {
+          "1": 1
+        }
+      },
+      "level_1_features": [
+        {
+          "name": "Spellcasting",
+          "description": "Your arcane research and the magic bestowed on you by your patron have given you facility with spells. Charisma is your spellcasting ability."
+        },
+        {
+          "name": "Eldritch Invocations",
+          "description": "In your study of occult lore, you have unearthed eldritch invocations, fragments of forbidden knowledge that imbue you with an abiding magical ability."
+        }
+      ]
+    },
+    {
+      "name": "Wizard",
+      "description": "A scholarly magic-user capable of manipulating the structures of reality.",
+      "hit_die": 6,
+      "primary_ability": "Intelligence",
+      "saving_throws": ["Intelligence", "Wisdom"],
+      "armor_proficiencies": [],
+      "weapon_proficiencies": ["Simple"],
+      "tool_proficiencies": [],
+      "skill_choices": {
+        "choose": 2,
+        "from": ["Arcana", "History", "Insight", "Investigation", "Medicine", "Religion"]
+      },
+      "starting_equipment": [
+        "Quarterstaff or Dagger",
+        "Component Pouch or Arcane Focus",
+        "Scholar's Pack",
+        "Spellbook",
+        "2 Daggers"
+      ],
+      "spellcasting": {
+        "ability": "Intelligence",
+        "cantrips_known": 3,
+        "spells_prepared": "level + intelligence_modifier",
+        "spell_slots": {
+          "1": 2
+        }
+      },
+      "level_1_features": [
+        {
+          "name": "Spellcasting",
+          "description": "As a student of arcane magic, you have a spellbook containing spells. Intelligence is your spellcasting ability."
+        },
+        {
+          "name": "Arcane Recovery",
+          "description": "You have learned to regain some of your magical energy by studying your spellbook. Once per day during a short rest, you can recover spell slots.",
+          "uses": {
+            "max": 1,
+            "recharge": "long_rest"
+          }
+        },
+        {
+          "name": "Ritual Casting",
+          "description": "You can cast a wizard spell as a ritual if that spell has the ritual tag and you have the spell in your spellbook."
+        }
+      ]
+    }
+  ]
+}
+
