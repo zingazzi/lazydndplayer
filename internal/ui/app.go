@@ -26,6 +26,14 @@ const (
 	OriginPanel
 )
 
+// Popup size constants for consistent popup dimensions
+const (
+	PopupWidthPercent  = 0.85  // 85% of screen width
+	PopupHeightPercent = 0.85  // 85% of screen height
+	PopupMinWidth      = 80    // Minimum width in characters
+	PopupMinHeight     = 20    // Minimum height in lines
+)
+
 // FocusArea represents which area of the UI has focus
 type FocusArea int
 
@@ -1702,68 +1710,72 @@ func (m *Model) View() string {
 	)
 
 	// Render popups/overlays (in priority order)
+	// Calculate standard popup dimensions (85% of screen, minimum 80x20)
+	popupWidth := max(int(float64(m.width)*PopupWidthPercent), PopupMinWidth)
+	popupHeight := max(int(float64(m.height)*PopupHeightPercent), PopupMinHeight)
+
 	// Stat generator takes highest priority
 	if m.statGenerator.IsVisible() {
-		return m.statGenerator.View(m.width, m.height)
+		return m.statGenerator.View(popupWidth, popupHeight)
 	}
 
 	// Ability roller takes high priority
 	if m.abilityRoller.IsVisible() {
-		return m.abilityRoller.View(m.width, m.height, m.character)
+		return m.abilityRoller.View(popupWidth, popupHeight, m.character)
 	}
 
 	// Spell selector takes high priority
 	if m.spellSelector.IsVisible() {
-		return m.spellSelector.View(m.width, m.height)
+		return m.spellSelector.View(popupWidth, popupHeight)
 	}
 
 	// Feat selector takes second priority
 	if m.featSelector.IsVisible() {
-		return m.featSelector.View(m.width, m.height)
+		return m.featSelector.View(popupWidth, popupHeight)
 	}
 
 	// Feat detail popup
 	if m.featDetailPopup.IsVisible() {
-		return m.featDetailPopup.View(m.width, m.height)
+		return m.featDetailPopup.View(popupWidth, popupHeight)
 	}
 
 	// Origin selector
 	if m.originSelector.IsVisible() {
-		return m.originSelector.View(m.width, m.height)
+		return m.originSelector.View(popupWidth, popupHeight)
 	}
 
 	// Ability choice selector (for feat ability choices)
 	if m.abilityChoiceSelector.IsVisible() {
-		return m.abilityChoiceSelector.View(m.width, m.height)
+		return m.abilityChoiceSelector.View(popupWidth, popupHeight)
 	}
 
 	// Subtype selector takes third priority
 	if m.subtypeSelector.IsVisible() {
-		return m.subtypeSelector.View(m.width, m.height)
+		return m.subtypeSelector.View(popupWidth, popupHeight)
 	}
 
 	// Skill selector takes fourth priority
 	if m.skillSelector.IsVisible() {
-		return m.skillSelector.View(m.width, m.height)
+		return m.skillSelector.View(popupWidth, popupHeight)
 	}
 
 	// Language selector takes third priority
 	if m.languageSelector.IsVisible() {
-		return m.languageSelector.View(m.width, m.height)
+		return m.languageSelector.View(popupWidth, popupHeight)
 	}
 
 	// Tool selector takes fourth priority
 	if m.toolSelector.IsVisible() {
-		return m.toolSelector.View(m.width, m.height)
+		return m.toolSelector.View(popupWidth, popupHeight)
 	}
 
 	// Species selector takes fifth priority
 	if m.speciesSelector.IsVisible() {
-		return m.speciesSelector.View(m.width, m.height)
+		return m.speciesSelector.View(popupWidth, popupHeight)
 	}
 
 	// HP popup overlay if active
-	hpPopup := m.characterStatsPanel.RenderHPPopup(m.width, m.height)
+	hpPopup := m.characterStatsPanel.RenderHPPopup(popupWidth, popupHeight)
 	if hpPopup != "" {
 		return hpPopup
 	}
