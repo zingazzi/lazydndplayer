@@ -147,14 +147,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case "l":
-			if m.character.CanLevelUp() {
-				m.message = "Level up! (Feature not fully implemented in this version)"
-				// TODO: Implement level up wizard
-			} else {
-				m.message = "Not enough XP to level up"
-			}
-			return m, nil
+		// Note: 'l' and 'L' keys are now handled in Traits panel for language management
+		// Removed global 'l' handler (was for level up) to avoid conflicts
 
 		// Focus cycling - f key cycles through Main, CharStats, Actions, Dice
 		case "f":
@@ -503,13 +497,27 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+e":
 		// Scroll down without changing selection
 		m.traitsPanel.ScrollDown()
-	case "a":
-		// Add a sample language or feat
-		m.traitsPanel.AddLanguage("Elvish")
-		m.message = "Language added (full implementation pending)"
+	case "l":
+		// Add language
+		m.languageSelector.SetExcludeLanguages(m.character.Languages)
+		m.languageSelector.Show()
+		m.message = "Select a language to learn..."
+	case "L": // Shift+L
+		// Remove language
+		if len(m.character.Languages) == 0 {
+			m.message = "No languages to remove"
+		} else {
+			m.languageSelector.ShowForDeletion(m.character.Languages)
+			m.message = "Select a language to remove..."
+		}
+	case "f":
+		// Add feat
+		m.featSelector.Show(m.character, false) // false = not an origin feat
+		m.message = "Select a feat to acquire..."
 	case "d", "x":
 		m.traitsPanel.RemoveSelected()
 		m.message = "Item removed"
+		m.storage.Save(m.character)
 	}
 	return m, nil
 }
@@ -865,42 +873,63 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 	case "enter":
 		selectedLanguage := m.languageSelector.GetSelectedLanguage()
 		if selectedLanguage != "" {
-			// Find and replace the "additional language" placeholder
-			for i, lang := range m.character.Languages {
-				if strings.Contains(strings.ToLower(lang), "additional") || strings.Contains(strings.ToLower(lang), "choice") {
-					m.character.Languages[i] = selectedLanguage
-					break
+			// Check if we're in delete mode
+			if m.languageSelector.IsDeleteMode() {
+				// Remove the language
+				for i, lang := range m.character.Languages {
+					if lang == selectedLanguage {
+						m.character.Languages = append(m.character.Languages[:i], m.character.Languages[i+1:]...)
+						break
+					}
 				}
-			}
+				m.message = fmt.Sprintf("Language removed: %s", selectedLanguage)
+				m.storage.Save(m.character)
+				m.languageSelector.Hide()
+			} else {
+				// Add mode: Check if adding a new language (from Traits panel) or replacing placeholder (from species selection)
+				foundPlaceholder := false
+				for i, lang := range m.character.Languages {
+					if strings.Contains(strings.ToLower(lang), "additional") || strings.Contains(strings.ToLower(lang), "choice") {
+						m.character.Languages[i] = selectedLanguage
+						foundPlaceholder = true
+						break
+					}
+				}
 
-			// After language selection, check for skill, spell, or feat selection
-			species := models.GetSpeciesByName(m.character.Race)
-			if species != nil {
-				if models.HasSkillChoice(species) {
-					m.skillSelector.Show()
-					m.message = "Select your skill proficiency..."
-				} else if models.HasSpellChoice(species) {
-					// Show wizard cantrip selector for High Elf
-					cantrips := models.GetWizardCantrips()
-					m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
-					m.spellSelector.Show()
-					m.message = "Select your wizard cantrip..."
-				} else if models.HasFeatChoice(species) {
-					// Show feat selector for origin feat
-					m.featSelector.Show(m.character, true)
-					m.message = "Select your origin feat..."
+				// If no placeholder found, just append the new language
+				if !foundPlaceholder {
+					m.character.Languages = append(m.character.Languages, selectedLanguage)
+				}
+
+				// After language selection, check for skill, spell, or feat selection (only during species selection)
+				species := models.GetSpeciesByName(m.character.Race)
+				if species != nil && foundPlaceholder {
+					if models.HasSkillChoice(species) {
+						m.skillSelector.Show()
+						m.message = "Select your skill proficiency..."
+					} else if models.HasSpellChoice(species) {
+						// Show wizard cantrip selector for High Elf
+						cantrips := models.GetWizardCantrips()
+						m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+						m.spellSelector.Show()
+						m.message = "Select your wizard cantrip..."
+					} else if models.HasFeatChoice(species) {
+						// Show feat selector for origin feat
+						m.featSelector.Show(m.character, true)
+						m.message = "Select your origin feat..."
+					} else {
+						m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
+						// Save when selection is complete (no more selections needed)
+						m.storage.Save(m.character)
+					}
 				} else {
-					m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
-					// Save when selection is complete (no more selections needed)
+					m.message = fmt.Sprintf("Language learned: %s!", selectedLanguage)
+					// Save when adding a new language (not replacing placeholder)
 					m.storage.Save(m.character)
 				}
-			} else {
-				m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
-				// Save when selection is complete (no species data)
-				m.storage.Save(m.character)
+				m.languageSelector.Hide()
 			}
 		}
-		m.languageSelector.Hide()
 	case "esc":
 		m.languageSelector.Hide()
 		m.message = "Language selection cancelled"
@@ -1148,7 +1177,7 @@ func (m *Model) buildStatusBar() string {
 			contextHelp = "[↑/↓] Navigate • [u] Use • [+] Restore"
 		case TraitsPanel:
 			panelName = "Traits"
-			contextHelp = "[↑/↓] Navigate • [a] Add • [d] Delete"
+			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [L] Remove Lang • [f] Add Feat • [d] Delete"
 		}
 	case FocusCharStats:
 		panelName = "Character Info"

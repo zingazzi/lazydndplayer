@@ -32,10 +32,12 @@ var dndLanguages = []string{
 // LanguageSelector handles language selection UI
 type LanguageSelector struct {
 	allLanguages  []string
-	languages     []string // Filtered list (excluding already known)
+	languages     []string // Filtered list (excluding already known OR showing only known)
 	selectedIndex int
 	viewport      viewport.Model
 	visible       bool
+	deleteMode    bool   // If true, shows known languages for deletion
+	title         string // Custom title
 }
 
 // NewLanguageSelector creates a new language selector
@@ -45,6 +47,8 @@ func NewLanguageSelector() *LanguageSelector {
 		languages:     dndLanguages,
 		selectedIndex: 0,
 		visible:       false,
+		deleteMode:    false,
+		title:         "SELECT ADDITIONAL LANGUAGE",
 	}
 }
 
@@ -75,15 +79,48 @@ func (ls *LanguageSelector) SetExcludeLanguages(knownLanguages []string) {
 	ls.selectedIndex = 0
 }
 
-// Show displays the language selector
+// Show displays the language selector (for adding languages)
 func (ls *LanguageSelector) Show() {
 	ls.visible = true
 	ls.selectedIndex = 0
+	ls.deleteMode = false
+	ls.title = "SELECT ADDITIONAL LANGUAGE"
+}
+
+// ShowForDeletion displays the language selector with known languages (for deleting)
+func (ls *LanguageSelector) ShowForDeletion(knownLanguages []string) {
+	ls.visible = true
+	ls.selectedIndex = 0
+	ls.deleteMode = true
+	ls.title = "SELECT LANGUAGE TO REMOVE"
+
+	// Filter out placeholder texts and set languages to known only
+	ls.languages = []string{}
+	for _, lang := range knownLanguages {
+		normalizedLang := strings.ToLower(strings.TrimSpace(lang))
+		// Skip placeholder texts
+		if !strings.Contains(normalizedLang, "additional") &&
+		   !strings.Contains(normalizedLang, "choice") &&
+		   !strings.Contains(normalizedLang, "extra") {
+			ls.languages = append(ls.languages, lang)
+		}
+	}
+
+	// If no valid languages, close selector
+	if len(ls.languages) == 0 {
+		ls.visible = false
+	}
 }
 
 // Hide hides the language selector
 func (ls *LanguageSelector) Hide() {
 	ls.visible = false
+	ls.deleteMode = false
+}
+
+// IsDeleteMode returns whether the selector is in delete mode
+func (ls *LanguageSelector) IsDeleteMode() bool {
+	return ls.deleteMode
 }
 
 // IsVisible returns whether the selector is visible
@@ -141,7 +178,7 @@ func (ls *LanguageSelector) View(screenWidth, screenHeight int) string {
 
 	// Build content
 	var content []string
-	content = append(content, titleStyle.Render("SELECT ADDITIONAL LANGUAGE"))
+	content = append(content, titleStyle.Render(ls.title))
 	content = append(content, "")
 
 	// Language list
@@ -165,7 +202,13 @@ func (ls *LanguageSelector) View(screenWidth, screenHeight int) string {
 	ls.viewport.SetContent(strings.Join(languageList, "\n"))
 	content = append(content, ls.viewport.View())
 	content = append(content, "")
-	content = append(content, helpStyle.Render("[↑/↓] Navigate • [Enter] Select • [Esc] Cancel"))
+
+	// Show different help text based on mode
+	if ls.deleteMode {
+		content = append(content, helpStyle.Render("[↑/↓] Navigate • [Enter] Remove • [Esc] Cancel"))
+	} else {
+		content = append(content, helpStyle.Render("[↑/↓] Navigate • [Enter] Select • [Esc] Cancel"))
+	}
 
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

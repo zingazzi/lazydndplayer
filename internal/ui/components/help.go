@@ -112,7 +112,9 @@ func GetTraitsBindings() []HelpBinding {
 		{"↑/↓ or j/k", "Navigate items"},
 		{"Ctrl+D/U", "Page down/up"},
 		{"Ctrl+E/Y", "Scroll down/up"},
-		{"a", "Add language/feat"},
+		{"l", "Add language"},
+		{"Shift+L", "Remove language"},
+		{"f", "Add feat"},
 		{"d", "Delete selected"},
 	}
 }
