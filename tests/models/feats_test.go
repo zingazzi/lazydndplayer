@@ -1,26 +1,28 @@
-// internal/models/feats_test.go
-package models
+// tests/models/feats_test.go
+package models_test
 
 import (
 	"testing"
+
+	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
 // TestApplyFeatBenefits_SingleAbility tests applying a feat with a single ability increase
 func TestApplyFeatBenefits_SingleAbility(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	initialCharisma := char.AbilityScores.Charisma
 
 	// Actor feat: +1 Charisma
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Actor",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Ability: "Charisma",
 			Amount:  1,
 		},
 	}
 
-	err := ApplyFeatBenefits(char, feat, "")
+	err := models.ApplyFeatBenefits(char, feat, "")
 	if err != nil {
 		t.Fatalf("ApplyFeatBenefits failed: %v", err)
 	}
@@ -37,7 +39,7 @@ func TestApplyFeatBenefits_SingleAbility(t *testing.T) {
 	}
 
 	if len(benefits) > 0 {
-		if benefits[0].Type != BenefitAbilityScore {
+		if benefits[0].Type != models.BenefitAbilityScore {
 			t.Errorf("Expected BenefitAbilityScore, got %s", benefits[0].Type)
 		}
 		if benefits[0].Target != "Charisma" {
@@ -51,21 +53,21 @@ func TestApplyFeatBenefits_SingleAbility(t *testing.T) {
 
 // TestApplyFeatBenefits_MultipleChoice tests applying a feat with ability choices
 func TestApplyFeatBenefits_MultipleChoice(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	initialStrength := char.AbilityScores.Strength
 
 	// Athlete feat: +1 Strength or Dexterity
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Athlete",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Choices: []string{"Strength", "Dexterity"},
 			Amount:  1,
 		},
 	}
 
 	// Choose Strength
-	err := ApplyFeatBenefits(char, feat, "Strength")
+	err := models.ApplyFeatBenefits(char, feat, "Strength")
 	if err != nil {
 		t.Fatalf("ApplyFeatBenefits failed: %v", err)
 	}
@@ -90,19 +92,19 @@ func TestApplyFeatBenefits_MultipleChoice(t *testing.T) {
 
 // TestRemoveFeatBenefits_SingleAbility tests removing a feat with single ability
 func TestRemoveFeatBenefits_SingleAbility(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	initialCharisma := char.AbilityScores.Charisma
 
 	// Apply Actor feat
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Actor",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Ability: "Charisma",
 			Amount:  1,
 		},
 	}
-	ApplyFeatBenefits(char, feat, "")
+	models.ApplyFeatBenefits(char, feat, "")
 
 	// Verify it was applied
 	if char.AbilityScores.Charisma != initialCharisma+1 {
@@ -110,7 +112,7 @@ func TestRemoveFeatBenefits_SingleAbility(t *testing.T) {
 	}
 
 	// Remove the feat
-	err := RemoveFeatBenefits(char, feat)
+	err := models.RemoveFeatBenefits(char, feat)
 	if err != nil {
 		t.Fatalf("RemoveFeatBenefits failed: %v", err)
 	}
@@ -129,20 +131,20 @@ func TestRemoveFeatBenefits_SingleAbility(t *testing.T) {
 
 // TestRemoveFeatBenefits_MultipleChoice tests removing a feat with ability choice
 func TestRemoveFeatBenefits_MultipleChoice(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	initialStrength := char.AbilityScores.Strength
 	initialDexterity := char.AbilityScores.Dexterity
 
 	// Apply Athlete feat with Strength choice
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Athlete",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Choices: []string{"Strength", "Dexterity"},
 			Amount:  1,
 		},
 	}
-	ApplyFeatBenefits(char, feat, "Strength")
+	models.ApplyFeatBenefits(char, feat, "Strength")
 
 	// Verify Strength increased, Dexterity unchanged
 	if char.AbilityScores.Strength != initialStrength+1 {
@@ -153,7 +155,7 @@ func TestRemoveFeatBenefits_MultipleChoice(t *testing.T) {
 	}
 
 	// Remove the feat
-	RemoveFeatBenefits(char, feat)
+	models.RemoveFeatBenefits(char, feat)
 
 	// Verify Strength restored, Dexterity still unchanged
 	if char.AbilityScores.Strength != initialStrength {
@@ -172,18 +174,18 @@ func TestRemoveFeatBenefits_MultipleChoice(t *testing.T) {
 
 // TestApplyFeatBenefits_Tough tests the Tough feat (special HP bonus)
 func TestApplyFeatBenefits_Tough(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	char.Level = 5
 	char.MaxHP = 40
 	char.CurrentHP = 40
 	initialHP := char.MaxHP
 
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Tough",
 	}
 
-	ApplyFeatBenefits(char, feat, "")
+	models.ApplyFeatBenefits(char, feat, "")
 
 	// Tough gives +2 HP per level
 	expectedHP := initialHP + (char.Level * 2)
@@ -200,19 +202,19 @@ func TestApplyFeatBenefits_Tough(t *testing.T) {
 
 // TestRemoveFeatBenefits_Tough tests removing Tough feat
 func TestRemoveFeatBenefits_Tough(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	char.Level = 5
 	char.MaxHP = 40
 	char.CurrentHP = 40
 	initialHP := char.MaxHP
 
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Tough",
 	}
 
-	ApplyFeatBenefits(char, feat, "")
-	RemoveFeatBenefits(char, feat)
+	models.ApplyFeatBenefits(char, feat, "")
+	models.RemoveFeatBenefits(char, feat)
 
 	// HP should be restored
 	if char.MaxHP != initialHP {
@@ -228,16 +230,16 @@ func TestRemoveFeatBenefits_Tough(t *testing.T) {
 
 // TestApplyFeatBenefits_Mobile tests the Mobile feat (speed bonus)
 func TestApplyFeatBenefits_Mobile(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	char.Speed = 30
 	initialSpeed := char.Speed
 
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Mobile",
 	}
 
-	ApplyFeatBenefits(char, feat, "")
+	models.ApplyFeatBenefits(char, feat, "")
 
 	// Mobile gives +10 speed
 	if char.Speed != initialSpeed+10 {
@@ -253,30 +255,30 @@ func TestApplyFeatBenefits_Mobile(t *testing.T) {
 
 // TestMultipleFeats tests adding and removing multiple feats
 func TestMultipleFeats(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	initialCharisma := char.AbilityScores.Charisma
 	initialStrength := char.AbilityScores.Strength
 
 	// Add Actor (+1 Charisma)
-	actor := Feat{
+	actor := models.Feat{
 		Name: "Actor",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Ability: "Charisma",
 			Amount:  1,
 		},
 	}
-	ApplyFeatBenefits(char, actor, "")
+	models.ApplyFeatBenefits(char, actor, "")
 
 	// Add Athlete (+1 Strength)
-	athlete := Feat{
+	athlete := models.Feat{
 		Name: "Athlete",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Choices: []string{"Strength", "Dexterity"},
 			Amount:  1,
 		},
 	}
-	ApplyFeatBenefits(char, athlete, "Strength")
+	models.ApplyFeatBenefits(char, athlete, "Strength")
 
 	// Verify both applied
 	if char.AbilityScores.Charisma != initialCharisma+1 {
@@ -293,7 +295,7 @@ func TestMultipleFeats(t *testing.T) {
 	}
 
 	// Remove Actor only
-	RemoveFeatBenefits(char, actor)
+	models.RemoveFeatBenefits(char, actor)
 
 	// Verify Actor removed, Athlete remains
 	if char.AbilityScores.Charisma != initialCharisma {
@@ -317,52 +319,52 @@ func TestMultipleFeats(t *testing.T) {
 // TestHasAbilityChoice tests the helper function
 func TestHasAbilityChoice(t *testing.T) {
 	// Feat with choices
-	athleteFeat := Feat{
+	athleteFeat := models.Feat{
 		Name: "Athlete",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Choices: []string{"Strength", "Dexterity"},
 			Amount:  1,
 		},
 	}
 
-	if !HasAbilityChoice(athleteFeat) {
+	if !models.HasAbilityChoice(athleteFeat) {
 		t.Error("Athlete should have ability choice")
 	}
 
 	// Feat without choices
-	actorFeat := Feat{
+	actorFeat := models.Feat{
 		Name: "Actor",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Ability: "Charisma",
 			Amount:  1,
 		},
 	}
 
-	if HasAbilityChoice(actorFeat) {
+	if models.HasAbilityChoice(actorFeat) {
 		t.Error("Actor should not have ability choice")
 	}
 
 	// Feat with no ability increases
-	alertFeat := Feat{
+	alertFeat := models.Feat{
 		Name: "Alert",
 	}
 
-	if HasAbilityChoice(alertFeat) {
+	if models.HasAbilityChoice(alertFeat) {
 		t.Error("Alert should not have ability choice")
 	}
 }
 
 // TestGetAbilityChoices tests getting available choices
 func TestGetAbilityChoices(t *testing.T) {
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Athlete",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Choices: []string{"Strength", "Dexterity"},
 			Amount:  1,
 		},
 	}
 
-	choices := GetAbilityChoices(feat)
+	choices := models.GetAbilityChoices(feat)
 	if len(choices) != 2 {
 		t.Errorf("Expected 2 choices, got %d", len(choices))
 	}
@@ -388,19 +390,19 @@ func TestGetAbilityChoices(t *testing.T) {
 
 // TestAbilityScoreMax tests that ability scores don't exceed 20
 func TestAbilityScoreMax(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	char.AbilityScores.Charisma = 20
 
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Actor",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Ability: "Charisma",
 			Amount:  1,
 		},
 	}
 
-	ApplyFeatBenefits(char, feat, "")
+	models.ApplyFeatBenefits(char, feat, "")
 
 	// Should cap at 20
 	if char.AbilityScores.Charisma != 20 {
@@ -410,21 +412,21 @@ func TestAbilityScoreMax(t *testing.T) {
 
 // TestAbilityScoreMin tests that ability scores don't go below 1 on removal
 func TestAbilityScoreMin(t *testing.T) {
-	char := NewCharacter()
-	char.BenefitTracker = NewBenefitTracker()
+	char := models.NewCharacter()
+	char.BenefitTracker = models.NewBenefitTracker()
 	char.AbilityScores.Charisma = 1
 
-	feat := Feat{
+	feat := models.Feat{
 		Name: "Actor",
-		AbilityIncreases: &FeatAbilityIncrease{
+		AbilityIncreases: &models.FeatAbilityIncrease{
 			Ability: "Charisma",
 			Amount:  1,
 		},
 	}
 
-	ApplyFeatBenefits(char, feat, "")
+	models.ApplyFeatBenefits(char, feat, "")
 	char.AbilityScores.Charisma = 1 // Manually set to 1
-	RemoveFeatBenefits(char, feat)
+	models.RemoveFeatBenefits(char, feat)
 
 	// Should not go below 1
 	if char.AbilityScores.Charisma < 1 {

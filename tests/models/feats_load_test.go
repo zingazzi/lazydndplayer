@@ -1,15 +1,17 @@
-// internal/models/feats_load_test.go
-package models
+// tests/models/feats_load_test.go
+package models_test
 
 import (
 	"testing"
+
+	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
 // TestLoadAthleteFeat tests that Athlete feat loads correctly with ability choices
 func TestLoadAthleteFeat(t *testing.T) {
-	feats := GetAllFeats()
+	feats := models.GetAllFeats()
 
-	var athleteFeat *Feat
+	var athleteFeat *models.Feat
 	for i := range feats {
 		if feats[i].Name == "Athlete" {
 			athleteFeat = &feats[i]
@@ -35,12 +37,12 @@ func TestLoadAthleteFeat(t *testing.T) {
 	}
 
 	// Verify HasAbilityChoice works
-	if !HasAbilityChoice(*athleteFeat) {
+	if !models.HasAbilityChoice(*athleteFeat) {
 		t.Error("HasAbilityChoice should return true for Athlete")
 	}
 
 	// Verify GetAbilityChoices works
-	choices := GetAbilityChoices(*athleteFeat)
+	choices := models.GetAbilityChoices(*athleteFeat)
 	if len(choices) != 2 {
 		t.Errorf("Expected 2 choices, got %d", len(choices))
 	}
@@ -66,9 +68,9 @@ func TestLoadAthleteFeat(t *testing.T) {
 
 // TestLoadActorFeat tests that Actor feat loads correctly without ability choices
 func TestLoadActorFeat(t *testing.T) {
-	feats := GetAllFeats()
+	feats := models.GetAllFeats()
 
-	var actorFeat *Feat
+	var actorFeat *models.Feat
 	for i := range feats {
 		if feats[i].Name == "Actor" {
 			actorFeat = &feats[i]
@@ -94,7 +96,7 @@ func TestLoadActorFeat(t *testing.T) {
 	}
 
 	// Verify HasAbilityChoice returns false
-	if HasAbilityChoice(*actorFeat) {
+	if models.HasAbilityChoice(*actorFeat) {
 		t.Error("HasAbilityChoice should return false for Actor")
 	}
 }

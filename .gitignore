@@ -6,28 +6,29 @@ lazydndplayer
 *.so
 *.dylib
 
-# Test binary
+# Test binary, built with `go test -c`
 *.test
 
-# Output of go coverage tool
-*.out
-
-# Dependency directories
-vendor/
+# Output of the go coverage tool
+coverage.out
+coverage.html
 
 # Go workspace file
 go.work
 
-# Character data (local)
-.lazydndplayer/
-
-# IDE
+# IDE specific files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
+
+# Build artifacts
+build.log
+*.log
+
+# Temporary documentation
+*_SUMMARY.md
+*_GUIDE.md
+BUILD_AND_TEST.md
