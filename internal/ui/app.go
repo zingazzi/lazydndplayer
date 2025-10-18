@@ -61,6 +61,7 @@ type Model struct {
 	featDetailPopup       *components.FeatDetailPopup
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
+	itemSelector          *components.ItemSelector
 	statGenerator         *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
@@ -107,6 +108,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		featDetailPopup:       components.NewFeatDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
+		itemSelector:          components.NewItemSelector(),
 		statGenerator:         components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
@@ -273,6 +275,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if tool selector is active
 		if m.toolSelector.IsVisible() {
 			return m.handleToolSelectorKeys(msg)
+		}
+
+		// Check if item selector is active
+		if m.itemSelector.IsVisible() {
+			return m.handleItemSelectorKeys(msg)
 		}
 
 		// Check if species selector is active
@@ -446,20 +453,48 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		m.inventoryPanel.Next()
 	case "e":
-		m.inventoryPanel.ToggleEquipped()
-		m.message = "Item equipped status toggled"
+		// Toggle equipped status for selected item
+		item := m.inventoryPanel.GetSelectedItem()
+		if item != nil {
+			// Check if item is equippable
+			def := models.GetItemDefinitionByName(item.Name)
+			if def != nil && models.IsEquippable(*def) {
+				m.inventoryPanel.ToggleEquipped()
+				if item.Equipped {
+					m.message = fmt.Sprintf("%s equipped", item.Name)
+				} else {
+					m.message = fmt.Sprintf("%s unequipped", item.Name)
+				}
+			} else {
+				m.message = "This item cannot be equipped"
+			}
+		}
 	case "d":
-		m.inventoryPanel.DeleteSelected()
-		m.message = "Item deleted"
+		// Delete selected item (decrease quantity by 1 or remove if quantity is 1)
+		item := m.inventoryPanel.GetSelectedItem()
+		if item != nil {
+			if item.Quantity > 1 {
+				item.Quantity--
+				m.message = fmt.Sprintf("%s quantity decreased to %d", item.Name, item.Quantity)
+			} else {
+				m.inventoryPanel.DeleteSelected()
+				m.message = fmt.Sprintf("%s removed from inventory", item.Name)
+			}
+			m.storage.Save(m.character)
+		}
+	case "D":
+		// Delete all of selected item
+		item := m.inventoryPanel.GetSelectedItem()
+		if item != nil {
+			itemName := item.Name
+			m.inventoryPanel.DeleteSelected()
+			m.message = fmt.Sprintf("All %s removed from inventory", itemName)
+			m.storage.Save(m.character)
+		}
 	case "a":
-		// Add a sample item for demonstration
-		m.character.Inventory.AddItem(models.Item{
-			Name:     "New Item",
-			Type:     models.Gear,
-			Quantity: 1,
-			Weight:   1.0,
-		})
-		m.message = "Item added (edit with 'e' - not fully implemented)"
+		// Open item selector to add items
+		m.itemSelector.Show()
+		m.message = "Select item category..."
 	}
 	return m, nil
 }
@@ -1094,6 +1129,27 @@ func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleItemSelectorKeys handles item selector specific keys
+func (m *Model) handleItemSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle the key once and store the result
+	cmd := m.itemSelector.HandleKey(msg)
+
+	// Check if we're confirming quantity entry (in quantity mode)
+	if msg.String() == "enter" {
+		selectedDef, quantity := m.itemSelector.GetSelectedItem()
+		if selectedDef != nil {
+			// Convert to inventory item and add
+			item := models.ConvertToInventoryItem(*selectedDef, quantity)
+			m.character.Inventory.AddItem(item)
+			m.message = fmt.Sprintf("Added %dx %s to inventory", quantity, item.Name)
+			m.storage.Save(m.character)
+			m.itemSelector.Hide()
+		}
+	}
+
+	return m, cmd
+}
+
 // handleSkillSelectorKeys handles skill selector specific keys
 func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -1475,7 +1531,7 @@ func (m *Model) buildStatusBar() string {
 			contextHelp = "[↑/↓] Navigate • [r] Roll • [e] Toggle Prof"
 		case InventoryPanel:
 			panelName = "Inventory"
-			contextHelp = "[↑/↓] Navigate • [a] Add • [e] Equip • [d] Delete"
+			contextHelp = "[a] Add Item • [e] Equip • [d] Remove 1 • [D] Remove All"
 		case SpellsPanel:
 			panelName = "Spells"
 			contextHelp = "[a] Add • [r] Rest"
@@ -1769,7 +1825,12 @@ func (m *Model) View() string {
 		return m.toolSelector.View(popupWidth, popupHeight)
 	}
 
-	// Species selector takes fifth priority
+	// Item selector takes fifth priority
+	if m.itemSelector.IsVisible() {
+		return m.itemSelector.View(popupWidth, popupHeight)
+	}
+
+	// Species selector takes sixth priority
 	if m.speciesSelector.IsVisible() {
 		return m.speciesSelector.View(popupWidth, popupHeight)
 	}
