@@ -295,3 +295,56 @@ func (ba *BenefitApplier) AddToolProficiency(source BenefitSource, toolName stri
 
 	return nil
 }
+
+// AddItem adds an item to inventory and tracks it
+func (ba *BenefitApplier) AddItem(source BenefitSource, itemName string, quantity int) error {
+	// Check if item is gold
+	if strings.Contains(strings.ToLower(itemName), " gp") || strings.Contains(strings.ToLower(itemName), "gold") {
+		// Parse gold amount (e.g., "50 GP" -> 50)
+		amount := 0
+		fmt.Sscanf(itemName, "%d", &amount)
+		if amount > 0 {
+			ba.char.Inventory.Gold += amount
+
+			// Track the benefit
+			ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+				Source:      source,
+				Type:        BenefitItem,
+				Target:      itemName,
+				Value:       amount,
+				Description: fmt.Sprintf("%d gold", amount),
+			})
+			return nil
+		}
+	}
+
+	// Try to find the item in the items database
+	itemDef := GetItemDefinitionByName(itemName)
+	if itemDef != nil {
+		// Convert to inventory item
+		item := ConvertToInventoryItem(*itemDef, quantity)
+		ba.char.Inventory.AddItem(item)
+	} else {
+		// Item not found in database, add as generic item
+		item := Item{
+			Name:        itemName,
+			Type:        Other,
+			Quantity:    quantity,
+			Weight:      0,
+			Description: fmt.Sprintf("Item from %s", source.Name),
+			Equipped:    false,
+		}
+		ba.char.Inventory.AddItem(item)
+	}
+
+	// Track the benefit
+	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+		Source:      source,
+		Type:        BenefitItem,
+		Target:      itemName,
+		Value:       quantity,
+		Description: fmt.Sprintf("%dx %s", quantity, itemName),
+	})
+
+	return nil
+}

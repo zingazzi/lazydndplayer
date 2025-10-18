@@ -51,6 +51,8 @@ func (br *BenefitRemover) RemoveAllBenefits(sourceType, sourceName string) error
 			br.removePassiveBonus(benefit)
 		case BenefitTool:
 			br.removeToolProficiency(benefit)
+		case BenefitItem:
+			br.removeItem(benefit)
 		}
 	}
 
@@ -223,6 +225,37 @@ func (br *BenefitRemover) removeToolProficiency(benefit GrantedBenefit) {
 				br.char.ToolProficiencies = append(br.char.ToolProficiencies[:i], br.char.ToolProficiencies[i+1:]...)
 				break
 			}
+		}
+	}
+}
+
+func (br *BenefitRemover) removeItem(benefit GrantedBenefit) {
+	itemName := benefit.Target
+
+	// Check if it's gold
+	if strings.Contains(strings.ToLower(itemName), " gp") || strings.Contains(strings.ToLower(itemName), "gold") {
+		br.char.Inventory.Gold -= benefit.Value
+		if br.char.Inventory.Gold < 0 {
+			br.char.Inventory.Gold = 0
+		}
+		return
+	}
+
+	// Remove item from inventory
+	for i := range br.char.Inventory.Items {
+		item := &br.char.Inventory.Items[i]
+		if strings.EqualFold(item.Name, itemName) {
+			// Decrease quantity
+			item.Quantity -= benefit.Value
+
+			// If quantity is 0 or less, remove the item entirely
+			if item.Quantity <= 0 {
+				br.char.Inventory.Items = append(
+					br.char.Inventory.Items[:i],
+					br.char.Inventory.Items[i+1:]...,
+				)
+			}
+			break
 		}
 	}
 }

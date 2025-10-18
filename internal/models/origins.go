@@ -108,6 +108,11 @@ func ApplyOriginBenefits(char *Character, origin Origin, chosenAbility string) e
 		applier.AddToolProficiency(source, tool)
 	}
 
+	// Apply equipment
+	for _, equipmentItem := range origin.Equipment {
+		applier.AddItem(source, equipmentItem, 1)
+	}
+
 	// Apply the granted feat
 	if origin.Feat != "" {
 		// Check if character already has this feat

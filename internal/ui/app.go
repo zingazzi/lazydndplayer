@@ -496,12 +496,21 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Delete selected item (decrease quantity by 1 or remove if quantity is 1)
 		item := m.inventoryPanel.GetSelectedItem()
 		if item != nil {
+			wasEquipped := item.Equipped
+			itemType := item.Type
 			if item.Quantity > 1 {
 				item.Quantity--
 				m.message = fmt.Sprintf("%s quantity decreased to %d", item.Name, item.Quantity)
 			} else {
+				itemName := item.Name
 				m.inventoryPanel.DeleteSelected()
-				m.message = fmt.Sprintf("%s removed from inventory", item.Name)
+				m.message = fmt.Sprintf("%s removed from inventory", itemName)
+			}
+
+			// Recalculate AC if armor was equipped
+			if wasEquipped && itemType == models.Armor {
+				m.character.UpdateDerivedStats()
+				m.message += fmt.Sprintf(" (AC: %d)", m.character.AC)
 			}
 			m.storage.Save(m.character)
 		}
@@ -510,8 +519,16 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		item := m.inventoryPanel.GetSelectedItem()
 		if item != nil {
 			itemName := item.Name
+			wasEquipped := item.Equipped
+			itemType := item.Type
 			m.inventoryPanel.DeleteSelected()
 			m.message = fmt.Sprintf("All %s removed from inventory", itemName)
+
+			// Recalculate AC if armor was equipped
+			if wasEquipped && itemType == models.Armor {
+				m.character.UpdateDerivedStats()
+				m.message += fmt.Sprintf(" (AC: %d)", m.character.AC)
+			}
 			m.storage.Save(m.character)
 		}
 	case "a":
