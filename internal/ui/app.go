@@ -472,12 +472,22 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Check if item is equippable
 			def := models.GetItemDefinitionByName(item.Name)
 			if def != nil && models.IsEquippable(*def) {
-				m.inventoryPanel.ToggleEquipped()
-				if item.Equipped {
-					m.message = fmt.Sprintf("%s equipped", item.Name)
-				} else {
-					m.message = fmt.Sprintf("%s unequipped", item.Name)
+				// If equipping armor, unequip other armor pieces first
+				if !item.Equipped && item.Type == models.Armor {
+					models.UnequipOtherArmor(m.character, item)
 				}
+
+				m.inventoryPanel.ToggleEquipped()
+
+				// Recalculate AC after equipping/unequipping
+				m.character.UpdateDerivedStats()
+
+				if item.Equipped {
+					m.message = fmt.Sprintf("%s equipped (AC: %d)", item.Name, m.character.AC)
+				} else {
+					m.message = fmt.Sprintf("%s unequipped (AC: %d)", item.Name, m.character.AC)
+				}
+				m.storage.Save(m.character)
 			} else {
 				m.message = "This item cannot be equipped"
 			}

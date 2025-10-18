@@ -12,10 +12,11 @@ import (
 
 // InventoryPanel displays character inventory
 type InventoryPanel struct {
-	character     *models.Character
-	selectedIndex int
-	viewport      viewport.Model
-	ready         bool
+	character         *models.Character
+	selectedIndex     int
+	visualToActualMap []int // Maps visual index to actual inventory index
+	viewport          viewport.Model
+	ready             bool
 }
 
 // NewInventoryPanel creates a new inventory panel
@@ -43,6 +44,11 @@ func (p *InventoryPanel) View(width, height int) string {
 		Foreground(lipgloss.Color("205")).
 		Padding(0, 0, 1, 0)
 
+	categoryStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("170")).
+		Underline(true)
+
 	normalStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("252"))
 
@@ -50,6 +56,10 @@ func (p *InventoryPanel) View(width, height int) string {
 		Bold(true).
 		Foreground(lipgloss.Color("230")).
 		Background(lipgloss.Color("237"))
+
+	emptyStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true)
 
 	var lines []string
 	lines = append(lines, titleStyle.Render("INVENTORY"))
@@ -60,7 +70,7 @@ func (p *InventoryPanel) View(width, height int) string {
 		Foreground(lipgloss.Color("214")).
 		Bold(true)
 
-	lines = append(lines, currencyStyle.Render(fmt.Sprintf("Gold: %d  Silver: %d  Copper: %d",
+	lines = append(lines, currencyStyle.Render(fmt.Sprintf("💰 Gold: %d  Silver: %d  Copper: %d",
 		char.Inventory.Gold, char.Inventory.Silver, char.Inventory.Copper)))
 	lines = append(lines, "")
 
@@ -71,81 +81,83 @@ func (p *InventoryPanel) View(width, height int) string {
 		weightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	}
 
-	lines = append(lines, weightStyle.Render(fmt.Sprintf("Carry Weight: %.1f / %.1f lbs",
+	lines = append(lines, weightStyle.Render(fmt.Sprintf("⚖  Carry Weight: %.1f / %.1f lbs",
 		totalWeight, char.Inventory.CarryCapacity)))
 	lines = append(lines, "")
 
-	// Items in two columns
+	// Group items by type
 	if len(char.Inventory.Items) == 0 {
-		lines = append(lines, lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render("No items in inventory"))
+		lines = append(lines, emptyStyle.Render("No items in inventory"))
+		lines = append(lines, "")
+		lines = append(lines, emptyStyle.Render("Press 'a' to add items"))
+		p.visualToActualMap = []int{} // Clear mapping
 	} else {
-		numItems := len(char.Inventory.Items)
-		midpoint := (numItems + 1) / 2
-
-		columnWidth := width / 2
-		if columnWidth > 40 {
-			columnWidth = 40
+		// Organize items by category
+		itemsByType := make(map[models.ItemType][]int)
+		categoryOrder := []models.ItemType{
+			models.Weapon,
+			models.Armor,
+			"Ammunition",
+			models.Potion,
+			models.Magic,
+			models.Tool,
+			models.Gear,
+			models.Other,
 		}
 
-		// Build each row with two columns
-		for i := 0; i < midpoint; i++ {
-			leftItem := char.Inventory.Items[i]
-			leftMarker := " "
-			if leftItem.Equipped {
-				leftMarker = "E"
+		for i, item := range char.Inventory.Items {
+			itemsByType[item.Type] = append(itemsByType[item.Type], i)
+		}
+
+		// Build mapping from visual index to actual inventory index
+		p.visualToActualMap = []int{}
+		visualIndex := 0
+
+		// Display items by category
+		for _, itemType := range categoryOrder {
+			indices := itemsByType[itemType]
+			if len(indices) == 0 {
+				continue
 			}
 
-			leftLine := fmt.Sprintf("[%s] %-18s x%-2d %.1flbs",
-				leftMarker,
-				leftItem.Name,
-				leftItem.Quantity,
-				leftItem.TotalWeight(),
-			)
+			// Category header
+			lines = append(lines, categoryStyle.Render(fmt.Sprintf("═══ %s ═══", strings.ToUpper(string(itemType)))))
 
-			// Style left column
-			var leftStyled string
-			if i == p.selectedIndex {
-				leftStyled = selectedStyle.Width(columnWidth).Render(leftLine)
-			} else {
-				leftStyled = normalStyle.Width(columnWidth).Render(leftLine)
-			}
-
-			// Right column (if exists)
-			rightStyled := ""
-			rightIdx := i + midpoint
-			if rightIdx < numItems {
-				rightItem := char.Inventory.Items[rightIdx]
-				rightMarker := " "
-				if rightItem.Equipped {
-					rightMarker = "E"
+			// Display items in this category
+			for _, actualIdx := range indices {
+				item := char.Inventory.Items[actualIdx]
+				marker := " "
+				if item.Equipped {
+					marker = "E"
 				}
 
-				rightLine := fmt.Sprintf("[%s] %-18s x%-2d %.1flbs",
-					rightMarker,
-					rightItem.Name,
-					rightItem.Quantity,
-					rightItem.TotalWeight(),
+				line := fmt.Sprintf("  [%s] %-25s x%-3d  %5.1f lbs",
+					marker,
+					truncateString(item.Name, 25),
+					item.Quantity,
+					item.TotalWeight(),
 				)
 
-				if rightIdx == p.selectedIndex {
-					rightStyled = selectedStyle.Width(columnWidth).Render(rightLine)
+				// Map visual index to actual inventory index
+				p.visualToActualMap = append(p.visualToActualMap, actualIdx)
+
+				if visualIndex == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render(line))
 				} else {
-					rightStyled = normalStyle.Width(columnWidth).Render(rightLine)
+					lines = append(lines, normalStyle.Render(line))
 				}
+
+				visualIndex++
 			}
 
-			// Join columns
-			row := lipgloss.JoinHorizontal(lipgloss.Left, leftStyled, rightStyled)
-			lines = append(lines, row)
+			lines = append(lines, "") // Space between categories
 		}
 	}
 
 	lines = append(lines, "")
 	lines = append(lines, lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("[E] = Equipped  |  Press 'a' to add item  |  Press 'e' to toggle equipped"))
+		Render("[E] = Equipped  |  'a' Add  |  'e' Equip  |  'd' Remove 1  |  'D' Remove All"))
 
 	content := strings.Join(lines, "\n")
 	p.viewport.SetContent(content)
@@ -161,6 +173,17 @@ func (p *InventoryPanel) View(width, height int) string {
 	return p.viewport.View() + scrollInfo
 }
 
+// truncateString truncates a string to maxLen, adding "..." if needed
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
+}
+
 // Update handles updates for the inventory panel
 func (p *InventoryPanel) Update(char *models.Character) {
 	p.character = char
@@ -168,7 +191,11 @@ func (p *InventoryPanel) Update(char *models.Character) {
 
 // Next moves to next item
 func (p *InventoryPanel) Next() {
-	if len(p.character.Inventory.Items) > 0 && p.selectedIndex < len(p.character.Inventory.Items)-1 {
+	maxIndex := len(p.visualToActualMap) - 1
+	if maxIndex < 0 {
+		maxIndex = 0
+	}
+	if p.selectedIndex < maxIndex {
 		p.selectedIndex++
 		p.viewport.LineDown(1)
 	}
@@ -184,8 +211,12 @@ func (p *InventoryPanel) Prev() {
 
 // GetSelectedItem returns the currently selected item
 func (p *InventoryPanel) GetSelectedItem() *models.Item {
-	if p.selectedIndex >= 0 && p.selectedIndex < len(p.character.Inventory.Items) {
-		return &p.character.Inventory.Items[p.selectedIndex]
+	// Use mapping to get actual inventory index
+	if p.selectedIndex >= 0 && p.selectedIndex < len(p.visualToActualMap) {
+		actualIdx := p.visualToActualMap[p.selectedIndex]
+		if actualIdx >= 0 && actualIdx < len(p.character.Inventory.Items) {
+			return &p.character.Inventory.Items[actualIdx]
+		}
 	}
 	return nil
 }
@@ -199,13 +230,18 @@ func (p *InventoryPanel) ToggleEquipped() {
 
 // DeleteSelected deletes the selected item
 func (p *InventoryPanel) DeleteSelected() {
-	if p.selectedIndex >= 0 && p.selectedIndex < len(p.character.Inventory.Items) {
-		p.character.Inventory.Items = append(
-			p.character.Inventory.Items[:p.selectedIndex],
-			p.character.Inventory.Items[p.selectedIndex+1:]...,
-		)
-		if p.selectedIndex >= len(p.character.Inventory.Items) && p.selectedIndex > 0 {
-			p.selectedIndex--
+	// Use mapping to get actual inventory index
+	if p.selectedIndex >= 0 && p.selectedIndex < len(p.visualToActualMap) {
+		actualIdx := p.visualToActualMap[p.selectedIndex]
+		if actualIdx >= 0 && actualIdx < len(p.character.Inventory.Items) {
+			p.character.Inventory.Items = append(
+				p.character.Inventory.Items[:actualIdx],
+				p.character.Inventory.Items[actualIdx+1:]...,
+			)
+			// Adjust selection if needed
+			if p.selectedIndex >= len(p.character.Inventory.Items) && p.selectedIndex > 0 {
+				p.selectedIndex--
+			}
 		}
 	}
 }

@@ -24,6 +24,7 @@ type Character struct {
 
 	// Armor Class & Speed
 	ArmorClass int `json:"armor_class"`
+	AC         int `json:"ac"` // Calculated AC (kept for compatibility)
 	Speed      int `json:"speed"`
 
 	// Core Stats
@@ -131,6 +132,10 @@ func (c *Character) UpdateDerivedStats() {
 		c.SpellBook.SpellSaveDC = 8 + c.ProficiencyBonus + mod
 		c.SpellBook.SpellAttackBonus = c.ProficiencyBonus + mod
 	}
+
+	// Update AC based on equipped armor and shield
+	c.AC = CalculateAC(c)
+	c.ArmorClass = c.AC // Keep both for compatibility
 }
 
 // CalculateProficiencyBonus returns proficiency bonus for a given level
