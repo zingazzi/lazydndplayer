@@ -18,6 +18,7 @@ type ItemDefinition struct {
 	Damage               string   `json:"damage,omitempty"`
 	DamageType           string   `json:"damage_type,omitempty"`
 	AC                   string   `json:"ac,omitempty"`
+	Range                string   `json:"range,omitempty"`
 	Properties           []string `json:"properties,omitempty"`
 	StealthDisadvantage  bool     `json:"stealth_disadvantage,omitempty"`
 	StrengthReq          int      `json:"strength_req,omitempty"`

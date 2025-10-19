@@ -1,0 +1,186 @@
+// internal/models/attacks.go
+package models
+
+import (
+	"fmt"
+	"strings"
+)
+
+// Attack represents an attack option for a character
+type Attack struct {
+	Name              string `json:"name"`
+	AttackBonus       int    `json:"attack_bonus"`        // Modifier to attack roll
+	DamageDice        string `json:"damage_dice"`         // e.g., "1d8", "2d6"
+	DamageBonus       int    `json:"damage_bonus"`        // Modifier to damage
+	DamageType        string `json:"damage_type"`         // e.g., "slashing", "bludgeoning"
+	IsWeapon          bool   `json:"is_weapon"`           // True if from equipped weapon
+	WeaponName        string `json:"weapon_name"`         // Name of weapon if applicable
+	Range             string `json:"range,omitempty"`     // e.g., "5 ft.", "range 80/320 ft."
+	Properties        []string `json:"properties,omitempty"` // Weapon properties (finesse, versatile, etc.)
+}
+
+// AttackList holds all available attacks for a character
+type AttackList struct {
+	Attacks []Attack `json:"attacks"`
+}
+
+// GenerateAttacks creates a list of all available attacks for a character
+func GenerateAttacks(char *Character) AttackList {
+	attacks := AttackList{
+		Attacks: []Attack{},
+	}
+
+	// Always add Unarmed Strike
+	strMod := char.AbilityScores.GetModifier("Strength")
+	profBonus := char.ProficiencyBonus
+
+	attacks.Attacks = append(attacks.Attacks, Attack{
+		Name:         "Unarmed Strike",
+		AttackBonus:  strMod + profBonus,
+		DamageDice:   "1",
+		DamageBonus:  strMod,
+		DamageType:   "bludgeoning",
+		IsWeapon:     false,
+		Range:        "5 ft.",
+		Properties:   []string{},
+	})
+
+	// Add attacks from equipped weapons
+	for i := range char.Inventory.Items {
+		item := &char.Inventory.Items[i]
+		if !item.Equipped || item.Type != Weapon {
+			continue
+		}
+
+		// Get weapon definition
+		weaponDef := GetItemDefinitionByName(item.Name)
+		if weaponDef == nil {
+			continue
+		}
+
+		// Determine if weapon uses Strength or Dexterity
+		usesDex := false
+		if weaponDef.Damage != "" {
+			// Check if weapon has finesse or is ranged
+			for _, prop := range weaponDef.Properties {
+				if strings.ToLower(prop) == "finesse" {
+					usesDex = true // Can use Dex or Str, we'll use higher
+					break
+				}
+			}
+			// Ranged weapons typically use Dex
+			if strings.Contains(strings.ToLower(weaponDef.Subcategory), "ranged") {
+				usesDex = true
+			}
+		}
+
+		// Calculate attack bonus
+		strMod := char.AbilityScores.GetModifier("Strength")
+		dexMod := char.AbilityScores.GetModifier("Dexterity")
+
+		abilityMod := strMod
+		if usesDex && dexMod > strMod {
+			abilityMod = dexMod
+		}
+
+		attackBonus := abilityMod + profBonus
+
+		// Parse damage dice from weapon
+		damageDice := "1d4"
+		if weaponDef.Damage != "" {
+			damageDice = parseDamageDice(weaponDef.Damage)
+		}
+
+		// Determine damage type
+		damageType := "bludgeoning"
+		if weaponDef.DamageType != "" {
+			damageType = strings.ToLower(weaponDef.DamageType)
+		}
+
+		attacks.Attacks = append(attacks.Attacks, Attack{
+			Name:         item.Name,
+			AttackBonus:  attackBonus,
+			DamageDice:   damageDice,
+			DamageBonus:  abilityMod,
+			DamageType:   damageType,
+			IsWeapon:     true,
+			WeaponName:   item.Name,
+			Range:        weaponDef.Range,
+			Properties:   weaponDef.Properties,
+		})
+	}
+
+	return attacks
+}
+
+// parseDamageDice extracts the dice notation from weapon damage string
+// Examples: "1d8", "1d6 slashing", "2d6" -> returns just the dice part
+func parseDamageDice(damageStr string) string {
+	parts := strings.Fields(damageStr)
+	if len(parts) == 0 {
+		return "1d4"
+	}
+
+	// First part should be the dice notation
+	dice := parts[0]
+
+	// Validate it's a proper dice notation (XdY format)
+	if strings.Contains(dice, "d") {
+		return dice
+	}
+
+	return "1d4"
+}
+
+// FormatAttackRoll formats an attack roll display
+func (a *Attack) FormatAttackRoll(roll int, total int, advantage string) string {
+	advStr := ""
+	if advantage != "" {
+		advStr = fmt.Sprintf(" [%s]", advantage)
+	}
+
+	bonus := ""
+	if a.AttackBonus >= 0 {
+		bonus = fmt.Sprintf("+%d", a.AttackBonus)
+	} else {
+		bonus = fmt.Sprintf("%d", a.AttackBonus)
+	}
+
+	return fmt.Sprintf("%s: Attack Roll = %d %s = %d%s", a.Name, roll, bonus, total, advStr)
+}
+
+// FormatDamageRoll formats a damage roll display
+func (a *Attack) FormatDamageRoll(rolls []int, total int) string {
+	bonus := ""
+	if a.DamageBonus >= 0 {
+		bonus = fmt.Sprintf("+%d", a.DamageBonus)
+	} else {
+		bonus = fmt.Sprintf("%d", a.DamageBonus)
+	}
+
+	rollsStr := ""
+	if len(rolls) > 0 {
+		rollsStr = fmt.Sprintf("%v", rolls)
+	}
+
+	return fmt.Sprintf("%s: Damage = %s %s = %d %s", a.Name, rollsStr, bonus, total, a.DamageType)
+}
+
+// GetAttackSummary returns a one-line summary of the attack
+func (a *Attack) GetAttackSummary() string {
+	bonus := ""
+	if a.AttackBonus >= 0 {
+		bonus = fmt.Sprintf("+%d", a.AttackBonus)
+	} else {
+		bonus = fmt.Sprintf("%d", a.AttackBonus)
+	}
+
+	dmgBonus := ""
+	if a.DamageBonus >= 0 {
+		dmgBonus = fmt.Sprintf("+%d", a.DamageBonus)
+	} else {
+		dmgBonus = fmt.Sprintf("%d", a.DamageBonus)
+	}
+
+	return fmt.Sprintf("%s to hit, %s%s %s", bonus, a.DamageDice, dmgBonus, a.DamageType)
+}

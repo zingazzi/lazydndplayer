@@ -12,10 +12,12 @@ import (
 
 // ActionsPanel displays character actions
 type ActionsPanel struct {
-	character     *models.Character
-	selectedIndex int
-	viewport      viewport.Model
-	ready         bool
+	character       *models.Character
+	selectedIndex   int
+	viewport        viewport.Model
+	ready           bool
+	attacks         []models.Attack // Cached attacks list
+	totalItemCount  int             // Total number of items (attacks + actions)
 }
 
 // NewActionsPanel creates a new actions panel
@@ -38,10 +40,18 @@ func (p *ActionsPanel) View(width, height int) string {
 	p.viewport.Width = width
 	p.viewport.Height = height
 
+	// Generate attacks dynamically
+	attackList := models.GenerateAttacks(char)
+	p.attacks = attackList.Attacks
+
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("205")).
 		Padding(0, 0, 1, 0)
+
+	sectionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("170")).
+		Bold(true)
 
 	normalStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("252"))
@@ -55,33 +65,40 @@ func (p *ActionsPanel) View(width, height int) string {
 	lines = append(lines, titleStyle.Render("ACTIONS"))
 	lines = append(lines, "")
 
-	// Group actions by type
-	actionsByType := make(map[models.ActionType][]models.Action)
-	for _, action := range char.Actions.Actions {
-		actionsByType[action.Type] = append(actionsByType[action.Type], action)
-	}
-
-	// Display by type
-	types := []models.ActionType{
-		models.StandardAction,
-		models.BonusAction,
-		models.Reaction,
-		models.FreeAction,
-	}
-
 	idx := 0
-	for _, actionType := range types {
-		actions := actionsByType[actionType]
-		if len(actions) == 0 {
-			continue
+
+	// === ATTACKS SECTION ===
+	if len(p.attacks) > 0 {
+		lines = append(lines, sectionStyle.Render("⚔️  Attacks"))
+		lines = append(lines, "")
+
+		for _, attack := range p.attacks {
+			line := fmt.Sprintf("%-20s %s", attack.Name, attack.GetAttackSummary())
+
+			if idx == p.selectedIndex {
+				lines = append(lines, selectedStyle.Render("▶ "+line))
+			} else {
+				lines = append(lines, normalStyle.Render("  "+line))
+			}
+			idx++
 		}
+		lines = append(lines, "")
+	}
 
-		lines = append(lines, lipgloss.NewStyle().
-			Foreground(lipgloss.Color("170")).
-			Bold(true).
-			Render(string(actionType)+"s"))
+	// === OTHER ACTIONS SECTION ===
+	// Filter out "Attack" from actions since we show specific attacks above
+	otherActions := []models.Action{}
+	for _, action := range char.Actions.Actions {
+		if action.Name != "Attack" {
+			otherActions = append(otherActions, action)
+		}
+	}
 
-		for _, action := range actions {
+	if len(otherActions) > 0 {
+		lines = append(lines, sectionStyle.Render("📋 Other Actions"))
+		lines = append(lines, "")
+
+		for _, action := range otherActions {
 			usesStr := ""
 			if action.UsesPerRest != -1 {
 				usesStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
@@ -94,18 +111,31 @@ func (p *ActionsPanel) View(width, height int) string {
 			line := fmt.Sprintf("%-25s%s", action.Name, usesStr)
 
 			if idx == p.selectedIndex {
-				lines = append(lines, selectedStyle.Render(line))
+				lines = append(lines, selectedStyle.Render("▶ "+line))
 			} else {
-				lines = append(lines, normalStyle.Render(line))
+				lines = append(lines, normalStyle.Render("  "+line))
 			}
 			idx++
 		}
-		lines = append(lines, "")
+	}
+
+	p.totalItemCount = idx
+
+	lines = append(lines, "")
+
+	// Show different help based on selection
+	helpText := "↑/↓: Navigate"
+	if p.selectedIndex < len(p.attacks) {
+		// Attack selected
+		helpText = "↑/↓: Navigate • 'r': Attack • 'a': Advantage • 'x': Disadvantage • 'd': Damage"
+	} else {
+		// Other action selected
+		helpText = "↑/↓: Navigate • Enter: Activate"
 	}
 
 	lines = append(lines, lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("↑/↓ Navigate • Enter Activate"))
+		Render(helpText))
 
 	content := strings.Join(lines, "\n")
 	p.viewport.SetContent(content)
@@ -128,7 +158,7 @@ func (p *ActionsPanel) Update(char *models.Character) {
 
 // Next moves to next action
 func (p *ActionsPanel) Next() {
-	if p.selectedIndex < len(p.character.Actions.Actions)-1 {
+	if p.selectedIndex < p.totalItemCount-1 {
 		p.selectedIndex++
 		p.viewport.LineDown(1)
 	}
@@ -140,4 +170,17 @@ func (p *ActionsPanel) Prev() {
 		p.selectedIndex--
 		p.viewport.LineUp(1)
 	}
+}
+
+// GetSelectedAttack returns the currently selected attack (if in attack section)
+func (p *ActionsPanel) GetSelectedAttack() *models.Attack {
+	if p.selectedIndex < len(p.attacks) {
+		return &p.attacks[p.selectedIndex]
+	}
+	return nil
+}
+
+// IsAttackSelected returns true if the selected item is an attack
+func (p *ActionsPanel) IsAttackSelected() bool {
+	return p.selectedIndex < len(p.attacks)
 }

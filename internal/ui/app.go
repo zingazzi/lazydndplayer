@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/debug"
+	"github.com/marcozingoni/lazydndplayer/internal/dice"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 	"github.com/marcozingoni/lazydndplayer/internal/storage"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/components"
@@ -83,6 +84,8 @@ type Model struct {
 	statGenerator          *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
+	attackRoller          *components.AttackRoller
+	attackMenu            *components.AttackMenu
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -135,6 +138,8 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		statGenerator:          components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
+		attackRoller:          components.NewAttackRoller(),
+		attackMenu:            components.NewAttackMenu(),
 		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:           panels.NewSkillsPanel(char),
 		inventoryPanel:        panels.NewInventoryPanel(char),
@@ -479,14 +484,234 @@ func (m *Model) rollAbilityCheck(ability models.AbilityType) {
 
 // handleActionsPanelKeys handles keys when actions panel has focus
 func (m *Model) handleActionsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Check if attack menu is active
+	if m.attackMenu.IsVisible() {
+		return m.handleAttackMenuKeys(msg)
+	}
+
 	switch msg.String() {
 	case "up", "k":
 		m.actionsPanel.Prev()
 	case "down", "j":
 		m.actionsPanel.Next()
+	case "r":
+		// Roll normal attack
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				result := m.rollAttackDirect(attack, "normal")
+				m.dicePanel.LastMessage = result
+				m.message = result
+			}
+		}
+	case "a":
+		// Roll attack with advantage
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				result := m.rollAttackDirect(attack, "advantage")
+				m.dicePanel.LastMessage = result
+				m.message = result
+			}
+		}
+	case "x":
+		// Roll attack with disadvantage
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				result := m.rollAttackDirect(attack, "disadvantage")
+				m.dicePanel.LastMessage = result
+				m.message = result
+			}
+		}
+	case "d":
+		// Roll damage
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				result := m.rollDamageDirect(attack)
+				m.dicePanel.LastMessage = result
+				m.message = result
+			}
+		}
 	case "enter":
-		m.message = "Action activated (not fully implemented)"
+		// Show attack menu if attack is selected
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				debug.Log("Opening attack menu for: %s", attack.Name)
+				m.attackMenu.Show(attack)
+				m.message = "Select attack option..."
+			} else {
+				debug.Log("No attack selected (attack is nil)")
+			}
+		} else {
+			// For non-attack actions
+			m.message = "Other actions not fully implemented"
+		}
 	}
+	return m, nil
+}
+
+// handleAttackMenuKeys handles keys when attack menu is visible
+func (m *Model) handleAttackMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleAttackMenuKeys: key=%s", msg.String())
+
+	switch msg.String() {
+	case "up", "k":
+		m.attackMenu.Prev()
+		debug.Log("Attack menu: moved up")
+	case "down", "j":
+		m.attackMenu.Next()
+		debug.Log("Attack menu: moved down")
+	case "enter":
+		option := m.attackMenu.GetSelectedOption()
+		attack := m.attackMenu.GetAttack()
+		debug.Log("Attack menu: enter pressed, option=%s, attack=%v", option, attack != nil)
+
+		if attack != nil {
+			var result string
+			switch option {
+			case "Attack with Advantage":
+				result = m.rollAttackDirect(attack, "advantage")
+			case "Attack with Disadvantage":
+				result = m.rollAttackDirect(attack, "disadvantage")
+			case "Attack (Normal)":
+				result = m.rollAttackDirect(attack, "normal")
+			case "Roll Damage":
+				result = m.rollDamageDirect(attack)
+			case "Roll Damage with Advantage":
+				result = m.rollDamageWithAdvantage(attack)
+			default:
+				result = fmt.Sprintf("Unknown option: %s", option)
+			}
+			debug.Log("Attack result: %s", result)
+			m.dicePanel.LastMessage = result
+			m.message = result
+		}
+		m.attackMenu.Hide()
+		debug.Log("Attack menu hidden")
+	case "esc":
+		debug.Log("Attack menu: cancelled")
+		m.attackMenu.Hide()
+		m.message = ""
+	}
+	return m, nil
+}
+
+// rollAttackDirect performs an attack roll directly without popup
+func (m *Model) rollAttackDirect(attack *models.Attack, rollType string) string {
+	var diceRollType dice.RollType
+	var advantageStr string
+
+	switch rollType {
+	case "advantage":
+		diceRollType = dice.Advantage
+		advantageStr = "Advantage"
+	case "disadvantage":
+		diceRollType = dice.Disadvantage
+		advantageStr = "Disadvantage"
+	default:
+		diceRollType = dice.Normal
+		advantageStr = ""
+	}
+
+	result, err := dice.Roll("1d20", diceRollType)
+	if err != nil {
+		return fmt.Sprintf("Error rolling: %v", err)
+	}
+
+	roll := 0
+	if len(result.Rolls) > 0 {
+		roll = result.Rolls[0]
+	}
+
+	total := roll + attack.AttackBonus
+	return attack.FormatAttackRoll(roll, total, advantageStr)
+}
+
+// rollDamageDirect performs a damage roll directly without popup
+func (m *Model) rollDamageDirect(attack *models.Attack) string {
+	result, err := dice.Roll(attack.DamageDice, dice.Normal)
+	if err != nil {
+		return fmt.Sprintf("Error rolling damage: %v", err)
+	}
+
+	total := result.Total + attack.DamageBonus
+	return attack.FormatDamageRoll(result.Rolls, total)
+}
+
+// rollDamageWithAdvantage performs a damage roll with advantage (roll twice, take higher)
+func (m *Model) rollDamageWithAdvantage(attack *models.Attack) string {
+	result1, err1 := dice.Roll(attack.DamageDice, dice.Normal)
+	result2, err2 := dice.Roll(attack.DamageDice, dice.Normal)
+
+	if err1 != nil || err2 != nil {
+		return fmt.Sprintf("Error rolling damage: %v", err1)
+	}
+
+	total1 := result1.Total + attack.DamageBonus
+	total2 := result2.Total + attack.DamageBonus
+
+	// Use the higher total
+	if total1 >= total2 {
+		return fmt.Sprintf("%s: Damage = %v +%d = %d %s [Advantage: rolled %d, %d]",
+			attack.Name, result1.Rolls, attack.DamageBonus, total1, attack.DamageType, total1, total2)
+	} else {
+		return fmt.Sprintf("%s: Damage = %v +%d = %d %s [Advantage: rolled %d, %d]",
+			attack.Name, result2.Rolls, attack.DamageBonus, total2, attack.DamageType, total1, total2)
+	}
+}
+
+// handleAttackRollerKeys handles keys when attack roller is visible
+func (m *Model) handleAttackRollerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	state := m.attackRoller.GetState()
+
+	switch state {
+	case "select_attack":
+		switch msg.String() {
+		case "up", "k":
+			m.attackRoller.Prev()
+		case "down", "j":
+			m.attackRoller.Next()
+		case "enter":
+			m.attackRoller.SelectAttack()
+			m.message = "Choose action: 'a'ttack, 'd'amage, ad'v'antage, disadvantage (x)"
+		case "esc":
+			m.attackRoller.Hide()
+			m.message = ""
+		}
+	case "select_roll_type":
+		switch msg.String() {
+		case "a":
+			// Roll normal attack
+			m.attackRoller.SetRollType("normal")
+			result := m.attackRoller.RollAttack()
+			m.dicePanel.LastMessage = result
+			m.message = result
+		case "d":
+			// Roll damage
+			result := m.attackRoller.RollDamage()
+			m.dicePanel.LastMessage = result
+			m.message = result
+		case "v":
+			// Roll attack with advantage
+			m.attackRoller.SetRollType("advantage")
+			result := m.attackRoller.RollAttack()
+			m.dicePanel.LastMessage = result
+			m.message = result
+		case "x":
+			// Roll attack with disadvantage
+			m.attackRoller.SetRollType("disadvantage")
+			result := m.attackRoller.RollAttack()
+			m.dicePanel.LastMessage = result
+			m.message = result
+		case "esc":
+			m.attackRoller.Hide()
+			m.message = ""
+		}
+	}
+
 	return m, nil
 }
 
@@ -2205,6 +2430,14 @@ func (m *Model) View() string {
 		return m.abilityRoller.View(popupSmallWidth, popupSmallHeight, m.character)
 	}
 
+	// Attack roller takes high priority (Medium)
+	if m.attackRoller.IsVisible() {
+		return m.attackRoller.View(popupMediumWidth, popupMediumHeight)
+	}
+
+	// Attack menu should show AFTER checking all full-screen popups
+	// but BEFORE returning mainView
+
 	// Spell selector takes high priority (Large)
 	if m.spellSelector.IsVisible() {
 		return m.spellSelector.View(popupLargeWidth, popupLargeHeight)
@@ -2284,6 +2517,12 @@ func (m *Model) View() string {
 	hpPopup := m.characterStatsPanel.RenderHPPopup(popupSmallWidth, popupSmallHeight)
 	if hpPopup != "" {
 		return hpPopup
+	}
+
+	// Attack menu takes priority (shows as centered overlay)
+	// Note: This will hide the TUI underneath for simplicity
+	if m.attackMenu.IsVisible() {
+		return m.attackMenu.View(m.width, m.height)
 	}
 
 	return mainView
