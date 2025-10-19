@@ -85,6 +85,9 @@ func CalculateAC(char *Character) int {
 	// Add any AC bonuses from feats/magic items
 	baseAC += char.ACBonus
 
+	// Apply conditional fighting style bonuses
+	baseAC += GetFightingStyleACBonus(char, equippedArmor != nil)
+
 	return baseAC
 }
 
@@ -188,4 +191,35 @@ func GetEquippedArmorInfo(char *Character) (armor string, shield string) {
 	}
 
 	return armor, shield
+}
+
+// GetFightingStyleACBonus returns conditional AC bonus from fighting style
+func GetFightingStyleACBonus(char *Character, isWearingArmor bool) int {
+	if char.FightingStyle == "" {
+		return 0
+	}
+
+	style := GetFightingStyleByName(char.FightingStyle)
+	if style == nil {
+		return 0
+	}
+
+	// Check for conditional AC bonus
+	if bonus, ok := style.Benefits["ac_bonus_conditional"].(float64); ok {
+		if condition, hasCondition := style.Benefits["condition"].(string); hasCondition {
+			switch condition {
+			case "wearing_armor":
+				// Defense fighting style: +1 AC only when wearing armor
+				if isWearingArmor {
+					return int(bonus)
+				}
+			case "dual_wielding":
+				// Two-Weapon Fighting style (if implemented)
+				// Check if wielding two weapons
+				// TODO: implement when weapon tracking is added
+			}
+		}
+	}
+
+	return 0
 }

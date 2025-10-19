@@ -21,7 +21,8 @@
       "description": "While you are wearing armor, you gain a +1 bonus to AC.",
       "requirements": ["Must be wearing armor"],
       "benefits": {
-        "ac_bonus": 1
+        "ac_bonus_conditional": 1,
+        "condition": "wearing_armor"
       }
     },
     {

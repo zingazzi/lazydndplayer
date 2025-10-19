@@ -78,14 +78,15 @@ func ApplyFightingStyle(char *Character, styleName string) error {
 		Name: styleName,
 	}
 
-	// Parse and apply benefits based on type
+	// Check for UNCONDITIONAL AC bonus (always active)
 	if acBonus, ok := style.Benefits["ac_bonus"].(float64); ok {
 		applier.AddACBonus(source, int(acBonus))
 	}
 
-	// Note: Other benefits like attack bonuses, special abilities, etc.
+	// Note: Conditional bonuses (like Defense's +1 AC when wearing armor)
+	// are handled dynamically in CalculateAC() function
+	// Other benefits like attack bonuses, special abilities, etc.
 	// are tracked in the fighting style name and applied during combat
-	// For now, we just store the name and AC bonus if applicable
 
 	return nil
 }
