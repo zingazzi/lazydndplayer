@@ -77,6 +77,11 @@ func (p *FeaturesPanel) View(width, height int) string {
 		passiveFeatures := []models.Feature{}
 
 		for _, feature := range p.character.Features.Features {
+			// Skip passive features with 0 max uses (like Fighting Style, Weapon Mastery)
+			if feature.MaxUses == 0 {
+				continue
+			}
+
 			switch feature.RestType {
 			case models.ShortRest:
 				shortRestFeatures = append(shortRestFeatures, feature)
@@ -156,7 +161,7 @@ func (p *FeaturesPanel) renderFeatureGroup(
 	normalStyle, selectedStyle, usedStyle, descStyle lipgloss.Style,
 	width int,
 ) []string {
-	for i, feature := range features {
+	for _, feature := range features {
 		isSelected := *currentIndex == p.selectedIndex
 		*currentIndex++
 
@@ -191,9 +196,7 @@ func (p *FeaturesPanel) renderFeatureGroup(
 			content = append(content, descStyle.Render(fmt.Sprintf("      Source: %s", feature.Source)))
 		}
 
-		if i < len(features)-1 {
-			content = append(content, "")
-		}
+		content = append(content, "")
 	}
 	return content
 }
@@ -205,7 +208,15 @@ func (p *FeaturesPanel) Update(msg tea.Msg) {
 }
 
 func (p *FeaturesPanel) Next() {
-	if p.selectedIndex < len(p.character.Features.Features)-1 {
+	// Count only usable features (MaxUses > 0)
+	usableCount := 0
+	for _, feature := range p.character.Features.Features {
+		if feature.MaxUses > 0 {
+			usableCount++
+		}
+	}
+
+	if p.selectedIndex < usableCount-1 {
 		p.selectedIndex++
 		p.viewport.LineDown(3)
 	}
@@ -253,6 +264,29 @@ func (p *FeaturesPanel) RemoveFeature() {
 			p.selectedIndex--
 		}
 	}
+}
+
+// GetSelectedIndex returns the currently selected feature index
+func (p *FeaturesPanel) GetSelectedIndex() int {
+	return p.selectedIndex
+}
+
+// GetSelectedFeature returns the currently selected feature (if any)
+// Only returns features with MaxUses > 0 (usable features)
+func (p *FeaturesPanel) GetSelectedFeature() *models.Feature {
+	// Build list of usable features (skip passive ones with MaxUses == 0)
+	usableFeatures := []int{}
+	for i, feature := range p.character.Features.Features {
+		if feature.MaxUses > 0 {
+			usableFeatures = append(usableFeatures, i)
+		}
+	}
+
+	if p.selectedIndex >= 0 && p.selectedIndex < len(usableFeatures) {
+		actualIndex := usableFeatures[p.selectedIndex]
+		return &p.character.Features.Features[actualIndex]
+	}
+	return nil
 }
 
 // wrapFeatureText wraps text to a specified width

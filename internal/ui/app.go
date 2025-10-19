@@ -991,10 +991,57 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+e":
 		m.featuresPanel.ScrollDown()
 	case "u":
-		// Use feature (decrement uses)
-		m.featuresPanel.UseFeature()
-		m.message = "Feature used"
-		m.storage.Save(m.character)
+		// Use feature (decrement uses and apply effect)
+		debug.Log("Features panel: 'u' pressed")
+		debug.Log("Total features: %d", len(m.character.Features.Features))
+
+		feature := m.featuresPanel.GetSelectedFeature()
+		debug.Log("Selected feature: %v", feature != nil)
+
+		if feature != nil {
+			debug.Log("Feature name: %s, CurrentUses: %d, MaxUses: %d", feature.Name, feature.CurrentUses, feature.MaxUses)
+
+			// Check if feature has uses remaining
+			if feature.CurrentUses > 0 {
+				debug.Log("Using feature: %s", feature.Name)
+
+				// Apply feature effect based on name
+				switch feature.Name {
+				case "Second Wind":
+					debug.Log("Applying Second Wind effect")
+					// Roll 1d10 + level
+					result, err := dice.Roll("1d10", dice.Normal)
+					if err == nil {
+						healing := result.Total + m.character.Level
+						oldHP := m.character.CurrentHP
+						m.character.CurrentHP += healing
+						if m.character.CurrentHP > m.character.MaxHP {
+							m.character.CurrentHP = m.character.MaxHP
+						}
+						debug.Log("Second Wind: Healed from %d to %d HP (rolled %d + level %d)", oldHP, m.character.CurrentHP, result.Total, m.character.Level)
+						m.message = fmt.Sprintf("Second Wind: Healed %d HP (1d10[%d] + %d level)", healing, result.Total, m.character.Level)
+					} else {
+						debug.Log("Error rolling dice for Second Wind: %v", err)
+						m.message = fmt.Sprintf("Second Wind: Healed %d HP", m.character.Level)
+						m.character.CurrentHP += m.character.Level
+					}
+				default:
+					debug.Log("Using generic feature: %s", feature.Name)
+					m.message = fmt.Sprintf("%s used", feature.Name)
+				}
+
+				// Decrement uses
+				m.featuresPanel.UseFeature()
+				debug.Log("Feature uses decremented. New uses: %d", feature.CurrentUses)
+				m.storage.Save(m.character)
+			} else {
+				debug.Log("Feature %s has no uses remaining", feature.Name)
+				m.message = fmt.Sprintf("%s has no uses remaining", feature.Name)
+			}
+		} else {
+			debug.Log("No feature selected")
+			m.message = "No feature selected"
+		}
 	case "+", "=":
 		// Restore one use
 		m.featuresPanel.RestoreFeature()

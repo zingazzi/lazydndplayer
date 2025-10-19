@@ -187,6 +187,9 @@ func ApplyClassToCharacter(char *Character, className string) error {
 	char.SavingThrowProficiencies = make([]string, len(class.SavingThrows))
 	copy(char.SavingThrowProficiencies, class.SavingThrows)
 
+	// Grant level 1 class features
+	GrantClassFeatures(char, class)
+
 	// Calculate and set HP
 	newMaxHP := CalculateMaxHP(char, class)
 
@@ -244,4 +247,37 @@ func HasWeaponProficiency(char *Character, weaponType string) bool {
 		}
 	}
 	return false
+}
+
+// GrantClassFeatures grants level 1 features from a class
+func GrantClassFeatures(char *Character, class *Class) {
+	// Remove previous class features (if any)
+	RemoveClassFeatures(char)
+	
+	// Add level 1 features
+	for _, featureDef := range class.Level1Features {
+		// Convert definition to actual feature
+		source := fmt.Sprintf("Class: %s", class.Name)
+		feature := featureDef.ToFeature(char, source)
+		char.Features.AddFeature(feature)
+	}
+}
+
+// RemoveClassFeatures removes all features from the current class
+func RemoveClassFeatures(char *Character) {
+	if char.Class == "" {
+		return
+	}
+
+	// Remove features that came from the class
+	sourcePrefix := fmt.Sprintf("Class: %s", char.Class)
+	newFeatures := []Feature{}
+
+	for _, feature := range char.Features.Features {
+		if feature.Source != sourcePrefix {
+			newFeatures = append(newFeatures, feature)
+		}
+	}
+
+	char.Features.Features = newFeatures
 }

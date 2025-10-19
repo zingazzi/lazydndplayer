@@ -21,19 +21,21 @@
   "level_1_features": [
     {
       "name": "Fighting Style",
-      "description": "You adopt a particular style of fighting as your specialty."
+      "description": "You adopt a particular style of fighting as your specialty. This is selected during character creation.",
+      "uses_formula": "0",
+      "rest_type": "None"
     },
     {
       "name": "Second Wind",
-      "description": "You have a limited well of stamina that you can draw on to protect yourself from harm.",
-      "uses": {
-        "max": 1,
-        "recharge": "short_rest"
-      }
+      "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level.",
+      "uses_formula": "1",
+      "rest_type": "Short Rest"
     },
     {
       "name": "Weapon Mastery",
-      "description": "Your training with weapons allows you to use the mastery properties of three kinds of weapons."
+      "description": "Your training with weapons allows you to use the mastery properties of three kinds of weapons.",
+      "uses_formula": "0",
+      "rest_type": "None"
     }
   ],
   "level_progression": [
