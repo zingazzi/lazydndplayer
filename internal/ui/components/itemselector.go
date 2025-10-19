@@ -35,6 +35,7 @@ type ItemSelector struct {
 	viewport        viewport.Model
 	currentCategory string
 	selectedDef     *models.ItemDefinition
+	character       *models.Character // For proficiency checks
 }
 
 // NewItemSelector creates a new item selector
@@ -73,7 +74,7 @@ func NewItemSelector() *ItemSelector {
 }
 
 // Show displays the item selector
-func (is *ItemSelector) Show() {
+func (is *ItemSelector) Show(char *models.Character) {
 	is.visible = true
 	is.mode = ItemModeCategory
 	is.selectedCat = 0
@@ -83,6 +84,7 @@ func (is *ItemSelector) Show() {
 	is.currentCategory = ""
 	is.items = []models.ItemDefinition{}
 	is.selectedDef = nil
+	is.character = char
 }
 
 // Hide hides the item selector
@@ -153,7 +155,7 @@ func (is *ItemSelector) handleCategoryKeys(msg tea.KeyMsg) tea.Cmd {
 	case "enter":
 		// Select category and move to search mode
 		is.currentCategory = is.getCategoryFilter()
-		is.items = models.GetItemsByCategory(is.currentCategory)
+		is.items = is.getFilteredItems(models.GetItemsByCategory(is.currentCategory))
 		is.selectedItem = 0
 		is.mode = ItemModeSearch
 		is.searchInput.Focus()
@@ -189,7 +191,7 @@ func (is *ItemSelector) handleSearchKeys(msg tea.KeyMsg) tea.Cmd {
 
 		// Update filtered items
 		query := is.searchInput.Value()
-		is.items = models.SearchItems(query, is.currentCategory)
+		is.items = is.getFilteredItems(models.SearchItems(query, is.currentCategory))
 		is.selectedItem = 0
 
 		return cmd
@@ -268,6 +270,13 @@ func (is *ItemSelector) getCategoryFilter() string {
 	default:
 		return "all"
 	}
+}
+
+// getFilteredItems - No filtering needed, players can buy any item
+// Proficiency checks happen only when EQUIPPING items
+func (is *ItemSelector) getFilteredItems(items []models.ItemDefinition) []models.ItemDefinition {
+	// Return all items - let players buy anything they want
+	return items
 }
 
 // View renders the item selector

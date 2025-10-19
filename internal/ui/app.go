@@ -479,9 +479,34 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Check if item is equippable
 			def := models.GetItemDefinitionByName(item.Name)
 			if def != nil && models.IsEquippable(*def) {
-				// If equipping armor, unequip other armor pieces first
-				if !item.Equipped && item.Type == models.Armor {
-					models.UnequipOtherArmor(m.character, item)
+				// Only check proficiency when EQUIPPING (not unequipping)
+				if !item.Equipped {
+					// Check armor proficiency
+					if item.Type == models.Armor {
+						// Get armor subcategory (Light, Medium, Heavy, Shield)
+						armorType := def.Subcategory
+
+						// Check proficiency
+						if !models.HasArmorProficiency(m.character, armorType) {
+							m.message = fmt.Sprintf("Cannot equip %s: Not proficient with %s armor!", item.Name, armorType)
+							return m, nil
+						}
+
+						// Unequip other armor pieces first
+						models.UnequipOtherArmor(m.character, item)
+					}
+
+					// Check weapon proficiency
+					if item.Type == models.Weapon {
+						// Get weapon subcategory (simple melee, martial melee, etc.)
+						weaponType := def.Subcategory
+
+						// Check proficiency
+						if !models.HasWeaponProficiency(m.character, weaponType) {
+							m.message = fmt.Sprintf("Cannot equip %s: Not proficient with %s weapons!", item.Name, weaponType)
+							return m, nil
+						}
+					}
 				}
 
 				m.inventoryPanel.ToggleEquipped()
@@ -540,7 +565,7 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "a":
 		// Open item selector to add items
-		m.itemSelector.Show()
+		m.itemSelector.Show(m.character)
 		m.message = "Select item category..."
 	}
 	return m, nil

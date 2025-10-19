@@ -109,6 +109,27 @@ func (p *TraitsPanel) View(width, height int) string {
 	rightCol = append(rightCol, "")
 	rightCol = append(rightCol, "")
 
+	// Proficiencies Section
+	rightCol = append(rightCol, titleStyle.Render("⚔  PROFICIENCIES"))
+	rightCol = append(rightCol, "")
+
+	// Armor proficiencies
+	if len(p.character.ArmorProficiencies) > 0 {
+		rightCol = append(rightCol, normalStyle.Render("  Armor: "+strings.Join(p.character.ArmorProficiencies, ", ")))
+	} else {
+		rightCol = append(rightCol, emptyStyle.Render("  No armor proficiencies"))
+	}
+
+	// Weapon proficiencies
+	if len(p.character.WeaponProficiencies) > 0 {
+		rightCol = append(rightCol, normalStyle.Render("  Weapons: "+strings.Join(p.character.WeaponProficiencies, ", ")))
+	} else {
+		rightCol = append(rightCol, emptyStyle.Render("  No weapon proficiencies"))
+	}
+
+	rightCol = append(rightCol, "")
+	rightCol = append(rightCol, "")
+
 	// Feats Section
 	rightCol = append(rightCol, titleStyle.Render("⭐ FEATS"))
 	rightCol = append(rightCol, "")

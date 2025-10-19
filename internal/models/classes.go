@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // Class represents a D&D 5e class
@@ -146,6 +147,14 @@ func ApplyClassToCharacter(char *Character, className string) error {
 	// Update class name
 	char.Class = className
 
+	// Apply armor proficiencies
+	char.ArmorProficiencies = make([]string, len(class.ArmorProficiencies))
+	copy(char.ArmorProficiencies, class.ArmorProficiencies)
+
+	// Apply weapon proficiencies
+	char.WeaponProficiencies = make([]string, len(class.WeaponProficiencies))
+	copy(char.WeaponProficiencies, class.WeaponProficiencies)
+
 	// Calculate and set HP
 	newMaxHP := CalculateMaxHP(char, class)
 
@@ -167,4 +176,40 @@ func ApplyClassToCharacter(char *Character, className string) error {
 	char.UpdateDerivedStats()
 
 	return nil
+}
+
+// HasArmorProficiency checks if character is proficient with an armor type
+func HasArmorProficiency(char *Character, armorType string) bool {
+	// Normalize armor type for comparison (case-insensitive)
+	normalizedArmorType := strings.ToLower(armorType)
+
+	for _, prof := range char.ArmorProficiencies {
+		normalizedProf := strings.ToLower(prof)
+
+		// Handle "shield" vs "shields" plural
+		if normalizedProf == "shields" {
+			normalizedProf = "shield"
+		}
+
+		if normalizedProf == normalizedArmorType {
+			return true
+		}
+	}
+	return false
+}
+
+// HasWeaponProficiency checks if character is proficient with a weapon type
+func HasWeaponProficiency(char *Character, weaponType string) bool {
+	// Normalize weapon type for comparison (case-insensitive)
+	normalizedWeaponType := strings.ToLower(weaponType)
+
+	for _, prof := range char.WeaponProficiencies {
+		normalizedProf := strings.ToLower(prof)
+
+		// Check if the weapon type matches (e.g., "simple melee" contains "simple")
+		if strings.Contains(normalizedWeaponType, normalizedProf) {
+			return true
+		}
+	}
+	return false
 }

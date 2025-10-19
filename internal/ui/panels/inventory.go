@@ -126,17 +126,32 @@ func (p *InventoryPanel) View(width, height int) string {
 			// Display items in this category
 			for _, actualIdx := range indices {
 				item := char.Inventory.Items[actualIdx]
-				marker := " "
-				if item.Equipped {
-					marker = "E"
-				}
 
-				line := fmt.Sprintf("  [%s] %-25s x%-3d  %5.1f lbs",
-					marker,
-					truncateString(item.Name, 25),
-					item.Quantity,
-					item.TotalWeight(),
-				)
+				// Check if item is equippable
+				def := models.GetItemDefinitionByName(item.Name)
+				isEquippable := def != nil && models.IsEquippable(*def)
+
+				var line string
+				if isEquippable {
+					// Show checkbox for equippable items
+					marker := " "
+					if item.Equipped {
+						marker = "E"
+					}
+					line = fmt.Sprintf("  [%s] %-25s x%-3d  %5.1f lbs",
+						marker,
+						truncateString(item.Name, 25),
+						item.Quantity,
+						item.TotalWeight(),
+					)
+				} else {
+					// No checkbox for non-equippable items
+					line = fmt.Sprintf("      %-25s x%-3d  %5.1f lbs",
+						truncateString(item.Name, 25),
+						item.Quantity,
+						item.TotalWeight(),
+					)
+				}
 
 				// Map visual index to actual inventory index
 				p.visualToActualMap = append(p.visualToActualMap, actualIdx)

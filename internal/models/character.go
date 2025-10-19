@@ -32,9 +32,11 @@ type Character struct {
 	SavingThrows  SavingThrows  `json:"saving_throws"`
 
 	// Skills & Proficiencies
-	Skills            Skills   `json:"skills"`
-	ProficiencyBonus  int      `json:"proficiency_bonus"`
-	ToolProficiencies []string `json:"tool_proficiencies"` // Tool proficiencies from origins/classes
+	Skills             Skills   `json:"skills"`
+	ProficiencyBonus   int      `json:"proficiency_bonus"`
+	ToolProficiencies  []string `json:"tool_proficiencies"`  // Tool proficiencies from origins/classes
+	ArmorProficiencies []string `json:"armor_proficiencies"` // Armor proficiencies from class
+	WeaponProficiencies []string `json:"weapon_proficiencies"` // Weapon proficiencies from class
 
 	// Combat & Features
 	Initiative       int         `json:"initiative"`
@@ -104,7 +106,9 @@ func NewCharacter() *Character {
 		Languages:         []string{"Common"},
 		Feats:             []string{},
 		Resistances:       []string{},
-		ToolProficiencies: []string{},
+		ToolProficiencies:   []string{},
+		ArmorProficiencies:  []string{},
+		WeaponProficiencies: []string{},
 		BenefitTracker:    NewBenefitTracker(),
 		Darkvision:        0,
 		SpeciesTraits: []SpeciesTrait{},
