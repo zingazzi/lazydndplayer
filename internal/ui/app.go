@@ -77,6 +77,7 @@ type Model struct {
 	toolSelector          *components.ToolSelector
 	itemSelector          *components.ItemSelector
 	classSelector         *components.ClassSelector
+	classSkillSelector    *components.ClassSkillSelector
 	statGenerator         *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
@@ -126,6 +127,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		toolSelector:          components.NewToolSelector(),
 		itemSelector:          components.NewItemSelector(),
 		classSelector:         components.NewClassSelector(),
+		classSkillSelector:    components.NewClassSkillSelector(),
 		statGenerator:         components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
@@ -302,6 +304,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if item selector is active
 		if m.itemSelector.IsVisible() {
 			return m.handleItemSelectorKeys(msg)
+		}
+
+		// Check if class skill selector is active (highest priority in class flow)
+		if m.classSkillSelector.IsVisible() {
+			return m.handleClassSkillSelectorKeys(msg)
 		}
 
 		// Check if class selector is active
@@ -1334,21 +1341,83 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		m.classSelector.Next()
 	case "enter":
-		selectedClass := m.classSelector.GetSelectedClass()
-		if selectedClass != "" {
-			// Apply class and calculate HP
-			err := models.ApplyClassToCharacter(m.character, selectedClass)
-			if err != nil {
-				m.message = fmt.Sprintf("Error applying class: %v", err)
-			} else {
-				m.message = fmt.Sprintf("Class changed to: %s (HP: %d/%d)", selectedClass, m.character.CurrentHP, m.character.MaxHP)
+		selectedClassName := m.classSelector.GetSelectedClass()
+		if selectedClassName != "" {
+			// Get the full class data to check skill choices
+			classData := models.GetClassByName(selectedClassName)
+			if classData == nil {
+				m.message = fmt.Sprintf("Error: Class %s not found", selectedClassName)
+				m.classSelector.Hide()
+				return m, nil
 			}
-			m.storage.Save(m.character)
-			m.classSelector.Hide()
+
+			// Check if class has skill choices
+			if classData.SkillChoices != nil && classData.SkillChoices.Choose > 0 {
+				// Show skill selector
+				m.classSelector.Hide()
+				m.classSkillSelector.Show(selectedClassName, classData.SkillChoices.From, classData.SkillChoices.Choose, m.character)
+				m.message = fmt.Sprintf("Select skills for %s class...", selectedClassName)
+			} else {
+				// No skill choices, apply class directly
+				err := models.ApplyClassToCharacter(m.character, selectedClassName)
+				if err != nil {
+					m.message = fmt.Sprintf("Error applying class: %v", err)
+				} else {
+					m.message = fmt.Sprintf("Class changed to: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
+				}
+				m.storage.Save(m.character)
+				m.classSelector.Hide()
+			}
 		}
 	case "esc":
 		m.classSelector.Hide()
 		m.message = "Class selection cancelled"
+	}
+	return m, nil
+}
+
+// handleClassSkillSelectorKeys handles class skill selector specific keys
+func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.classSkillSelector.Prev()
+	case "down", "j":
+		m.classSkillSelector.Next()
+	case " ": // Space to toggle
+		if !m.classSkillSelector.ToggleSkill() {
+			m.message = "Cannot select: already proficient or max selections reached"
+		}
+	case "enter":
+		if m.classSkillSelector.CanConfirm() {
+			selectedSkills := m.classSkillSelector.GetSelectedSkills()
+			selectedClassName := m.classSkillSelector.ClassName
+			
+			// Apply the class first
+			err := models.ApplyClassToCharacter(m.character, selectedClassName)
+			if err != nil {
+				m.message = fmt.Sprintf("Error applying class: %v", err)
+				m.classSkillSelector.Hide()
+				return m, nil
+			}
+
+			// Apply selected skills
+			for _, skillName := range selectedSkills {
+				skillType := models.SkillType(skillName)
+				skill := m.character.Skills.GetSkill(skillType)
+				if skill != nil && skill.Proficiency == 0 {
+					skill.Proficiency = 1 // Grant proficiency
+				}
+			}
+
+			m.storage.Save(m.character)
+			m.classSkillSelector.Hide()
+			m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+		} else {
+			m.message = fmt.Sprintf("Please select %d more skill(s)", m.classSkillSelector.MaxChoices-len(m.classSkillSelector.SelectedSkills))
+		}
+	case "esc":
+		m.classSkillSelector.Hide()
+		m.message = "Skill selection cancelled"
 	}
 	return m, nil
 }
@@ -2067,7 +2136,12 @@ func (m *Model) View() string {
 		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
 	}
 
-	// Class selector takes sixth priority (Medium)
+	// Class skill selector takes sixth priority (Medium)
+	if m.classSkillSelector.IsVisible() {
+		return m.classSkillSelector.View(m.width, m.height)
+	}
+
+	// Class selector takes seventh priority (Medium)
 	if m.classSelector.IsVisible() {
 		return m.classSelector.View(popupMediumWidth, popupMediumHeight)
 	}
