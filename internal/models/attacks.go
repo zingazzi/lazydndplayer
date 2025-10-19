@@ -36,10 +36,31 @@ func GenerateAttacks(char *Character) AttackList {
 	strMod := char.AbilityScores.GetModifier("Strength")
 	profBonus := char.ProficiencyBonus
 
+	// Calculate unarmed strike damage based on Unarmed Fighting style
+	unarmedDamage := "1" // Default: 1 + STR mod
+	if char.FightingStyle == "Unarmed Fighting" {
+		// Check if character has any weapons or shield equipped
+		hasWeaponOrShield := false
+		for i := range char.Inventory.Items {
+			item := &char.Inventory.Items[i]
+			if item.Equipped && (item.Type == Weapon || (item.Type == Armor && strings.Contains(strings.ToLower(item.Name), "shield"))) {
+				hasWeaponOrShield = true
+				break
+			}
+		}
+
+		// Unarmed Fighting: 1d6 normally, 1d8 if no weapons or shield
+		if hasWeaponOrShield {
+			unarmedDamage = "1d6"
+		} else {
+			unarmedDamage = "1d8"
+		}
+	}
+
 	attacks.Attacks = append(attacks.Attacks, Attack{
 		Name:         "Unarmed Strike",
 		AttackBonus:  strMod + profBonus,
-		DamageDice:   "1",
+		DamageDice:   unarmedDamage,
 		DamageBonus:  strMod,
 		DamageType:   "bludgeoning",
 		IsWeapon:     false,
@@ -88,6 +109,12 @@ func GenerateAttacks(char *Character) AttackList {
 		// Otherwise, use STR (melee weapons)
 
 		attackBonus := abilityMod + profBonus
+
+		// Apply Archery fighting style bonus for ranged weapons
+		isRanged := strings.Contains(strings.ToLower(weaponDef.Subcategory), "ranged")
+		if char.FightingStyle == "Archery" && isRanged {
+			attackBonus += 2
+		}
 
 		// Parse damage dice from weapon
 		damageDice := "1d4"

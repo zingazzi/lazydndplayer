@@ -88,6 +88,9 @@ func CalculateAC(char *Character) int {
 	// Apply conditional fighting style bonuses
 	baseAC += GetFightingStyleACBonus(char, equippedArmor != nil)
 
+	// Apply conditional feat bonuses (e.g., Dual Wielder)
+	baseAC += GetFeatACBonus(char)
+
 	return baseAC
 }
 
@@ -222,4 +225,45 @@ func GetFightingStyleACBonus(char *Character, isWearingArmor bool) int {
 	}
 
 	return 0
+}
+
+// GetFeatACBonus returns conditional AC bonus from feats
+func GetFeatACBonus(char *Character) int {
+	totalBonus := 0
+
+	// Check for Dual Wielder feat
+	for _, featName := range char.Feats {
+		if featName == "Dual Wielder" {
+			// Check if wielding two melee weapons
+			if IsDualWieldingMelee(char) {
+				totalBonus += 1
+			}
+		}
+	}
+
+	return totalBonus
+}
+
+// IsDualWieldingMelee checks if the character is wielding two separate melee weapons
+func IsDualWieldingMelee(char *Character) bool {
+	equippedMeleeWeapons := 0
+
+	for i := range char.Inventory.Items {
+		item := &char.Inventory.Items[i]
+		if !item.Equipped || item.Type != Weapon {
+			continue
+		}
+
+		// Check if it's a melee weapon
+		weaponDef := GetItemDefinitionByName(item.Name)
+		if weaponDef != nil {
+			// Check if it's not ranged
+			if !strings.Contains(strings.ToLower(weaponDef.Subcategory), "ranged") {
+				equippedMeleeWeapons++
+			}
+		}
+	}
+
+	// Must have exactly 2 melee weapons equipped
+	return equippedMeleeWeapons == 2
 }
