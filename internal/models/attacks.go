@@ -11,6 +11,7 @@ type Attack struct {
 	Name              string `json:"name"`
 	AttackBonus       int    `json:"attack_bonus"`        // Modifier to attack roll
 	DamageDice        string `json:"damage_dice"`         // e.g., "1d8", "2d6"
+	VersatileDamage   string `json:"versatile_damage"`    // e.g., "1d10" for two-handed
 	DamageBonus       int    `json:"damage_bonus"`        // Modifier to damage
 	DamageType        string `json:"damage_type"`         // e.g., "slashing", "bludgeoning"
 	IsWeapon          bool   `json:"is_weapon"`           // True if from equipped weapon
@@ -58,30 +59,32 @@ func GenerateAttacks(char *Character) AttackList {
 			continue
 		}
 
-		// Determine if weapon uses Strength or Dexterity
-		usesDex := false
-		if weaponDef.Damage != "" {
-			// Check if weapon has finesse or is ranged
-			for _, prop := range weaponDef.Properties {
-				if strings.ToLower(prop) == "finesse" {
-					usesDex = true // Can use Dex or Str, we'll use higher
-					break
-				}
-			}
-			// Ranged weapons typically use Dex
-			if strings.Contains(strings.ToLower(weaponDef.Subcategory), "ranged") {
-				usesDex = true
-			}
-		}
-
-		// Calculate attack bonus
+		// Calculate ability modifiers
 		strMod := char.AbilityScores.GetModifier("Strength")
 		dexMod := char.AbilityScores.GetModifier("Dexterity")
 
-		abilityMod := strMod
-		if usesDex && dexMod > strMod {
+		// Determine which ability modifier to use
+		abilityMod := strMod // Default to Strength
+
+		// Check for Finesse property - use higher of STR or DEX
+		hasFinesse := false
+		for _, prop := range weaponDef.Properties {
+			if strings.EqualFold(strings.TrimSpace(prop), "finesse") {
+				hasFinesse = true
+				break
+			}
+		}
+
+		if hasFinesse {
+			// Finesse: use DEX if it's higher than STR
+			if dexMod > strMod {
+				abilityMod = dexMod
+			}
+		} else if strings.Contains(strings.ToLower(weaponDef.Subcategory), "ranged") {
+			// Ranged weapons use DEX
 			abilityMod = dexMod
 		}
+		// Otherwise, use STR (melee weapons)
 
 		attackBonus := abilityMod + profBonus
 
@@ -97,16 +100,30 @@ func GenerateAttacks(char *Character) AttackList {
 			damageType = strings.ToLower(weaponDef.DamageType)
 		}
 
+		// Check for versatile property (e.g., "Versatile (1d10)")
+		versatileDamage := ""
+		for _, prop := range weaponDef.Properties {
+			if strings.HasPrefix(strings.ToLower(prop), "versatile") {
+				// Extract versatile damage from property like "Versatile (1d10)"
+				if start := strings.Index(prop, "("); start != -1 {
+					if end := strings.Index(prop, ")"); end != -1 {
+						versatileDamage = strings.TrimSpace(prop[start+1 : end])
+					}
+				}
+			}
+		}
+
 		attacks.Attacks = append(attacks.Attacks, Attack{
-			Name:         item.Name,
-			AttackBonus:  attackBonus,
-			DamageDice:   damageDice,
-			DamageBonus:  abilityMod,
-			DamageType:   damageType,
-			IsWeapon:     true,
-			WeaponName:   item.Name,
-			Range:        weaponDef.Range,
-			Properties:   weaponDef.Properties,
+			Name:            item.Name,
+			AttackBonus:     attackBonus,
+			DamageDice:      damageDice,
+			VersatileDamage: versatileDamage,
+			DamageBonus:     abilityMod,
+			DamageType:      damageType,
+			IsWeapon:        true,
+			WeaponName:      item.Name,
+			Range:           weaponDef.Range,
+			Properties:      weaponDef.Properties,
 		})
 	}
 

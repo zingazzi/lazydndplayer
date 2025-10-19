@@ -19,15 +19,7 @@ type AttackMenu struct {
 // NewAttackMenu creates a new attack menu
 func NewAttackMenu() *AttackMenu {
 	return &AttackMenu{
-		visible: false,
-		options: []string{
-			"Attack with Advantage",
-			"Attack with Disadvantage",
-			"Attack (Normal)",
-			"─────────────────────",
-			"Roll Damage",
-			"Roll Damage with Advantage",
-		},
+		visible:       false,
 		selectedIndex: 0,
 	}
 }
@@ -37,6 +29,31 @@ func (am *AttackMenu) Show(attack *models.Attack) {
 	am.visible = true
 	am.attack = attack
 	am.selectedIndex = 0
+
+	// Build dynamic options based on attack type
+	am.options = []string{
+		"Attack with Advantage",
+		"Attack with Disadvantage",
+		"Attack (Normal)",
+		"─────────────────────────",
+	}
+
+	// Check if weapon is versatile
+	if attack.VersatileDamage != "" {
+		// Versatile weapon - show 1-hand and 2-hand options
+		am.options = append(am.options,
+			fmt.Sprintf("1-Hand Damage (%s)", attack.DamageDice),
+			fmt.Sprintf("1-Hand Critical (%s x2)", attack.DamageDice),
+			fmt.Sprintf("2-Hands Damage (%s)", attack.VersatileDamage),
+			fmt.Sprintf("2-Hands Critical (%s x2)", attack.VersatileDamage),
+		)
+	} else {
+		// Regular weapon - show normal damage options
+		am.options = append(am.options,
+			fmt.Sprintf("Damage (%s)", attack.DamageDice),
+			fmt.Sprintf("Critical Hit (%s x2)", attack.DamageDice),
+		)
+	}
 }
 
 // Hide hides the menu

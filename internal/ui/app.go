@@ -571,17 +571,25 @@ func (m *Model) handleAttackMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		if attack != nil {
 			var result string
-			switch option {
-			case "Attack with Advantage":
+			switch {
+			case option == "Attack with Advantage":
 				result = m.rollAttackDirect(attack, "advantage")
-			case "Attack with Disadvantage":
+			case option == "Attack with Disadvantage":
 				result = m.rollAttackDirect(attack, "disadvantage")
-			case "Attack (Normal)":
+			case option == "Attack (Normal)":
 				result = m.rollAttackDirect(attack, "normal")
-			case "Roll Damage":
+			case strings.HasPrefix(option, "1-Hand Damage"):
 				result = m.rollDamageDirect(attack)
-			case "Roll Damage with Advantage":
-				result = m.rollDamageWithAdvantage(attack)
+			case strings.HasPrefix(option, "1-Hand Critical"):
+				result = m.rollCriticalDamage(attack, attack.DamageDice)
+			case strings.HasPrefix(option, "2-Hands Damage"):
+				result = m.rollVersatileDamage(attack)
+			case strings.HasPrefix(option, "2-Hands Critical"):
+				result = m.rollCriticalDamage(attack, attack.VersatileDamage)
+			case strings.HasPrefix(option, "Damage"):
+				result = m.rollDamageDirect(attack)
+			case strings.HasPrefix(option, "Critical Hit"):
+				result = m.rollCriticalDamage(attack, attack.DamageDice)
 			default:
 				result = fmt.Sprintf("Unknown option: %s", option)
 			}
@@ -641,26 +649,51 @@ func (m *Model) rollDamageDirect(attack *models.Attack) string {
 	return attack.FormatDamageRoll(result.Rolls, total)
 }
 
-// rollDamageWithAdvantage performs a damage roll with advantage (roll twice, take higher)
-func (m *Model) rollDamageWithAdvantage(attack *models.Attack) string {
-	result1, err1 := dice.Roll(attack.DamageDice, dice.Normal)
-	result2, err2 := dice.Roll(attack.DamageDice, dice.Normal)
-
-	if err1 != nil || err2 != nil {
-		return fmt.Sprintf("Error rolling damage: %v", err1)
+// rollVersatileDamage performs a damage roll with two-handed versatile damage
+func (m *Model) rollVersatileDamage(attack *models.Attack) string {
+	result, err := dice.Roll(attack.VersatileDamage, dice.Normal)
+	if err != nil {
+		return fmt.Sprintf("Error rolling damage: %v", err)
 	}
 
-	total1 := result1.Total + attack.DamageBonus
-	total2 := result2.Total + attack.DamageBonus
+	total := result.Total + attack.DamageBonus
+	return fmt.Sprintf("%s (2-Hands): Damage = %v +%d = %d %s",
+		attack.Name, result.Rolls, attack.DamageBonus, total, attack.DamageType)
+}
 
-	// Use the higher total
-	if total1 >= total2 {
-		return fmt.Sprintf("%s: Damage = %v +%d = %d %s [Advantage: rolled %d, %d]",
-			attack.Name, result1.Rolls, attack.DamageBonus, total1, attack.DamageType, total1, total2)
-	} else {
-		return fmt.Sprintf("%s: Damage = %v +%d = %d %s [Advantage: rolled %d, %d]",
-			attack.Name, result2.Rolls, attack.DamageBonus, total2, attack.DamageType, total1, total2)
+// rollCriticalDamage performs a critical hit damage roll (double dice)
+func (m *Model) rollCriticalDamage(attack *models.Attack, damageDice string) string {
+	// Double the damage dice for critical hits
+	// Parse dice notation (e.g., "1d8" -> "2d8", "2d6" -> "4d6")
+	critDice := damageDice
+
+	// Simple parsing: if it starts with a number, double it
+	parts := strings.Split(damageDice, "d")
+	if len(parts) == 2 {
+		numDice := 1
+		if parts[0] != "" {
+			if n, err := fmt.Sscanf(parts[0], "%d", &numDice); err == nil && n == 1 {
+				critDice = fmt.Sprintf("%dd%s", numDice*2, parts[1])
+			}
+		} else {
+			// "d8" format, assume 1d8
+			critDice = fmt.Sprintf("2d%s", parts[1])
+		}
 	}
+
+	result, err := dice.Roll(critDice, dice.Normal)
+	if err != nil {
+		return fmt.Sprintf("Error rolling critical damage: %v", err)
+	}
+
+	total := result.Total + attack.DamageBonus
+	label := "Critical Hit"
+	if attack.VersatileDamage != "" && damageDice == attack.VersatileDamage {
+		label = "Critical Hit (2-Hands)"
+	}
+
+	return fmt.Sprintf("%s %s: Damage = %v +%d = %d %s",
+		attack.Name, label, result.Rolls, attack.DamageBonus, total, attack.DamageType)
 }
 
 // handleAttackRollerKeys handles keys when attack roller is visible
