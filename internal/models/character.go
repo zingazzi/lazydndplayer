@@ -66,6 +66,9 @@ type Character struct {
 	SpeciesSkills       []SkillType    `json:"species_skills"` // Track which skills came from species
 	SpeciesSpells       []string       `json:"species_spells"` // Track which spells came from species
 
+	// Choice Tracking (for easy rollback)
+	Choices *CharacterChoices `json:"choices"` // Tracks all user choices for rollback
+
 	// Inspiration
 	Inspiration bool `json:"inspiration"` // Can be used to gain advantage on rolls
 
@@ -117,6 +120,7 @@ func NewCharacter() *Character {
 		SpeciesTraits: []SpeciesTrait{},
 		SpeciesSkills: []SkillType{},
 		SpeciesSpells: []string{},
+		Choices:       NewCharacterChoices(),
 	}
 	char.UpdateDerivedStats()
 	return char

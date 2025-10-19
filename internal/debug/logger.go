@@ -36,14 +36,14 @@ func Log(format string, args ...interface{}) {
 	if !isEnabled {
 		return
 	}
-	
+
 	logMutex.Lock()
 	defer logMutex.Unlock()
-	
+
 	timestamp := time.Now().Format("15:04:05.000")
 	message := fmt.Sprintf(format, args...)
 	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
-	
+
 	if logFile != nil {
 		logFile.WriteString(logLine)
 		logFile.Sync() // Flush immediately for real-time debugging
@@ -59,4 +59,3 @@ func Close() {
 	}
 	isEnabled = false
 }
-
