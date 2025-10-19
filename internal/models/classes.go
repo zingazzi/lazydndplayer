@@ -155,6 +155,10 @@ func ApplyClassToCharacter(char *Character, className string) error {
 	char.WeaponProficiencies = make([]string, len(class.WeaponProficiencies))
 	copy(char.WeaponProficiencies, class.WeaponProficiencies)
 
+	// Apply saving throw proficiencies
+	char.SavingThrowProficiencies = make([]string, len(class.SavingThrows))
+	copy(char.SavingThrowProficiencies, class.SavingThrows)
+
 	// Calculate and set HP
 	newMaxHP := CalculateMaxHP(char, class)
 

@@ -11,16 +11,42 @@ import (
 
 // StatsPanel displays ability scores and saving throws
 type StatsPanel struct {
-	character     *models.Character
-	selectedIndex int
+	character      *models.Character
+	selectedAbility int // 0-5 for the selected ability
 }
 
 // NewStatsPanel creates a new stats panel
 func NewStatsPanel(char *models.Character) *StatsPanel {
 	return &StatsPanel{
-		character:     char,
-		selectedIndex: 0,
+		character:      char,
+		selectedAbility: 0,
 	}
+}
+
+// Next moves to next ability
+func (p *StatsPanel) Next() {
+	p.selectedAbility = (p.selectedAbility + 1) % 6
+}
+
+// Prev moves to previous ability
+func (p *StatsPanel) Prev() {
+	p.selectedAbility--
+	if p.selectedAbility < 0 {
+		p.selectedAbility = 5
+	}
+}
+
+// GetSelectedAbility returns the currently selected ability
+func (p *StatsPanel) GetSelectedAbility() models.AbilityType {
+	abilities := []models.AbilityType{
+		models.Strength,
+		models.Dexterity,
+		models.Constitution,
+		models.Intelligence,
+		models.Wisdom,
+		models.Charisma,
+	}
+	return abilities[p.selectedAbility]
 }
 
 // View renders the stats panel
@@ -37,10 +63,6 @@ func (p *StatsPanel) View(width, height int) string {
 		Bold(true).
 		Width(15)
 
-	scoreStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252")).
-		Width(5)
-
 	modPositiveStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("42")).
 		Bold(true)
@@ -51,6 +73,13 @@ func (p *StatsPanel) View(width, height int) string {
 
 	var lines []string
 	lines = append(lines, titleStyle.Render("ABILITY SCORES"))
+	lines = append(lines, "")
+
+	// Header
+	headerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Bold(true)
+	lines = append(lines, headerStyle.Render(fmt.Sprintf("%-14s %5s  %5s  %6s", "Ability", "Score", "Mod", "Save")))
 	lines = append(lines, "")
 
 	abilities := []models.AbilityType{
@@ -71,10 +100,29 @@ func (p *StatsPanel) View(width, height int) string {
 		models.Charisma:     "Charisma",
 	}
 
-	for _, ability := range abilities {
+	selectedStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("230")).
+		Background(lipgloss.Color("237")).
+		Bold(true)
+
+	for i, ability := range abilities {
 		score := char.AbilityScores.GetScore(ability)
 		modifier := char.AbilityScores.GetModifier(ability)
-		saveProficient := char.SavingThrows.IsProficient(ability)
+
+		// Check if proficient in this saving throw (from class)
+		isProficient := false
+		abilityName := abilityNames[ability] // Use full name (e.g., "Dexterity")
+		for _, prof := range char.SavingThrowProficiencies {
+			if strings.EqualFold(prof, abilityName) {
+				isProficient = true
+				break
+			}
+		}
+
+		saveBonus := modifier
+		if isProficient {
+			saveBonus += char.ProficiencyBonus
+		}
 
 		modStr := fmt.Sprintf("%+d", modifier)
 		modStyle := modPositiveStyle
@@ -82,36 +130,42 @@ func (p *StatsPanel) View(width, height int) string {
 			modStyle = modNegativeStyle
 		}
 
-		saveBonus := modifier
-		if saveProficient {
-			saveBonus += char.ProficiencyBonus
+		saveStr := fmt.Sprintf("%+d", saveBonus)
+		saveStyle := modPositiveStyle
+		if saveBonus < 0 {
+			saveStyle = modNegativeStyle
 		}
 
-		profMarker := " "
-		if saveProficient {
-			profMarker = "●"
+		// Add proficiency indicator
+		if isProficient {
+			saveStr = "⦿" + saveStr
+		} else {
+			saveStr = " " + saveStr
 		}
 
-		line := fmt.Sprintf("%s %s %s (%s)  Save: %+d %s",
+		line := fmt.Sprintf("%-14s %5d  %s  %s",
 			labelStyle.Render(abilityNames[ability]),
-			scoreStyle.Render(fmt.Sprintf("%d", score)),
-			modStyle.Render(modStr),
-			string(ability),
-			saveBonus,
-			profMarker,
+			score,
+			modStyle.Render(fmt.Sprintf("%5s", modStr)),
+			saveStyle.Render(fmt.Sprintf("%6s", saveStr)),
 		)
 
-		lines = append(lines, line)
+		// Highlight selected ability
+		if i == p.selectedAbility {
+			lines = append(lines, selectedStyle.Render("▶ "+line))
+		} else {
+			lines = append(lines, "  "+line)
+		}
 	}
 
 	lines = append(lines, "")
 	lines = append(lines, lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("● = Proficient in saving throw"))
+		Render("⦿ = Proficient in saving throw"))
 	lines = append(lines, "")
 	lines = append(lines, lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("Press 'r' to roll stats  •  'e' to edit modifiers  •  't' to roll ability check/save"))
+		Render("↑/↓: Select  •  'r' Roll stats  •  'e' Edit modifiers  •  't' Saving throw  •  'a' Ability check"))
 
 	content := strings.Join(lines, "\n")
 

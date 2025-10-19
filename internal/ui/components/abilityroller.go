@@ -133,8 +133,16 @@ func (a *AbilityRoller) GetRollExpression(char *models.Character) string {
 	modifier := char.AbilityScores.GetModifier(ability)
 
 	if rollType == RollSavingThrow {
-		// Add proficiency bonus if proficient
-		if char.SavingThrows.IsProficient(ability) {
+		// Add proficiency bonus if proficient (check class proficiencies)
+		isProficient := false
+		for _, prof := range char.SavingThrowProficiencies {
+			if strings.EqualFold(prof, string(ability)) {
+				isProficient = true
+				break
+			}
+		}
+
+		if isProficient {
 			modifier += char.ProficiencyBonus
 		}
 	}

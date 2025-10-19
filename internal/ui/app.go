@@ -362,6 +362,10 @@ func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleStatsPanel handles stats panel specific keys
 func (m *Model) handleStatsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "up", "k":
+		m.statsPanel.Prev()
+	case "down", "j":
+		m.statsPanel.Next()
 	case "e":
 		// Go directly to extras/modifier editing
 		m.statGenerator.ShowExtrasOnly(&m.character.AbilityScores)
@@ -371,11 +375,89 @@ func (m *Model) handleStatsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.statGenerator.Show(&m.character.AbilityScores)
 		m.message = "Generate ability scores..."
 	case "t":
-		// Open ability roller (test/saving throw)
-		m.abilityRoller.Show()
-		m.message = "Select ability and roll type..."
+		// Roll saving throw for selected ability
+		selectedAbility := m.statsPanel.GetSelectedAbility()
+		m.rollSavingThrow(selectedAbility)
+	case "a":
+		// Roll ability check for selected ability
+		selectedAbility := m.statsPanel.GetSelectedAbility()
+		m.rollAbilityCheck(selectedAbility)
 	}
 	return m, nil
+}
+
+// rollSavingThrow rolls a saving throw for the given ability
+func (m *Model) rollSavingThrow(ability models.AbilityType) {
+	char := m.character
+	modifier := char.AbilityScores.GetModifier(ability)
+
+	// Check if proficient in this saving throw
+	isProficient := false
+	abilityFullName := ""
+	switch ability {
+	case models.Strength:
+		abilityFullName = "Strength"
+	case models.Dexterity:
+		abilityFullName = "Dexterity"
+	case models.Constitution:
+		abilityFullName = "Constitution"
+	case models.Intelligence:
+		abilityFullName = "Intelligence"
+	case models.Wisdom:
+		abilityFullName = "Wisdom"
+	case models.Charisma:
+		abilityFullName = "Charisma"
+	}
+
+	for _, prof := range char.SavingThrowProficiencies {
+		if strings.EqualFold(prof, abilityFullName) {
+			isProficient = true
+			break
+		}
+	}
+
+	// Add proficiency bonus if proficient
+	if isProficient {
+		modifier += char.ProficiencyBonus
+	}
+
+	// Roll 1d20 + modifier
+	expression := fmt.Sprintf("1d20%+d", modifier)
+	m.dicePanel.Roll(expression)
+
+	profStr := ""
+	if isProficient {
+		profStr = " (proficient)"
+	}
+	m.message = fmt.Sprintf("Rolled %s saving throw%s: %s", abilityFullName, profStr, expression)
+}
+
+// rollAbilityCheck rolls an ability check for the given ability
+func (m *Model) rollAbilityCheck(ability models.AbilityType) {
+	char := m.character
+	modifier := char.AbilityScores.GetModifier(ability)
+
+	abilityFullName := ""
+	switch ability {
+	case models.Strength:
+		abilityFullName = "Strength"
+	case models.Dexterity:
+		abilityFullName = "Dexterity"
+	case models.Constitution:
+		abilityFullName = "Constitution"
+	case models.Intelligence:
+		abilityFullName = "Intelligence"
+	case models.Wisdom:
+		abilityFullName = "Wisdom"
+	case models.Charisma:
+		abilityFullName = "Charisma"
+	}
+
+	// Roll 1d20 + modifier (no proficiency for raw ability checks)
+	expression := fmt.Sprintf("1d20%+d", modifier)
+	m.dicePanel.Roll(expression)
+
+	m.message = fmt.Sprintf("Rolled %s ability check: %s", abilityFullName, expression)
 }
 
 // handleActionsPanelKeys handles keys when actions panel has focus
