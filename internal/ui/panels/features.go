@@ -246,24 +246,53 @@ func (p *FeaturesPanel) PageUp() {
 }
 
 func (p *FeaturesPanel) UseFeature() {
-	if len(p.character.Features.Features) > 0 {
-		p.character.Features.UseFeature(p.selectedIndex)
+	actualIndex := p.getActualFeatureIndex()
+	if actualIndex >= 0 {
+		p.character.Features.UseFeature(actualIndex)
 	}
 }
 
 func (p *FeaturesPanel) RestoreFeature() {
-	if len(p.character.Features.Features) > 0 {
-		p.character.Features.RestoreFeature(p.selectedIndex)
+	actualIndex := p.getActualFeatureIndex()
+	if actualIndex >= 0 {
+		p.character.Features.RestoreFeature(actualIndex)
 	}
 }
 
 func (p *FeaturesPanel) RemoveFeature() {
-	if len(p.character.Features.Features) > 0 {
-		p.character.Features.RemoveFeature(p.selectedIndex)
-		if p.selectedIndex >= len(p.character.Features.Features) && p.selectedIndex > 0 {
+	actualIndex := p.getActualFeatureIndex()
+	if actualIndex >= 0 {
+		p.character.Features.RemoveFeature(actualIndex)
+
+		// Count remaining usable features
+		usableCount := 0
+		for _, feature := range p.character.Features.Features {
+			if feature.MaxUses > 0 {
+				usableCount++
+			}
+		}
+
+		// Adjust selection if needed
+		if p.selectedIndex >= usableCount && p.selectedIndex > 0 {
 			p.selectedIndex--
 		}
 	}
+}
+
+// getActualFeatureIndex maps the selected index (in usable features) to the actual index in the full features array
+func (p *FeaturesPanel) getActualFeatureIndex() int {
+	// Build list of usable features indices (skip passive ones with MaxUses == 0)
+	usableFeatures := []int{}
+	for i, feature := range p.character.Features.Features {
+		if feature.MaxUses > 0 {
+			usableFeatures = append(usableFeatures, i)
+		}
+	}
+
+	if p.selectedIndex >= 0 && p.selectedIndex < len(usableFeatures) {
+		return usableFeatures[p.selectedIndex]
+	}
+	return -1
 }
 
 // GetSelectedIndex returns the currently selected feature index

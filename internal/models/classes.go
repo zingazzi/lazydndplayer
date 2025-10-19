@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 )
 
 // Class represents a D&D 5e class
@@ -167,6 +169,14 @@ func ApplyClassToCharacter(char *Character, className string) error {
 		return fmt.Errorf("class %s not found", className)
 	}
 
+	// Note: char.Class might be empty due to BackupClass clearing it
+	// So we can't use char.Class to identify old features
+	// Features must be removed by checking their Source field
+	debug.Log("ApplyClassToCharacter: Applying %s (current char.Class='%s')", className, char.Class)
+
+	// Remove previous class features by checking Source field
+	RemoveAllClassFeatures(char)
+
 	// Remove previous fighting style if changing class
 	if char.FightingStyle != "" {
 		RemoveFightingStyle(char)
@@ -187,7 +197,7 @@ func ApplyClassToCharacter(char *Character, className string) error {
 	char.SavingThrowProficiencies = make([]string, len(class.SavingThrows))
 	copy(char.SavingThrowProficiencies, class.SavingThrows)
 
-	// Grant level 1 class features
+	// Grant level 1 class features (this will add new class features)
 	GrantClassFeatures(char, class)
 
 	// Calculate and set HP
@@ -251,10 +261,7 @@ func HasWeaponProficiency(char *Character, weaponType string) bool {
 
 // GrantClassFeatures grants level 1 features from a class
 func GrantClassFeatures(char *Character, class *Class) {
-	// Remove previous class features (if any)
-	RemoveClassFeatures(char)
-	
-	// Add level 1 features
+	// Add level 1 features (removal is now done in ApplyClassToCharacter)
 	for _, featureDef := range class.Level1Features {
 		// Convert definition to actual feature
 		source := fmt.Sprintf("Class: %s", class.Name)
@@ -263,21 +270,54 @@ func GrantClassFeatures(char *Character, class *Class) {
 	}
 }
 
-// RemoveClassFeatures removes all features from the current class
-func RemoveClassFeatures(char *Character) {
-	if char.Class == "" {
+// RemoveClassFeatures removes all features from a specific class
+func RemoveClassFeatures(char *Character, className string) {
+	debug.Log("RemoveClassFeatures: Called for class='%s'", className)
+
+	if className == "" {
+		debug.Log("RemoveClassFeatures: No class name provided, returning")
 		return
 	}
 
 	// Remove features that came from the class
-	sourcePrefix := fmt.Sprintf("Class: %s", char.Class)
+	sourcePrefix := fmt.Sprintf("Class: %s", className)
 	newFeatures := []Feature{}
 
-	for _, feature := range char.Features.Features {
+	debug.Log("RemoveClassFeatures: Looking for source='%s'", sourcePrefix)
+	debug.Log("RemoveClassFeatures: Total features before: %d", len(char.Features.Features))
+
+	for i, feature := range char.Features.Features {
+		debug.Log("  Feature[%d]: Name='%s', Source='%s', Match=%v",
+			i, feature.Name, feature.Source, feature.Source == sourcePrefix)
 		if feature.Source != sourcePrefix {
 			newFeatures = append(newFeatures, feature)
+		} else {
+			debug.Log("    -> REMOVING this feature")
 		}
 	}
 
+	debug.Log("RemoveClassFeatures: Total features after: %d", len(newFeatures))
+	char.Features.Features = newFeatures
+}
+
+// RemoveAllClassFeatures removes features from ANY class (by checking Source prefix)
+func RemoveAllClassFeatures(char *Character) {
+	debug.Log("RemoveAllClassFeatures: Called")
+	newFeatures := []Feature{}
+
+	debug.Log("RemoveAllClassFeatures: Total features before: %d", len(char.Features.Features))
+
+	for i, feature := range char.Features.Features {
+		isClassFeature := strings.HasPrefix(feature.Source, "Class: ")
+		debug.Log("  Feature[%d]: Name='%s', Source='%s', IsClassFeature=%v",
+			i, feature.Name, feature.Source, isClassFeature)
+		if !isClassFeature {
+			newFeatures = append(newFeatures, feature)
+		} else {
+			debug.Log("    -> REMOVING this class feature")
+		}
+	}
+
+	debug.Log("RemoveAllClassFeatures: Total features after: %d", len(newFeatures))
 	char.Features.Features = newFeatures
 }

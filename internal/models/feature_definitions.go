@@ -42,13 +42,13 @@ func (fd *FeatureDefinition) CalculateMaxUses(char *Character) int {
 // ToFeature converts a definition to an actual Feature instance
 func (fd *FeatureDefinition) ToFeature(char *Character, source string) Feature {
 	maxUses := fd.CalculateMaxUses(char)
-	
+
 	// Initialize CurrentUses to MaxUses (feature starts fully charged)
 	currentUses := maxUses
 	if maxUses == 0 {
 		currentUses = 0 // Passive features stay at 0
 	}
-	
+
 	return Feature{
 		Name:        fd.Name,
 		Description: fd.Description,
