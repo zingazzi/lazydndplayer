@@ -285,20 +285,12 @@ func (is *ItemSelector) View(width, height int) string {
 		return ""
 	}
 
-	// Initialize viewport if needed
-	if is.viewport.Width == 0 {
-		is.viewport = viewport.New(width-10, height-15)
-		is.viewport.Style = lipgloss.NewStyle()
-	}
-	is.viewport.Width = width - 10
-	is.viewport.Height = height - 15
-
 	// Styles
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("170")).
 		Align(lipgloss.Center).
-		Width(width - 10)
+		Width(width - 4)
 
 	selectedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("170")).
@@ -342,40 +334,124 @@ func (is *ItemSelector) View(width, height int) string {
 		content.WriteString(helpStyle.Render("↑/↓: Navigate • Enter: Select • ESC: Cancel"))
 
 	case ItemModeSearch, ItemModeList:
+		// Two-column layout: item list on left, details on right
 		content.WriteString(titleStyle.Render(fmt.Sprintf("ADD ITEM - %s", strings.ToUpper(is.currentCategory))))
 		content.WriteString("\n\n")
 
-		// Search box
-		content.WriteString(labelStyle.Render("Search: "))
-		content.WriteString(is.searchInput.View())
-		content.WriteString(fmt.Sprintf(" (%d items)", len(is.items)))
-		content.WriteString("\n\n")
+		// Calculate column widths
+		leftWidth := (width - 8) / 2
+		rightWidth := (width - 8) - leftWidth - 2
 
-		// Item list
+		// Left column: Item list
+		var leftCol strings.Builder
+		leftCol.WriteString(labelStyle.Render("Search: "))
+		leftCol.WriteString(is.searchInput.View())
+		leftCol.WriteString(fmt.Sprintf(" (%d)", len(is.items)))
+		leftCol.WriteString("\n\n")
+
 		if len(is.items) == 0 {
-			content.WriteString(helpStyle.Render("No items found"))
+			leftCol.WriteString(helpStyle.Render("No items found"))
 		} else {
-			var itemList strings.Builder
-			for i, item := range is.items {
-				line := fmt.Sprintf("%-30s %6.2f gp  %.1f lbs",
-					item.Name,
+			maxItems := (height - 12) // Limit displayed items
+			startIdx := 0
+			if is.selectedItem > maxItems/2 && len(is.items) > maxItems {
+				startIdx = is.selectedItem - maxItems/2
+				if startIdx+maxItems > len(is.items) {
+					startIdx = len(is.items) - maxItems
+				}
+			}
+			endIdx := startIdx + maxItems
+			if endIdx > len(is.items) {
+				endIdx = len(is.items)
+			}
+
+			for i := startIdx; i < endIdx; i++ {
+				item := is.items[i]
+				line := fmt.Sprintf("%-20s %5.0f gp",
+					truncateItemName(item.Name, 20),
 					item.PriceGP,
-					item.Weight,
 				)
 				if i == is.selectedItem {
-					itemList.WriteString(selectedStyle.Render("▶ " + line))
+					leftCol.WriteString(selectedStyle.Render("▶ " + line))
 				} else {
-					itemList.WriteString(normalStyle.Render("  " + line))
+					leftCol.WriteString(normalStyle.Render("  " + line))
 				}
-				itemList.WriteString("\n")
+				leftCol.WriteString("\n")
 			}
-			is.viewport.SetContent(itemList.String())
-			content.WriteString(is.viewport.View())
 		}
 
+		// Right column: Item details
+		var rightCol strings.Builder
+		if is.selectedItem >= 0 && is.selectedItem < len(is.items) {
+			selectedItem := is.items[is.selectedItem]
+
+			rightCol.WriteString(labelStyle.Render("═══ ITEM DETAILS ═══"))
+			rightCol.WriteString("\n\n")
+
+			rightCol.WriteString(labelStyle.Render(selectedItem.Name))
+			rightCol.WriteString("\n\n")
+
+			rightCol.WriteString(labelStyle.Render("Category: "))
+			rightCol.WriteString(normalStyle.Render(selectedItem.Category))
+			rightCol.WriteString("\n")
+
+			if selectedItem.Subcategory != "" {
+				rightCol.WriteString(labelStyle.Render("Type: "))
+				rightCol.WriteString(normalStyle.Render(selectedItem.Subcategory))
+				rightCol.WriteString("\n")
+			}
+
+			rightCol.WriteString(labelStyle.Render("Price: "))
+			rightCol.WriteString(normalStyle.Render(fmt.Sprintf("%.2f gp", selectedItem.PriceGP)))
+			rightCol.WriteString("\n")
+
+			rightCol.WriteString(labelStyle.Render("Weight: "))
+			rightCol.WriteString(normalStyle.Render(fmt.Sprintf("%.1f lbs", selectedItem.Weight)))
+			rightCol.WriteString("\n")
+
+			// Weapon/Armor specific info
+			if selectedItem.Damage != "" {
+				rightCol.WriteString(labelStyle.Render("Damage: "))
+				rightCol.WriteString(normalStyle.Render(fmt.Sprintf("%s %s", selectedItem.Damage, selectedItem.DamageType)))
+				rightCol.WriteString("\n")
+			}
+
+			if selectedItem.AC != "" {
+				rightCol.WriteString(labelStyle.Render("AC: "))
+				rightCol.WriteString(normalStyle.Render(selectedItem.AC))
+				rightCol.WriteString("\n")
+			}
+
+			if len(selectedItem.Properties) > 0 {
+				rightCol.WriteString(labelStyle.Render("Properties: "))
+				rightCol.WriteString(normalStyle.Render(strings.Join(selectedItem.Properties, ", ")))
+				rightCol.WriteString("\n")
+			}
+
+			// Description
+			if selectedItem.Description != "" {
+				rightCol.WriteString("\n")
+				rightCol.WriteString(labelStyle.Render("Description:"))
+				rightCol.WriteString("\n")
+				wrapped := wrapItemText(selectedItem.Description, rightWidth-2)
+				rightCol.WriteString(normalStyle.Render(wrapped))
+			}
+		}
+
+		// Combine columns
+		leftColStr := lipgloss.NewStyle().
+			Width(leftWidth).
+			Render(leftCol.String())
+
+		rightColStr := lipgloss.NewStyle().
+			Width(rightWidth).
+			Render(rightCol.String())
+
+		content.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftColStr, "  ", rightColStr))
 		content.WriteString("\n\n")
+
 		if is.mode == ItemModeSearch {
-			content.WriteString(helpStyle.Render("Type to search • ↓: Navigate • Enter: Confirm • ESC: Back"))
+			content.WriteString(helpStyle.Render("Type to search • ↓: Navigate • Enter: Select • ESC: Back"))
 		} else {
 			content.WriteString(helpStyle.Render("↑/↓: Navigate • Enter: Select • /: Search • ESC: Back"))
 		}
@@ -417,6 +493,55 @@ func (is *ItemSelector) View(width, height int) string {
 	}
 
 	return boxStyle.Render(content.String())
+}
+
+// truncateItemName truncates an item name to maxLen
+func truncateItemName(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
+}
+
+// wrapItemText wraps text to fit within width
+func wrapItemText(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return text
+	}
+
+	var lines []string
+	var currentLine string
+
+	for _, word := range words {
+		testLine := currentLine
+		if testLine != "" {
+			testLine += " "
+		}
+		testLine += word
+
+		if len(testLine) <= width {
+			currentLine = testLine
+		} else {
+			if currentLine != "" {
+				lines = append(lines, currentLine)
+			}
+			currentLine = word
+		}
+	}
+
+	if currentLine != "" {
+		lines = append(lines, currentLine)
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // Update handles viewport updates

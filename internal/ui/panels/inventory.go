@@ -172,7 +172,7 @@ func (p *InventoryPanel) View(width, height int) string {
 	lines = append(lines, "")
 	lines = append(lines, lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("[E] = Equipped  |  'a' Add  |  'e' Equip  |  'd' Remove 1  |  'D' Remove All"))
+		Render("[E] = Equipped  |  'Enter' Details  |  'a' Add  |  'e' Equip  |  'd' Remove 1  |  'D' Remove All"))
 
 	content := strings.Join(lines, "\n")
 	p.viewport.SetContent(content)

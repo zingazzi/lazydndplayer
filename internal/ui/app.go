@@ -72,6 +72,7 @@ type Model struct {
 	spellSelector    *components.SpellSelector
 	featSelector          *components.FeatSelector
 	featDetailPopup       *components.FeatDetailPopup
+	itemDetailPopup       *components.ItemDetailPopup
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
 	itemSelector          *components.ItemSelector
@@ -120,6 +121,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		spellSelector:       components.NewSpellSelector(),
 		featSelector:          components.NewFeatSelector(),
 		featDetailPopup:       components.NewFeatDetailPopup(),
+		itemDetailPopup:       components.NewItemDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
 		itemSelector:          components.NewItemSelector(),
@@ -260,6 +262,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if feat detail popup is active
 		if m.featDetailPopup.IsVisible() {
 			return m.handleFeatDetailPopupKeys(msg)
+		}
+
+		// Check if item detail popup is active
+		if m.itemDetailPopup.IsVisible() {
+			return m.handleItemDetailPopupKeys(msg)
 		}
 
 		// Check if origin selector is active
@@ -472,6 +479,13 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.inventoryPanel.Prev()
 	case "down", "j":
 		m.inventoryPanel.Next()
+	case "enter":
+		// Show item details
+		item := m.inventoryPanel.GetSelectedItem()
+		if item != nil {
+			m.itemDetailPopup.Show(item)
+			m.message = "Viewing item details..."
+		}
 	case "e":
 		// Toggle equipped status for selected item
 		item := m.inventoryPanel.GetSelectedItem()
@@ -1474,6 +1488,15 @@ func (m *Model) handleFeatDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) handleItemDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.itemDetailPopup.Hide()
+		m.message = "Closed item details"
+	}
+	return m, nil
+}
+
 // handleOriginSelectorKeys handles keyboard input for the origin selector
 func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -1920,6 +1943,11 @@ func (m *Model) View() string {
 	// Feat detail popup (Medium)
 	if m.featDetailPopup.IsVisible() {
 		return m.featDetailPopup.View(popupMediumWidth, popupMediumHeight)
+	}
+
+	// Item detail popup (Medium)
+	if m.itemDetailPopup.IsVisible() {
+		return m.itemDetailPopup.View(m.width, m.height)
 	}
 
 	// Origin selector (Medium)
