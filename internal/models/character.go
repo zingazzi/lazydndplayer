@@ -35,6 +35,7 @@ type Character struct {
 	// Skills & Proficiencies
 	Skills                    Skills   `json:"skills"`
 	ProficiencyBonus          int      `json:"proficiency_bonus"`
+	ClassSkills               []SkillType `json:"class_skills"`             // Track which skills came from class
 	ToolProficiencies         []string `json:"tool_proficiencies"`          // Tool proficiencies from origins/classes
 	ArmorProficiencies        []string `json:"armor_proficiencies"`         // Armor proficiencies from class
 	WeaponProficiencies       []string `json:"weapon_proficiencies"`        // Weapon proficiencies from class
@@ -120,6 +121,7 @@ func NewCharacter() *Character {
 		SpeciesTraits: []SpeciesTrait{},
 		SpeciesSkills: []SkillType{},
 		SpeciesSpells: []string{},
+		ClassSkills:   []SkillType{},
 		Choices:       NewCharacterChoices(),
 	}
 	char.UpdateDerivedStats()

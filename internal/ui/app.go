@@ -108,6 +108,7 @@ type Model struct {
 	quitting           bool
 	pendingFeat        *models.Feat   // Temporarily store feat while choosing ability
 	pendingOrigin      *models.Origin // Temporarily store origin while choosing ability
+	pendingChanges     *models.PendingChanges // Transaction system for rollback support
 }
 
 // NewModel creates a new application model
@@ -146,6 +147,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		actionsPanel:        panels.NewActionsPanel(char),
 		currentPanel:        StatsPanel,
 		focusArea:           FocusMain,
+		pendingChanges:      models.NewPendingChanges(),
 	}
 }
 
@@ -880,6 +882,9 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// In normal mode, allow class change
 	switch msg.String() {
 	case "c":
+		// Backup current class state before opening selector
+		m.pendingChanges.BackupClass(m.character)
+		debug.Log("Backed up class state: %s", m.character.Class)
 		m.classSelector.Show()
 		m.message = "Select a class..."
 		return m, nil
@@ -1396,9 +1401,13 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "esc":
-		debug.Log("Class selector: cancelled")
+		debug.Log("Class selector: cancelled - restoring previous state")
+		// Restore previous class state
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
 		m.classSelector.Hide()
-		m.message = "Class selection cancelled"
+		m.storage.Save(m.character) // Save restored state
+		m.message = "Class selection cancelled - restored previous state"
 	}
 	return m, nil
 }
@@ -1429,6 +1438,9 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			selectedClassName := m.classSkillSelector.ClassName
 			debug.Log("Applying class %s with skills: %v", selectedClassName, selectedSkills)
 
+			// Note: Old class skills were already removed when backup was created
+			// No need to remove them again here
+
 			// Apply the class first
 			err := models.ApplyClassToCharacter(m.character, selectedClassName)
 			if err != nil {
@@ -1447,7 +1459,15 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 					skill.Proficiency = 1 // Grant proficiency
 					debug.Log("Granted proficiency in %s", skillName)
 				}
+				// Track this skill as coming from class
+				m.character.ClassSkills = append(m.character.ClassSkills, skillType)
+				debug.Log("Tracked %s as class skill", skillName)
 			}
+
+			// Record choices for rollback
+			debug.Log("Recording class choice: %s with skills %v", selectedClassName, selectedSkills)
+			m.character.Choices.RecordClassChoice(selectedClassName, "")
+			m.character.Choices.RecordLevelChoice(1, selectedSkills, "", []string{}, "", nil)
 
 			m.classSkillSelector.Hide()
 
@@ -1463,6 +1483,7 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			} else {
 				// No fighting style needed, complete class selection
 				debug.Log("Saving character and completing class selection")
+				m.pendingChanges.Clear() // Clear backup on successful completion
 				m.storage.Save(m.character)
 				m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
 			}
@@ -1471,9 +1492,13 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			m.message = fmt.Sprintf("Please select %d more skill(s)", m.classSkillSelector.MaxChoices-len(m.classSkillSelector.SelectedSkills))
 		}
 	case "esc":
-		debug.Log("Skill selector: cancelled")
+		debug.Log("Skill selector: cancelled - restoring previous state")
+		// Restore previous class state
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
 		m.classSkillSelector.Hide()
-		m.message = "Skill selection cancelled"
+		m.storage.Save(m.character) // Save restored state
+		m.message = "Skill selection cancelled - restored previous state"
 	}
 	return m, nil
 }
@@ -1501,15 +1526,22 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 				m.message = fmt.Sprintf("Error applying fighting style: %v", err)
 			} else {
 				debug.Log("Fighting style '%s' applied successfully", selectedStyle)
+				// Update the choice record with fighting style
+				m.character.Choices.Class.FightingStyle = selectedStyle
+				m.pendingChanges.Clear() // Clear backup on successful completion
 				m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
 			}
 			m.storage.Save(m.character)
 			m.fightingStyleSelector.Hide()
 		}
 	case "esc":
-		debug.Log("Fighting style selector: cancelled")
+		debug.Log("Fighting style selector: cancelled - restoring previous state")
+		// Restore previous class state
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
 		m.fightingStyleSelector.Hide()
-		m.message = "Fighting style selection cancelled"
+		m.storage.Save(m.character) // Save restored state
+		m.message = "Fighting style selection cancelled - restored previous state"
 	}
 	return m, nil
 }
