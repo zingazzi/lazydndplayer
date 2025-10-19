@@ -8,16 +8,17 @@ import (
 
 // Attack represents an attack option for a character
 type Attack struct {
-	Name              string `json:"name"`
-	AttackBonus       int    `json:"attack_bonus"`        // Modifier to attack roll
-	DamageDice        string `json:"damage_dice"`         // e.g., "1d8", "2d6"
-	VersatileDamage   string `json:"versatile_damage"`    // e.g., "1d10" for two-handed
-	DamageBonus       int    `json:"damage_bonus"`        // Modifier to damage
-	DamageType        string `json:"damage_type"`         // e.g., "slashing", "bludgeoning"
-	IsWeapon          bool   `json:"is_weapon"`           // True if from equipped weapon
-	WeaponName        string `json:"weapon_name"`         // Name of weapon if applicable
-	Range             string `json:"range,omitempty"`     // e.g., "5 ft.", "range 80/320 ft."
-	Properties        []string `json:"properties,omitempty"` // Weapon properties (finesse, versatile, etc.)
+	Name                 string `json:"name"`
+	AttackBonus          int    `json:"attack_bonus"`           // Modifier to attack roll
+	DamageDice           string `json:"damage_dice"`            // e.g., "1d8", "2d6"
+	VersatileDamage      string `json:"versatile_damage"`       // e.g., "1d10" for two-handed
+	DamageBonus          int    `json:"damage_bonus"`           // Modifier to damage (one-handed)
+	TwoHandDamageBonus   int    `json:"two_hand_damage_bonus"`  // Modifier when using two hands (no Dueling bonus)
+	DamageType           string `json:"damage_type"`            // e.g., "slashing", "bludgeoning"
+	IsWeapon             bool   `json:"is_weapon"`              // True if from equipped weapon
+	WeaponName           string `json:"weapon_name"`            // Name of weapon if applicable
+	Range                string `json:"range,omitempty"`        // e.g., "5 ft.", "range 80/320 ft."
+	Properties           []string `json:"properties,omitempty"`  // Weapon properties (finesse, versatile, etc.)
 }
 
 // AttackList holds all available attacks for a character
@@ -113,17 +114,57 @@ func GenerateAttacks(char *Character) AttackList {
 			}
 		}
 
+		// Calculate damage bonus (ability modifier + fighting style bonuses)
+		oneHandDamageBonus := abilityMod
+		twoHandDamageBonus := abilityMod // For versatile weapons used two-handed
+
+		// Check for Dueling fighting style
+		// Dueling: +2 damage when wielding a melee weapon in one hand with no weapon in the other hand
+		// IMPORTANT: Does NOT apply when using a versatile weapon with two hands!
+		if char.FightingStyle == "Dueling" {
+			// Check if this is a melee weapon (not ranged)
+			isMelee := !strings.Contains(strings.ToLower(weaponDef.Subcategory), "ranged")
+
+			// Check if it's a two-handed weapon (can't use Dueling at all)
+			isTwoHanded := false
+			for _, prop := range weaponDef.Properties {
+				if strings.EqualFold(strings.TrimSpace(prop), "two-handed") {
+					isTwoHanded = true
+					break
+				}
+			}
+
+			// Only apply Dueling bonus if it's a melee weapon that can be used one-handed
+			if isMelee && !isTwoHanded {
+				// Check if no other weapon is equipped (shield is okay)
+				otherWeaponCount := 0
+				for j := range char.Inventory.Items {
+					otherItem := &char.Inventory.Items[j]
+					if otherItem.Equipped && otherItem.Type == Weapon && otherItem.Name != item.Name {
+						otherWeaponCount++
+					}
+				}
+
+				// Apply Dueling +2 bonus ONLY to one-handed attacks
+				if otherWeaponCount == 0 {
+					oneHandDamageBonus += 2
+					// twoHandDamageBonus stays as abilityMod (no Dueling bonus when using two hands)
+				}
+			}
+		}
+
 		attacks.Attacks = append(attacks.Attacks, Attack{
-			Name:            item.Name,
-			AttackBonus:     attackBonus,
-			DamageDice:      damageDice,
-			VersatileDamage: versatileDamage,
-			DamageBonus:     abilityMod,
-			DamageType:      damageType,
-			IsWeapon:        true,
-			WeaponName:      item.Name,
-			Range:           weaponDef.Range,
-			Properties:      weaponDef.Properties,
+			Name:               item.Name,
+			AttackBonus:        attackBonus,
+			DamageDice:         damageDice,
+			VersatileDamage:    versatileDamage,
+			DamageBonus:        oneHandDamageBonus,
+			TwoHandDamageBonus: twoHandDamageBonus,
+			DamageType:         damageType,
+			IsWeapon:           true,
+			WeaponName:         item.Name,
+			Range:              weaponDef.Range,
+			Properties:         weaponDef.Properties,
 		})
 	}
 

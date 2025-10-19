@@ -656,9 +656,10 @@ func (m *Model) rollVersatileDamage(attack *models.Attack) string {
 		return fmt.Sprintf("Error rolling damage: %v", err)
 	}
 
-	total := result.Total + attack.DamageBonus
+	// Use TwoHandDamageBonus for two-handed attacks (no Dueling bonus)
+	total := result.Total + attack.TwoHandDamageBonus
 	return fmt.Sprintf("%s (2-Hands): Damage = %v +%d = %d %s",
-		attack.Name, result.Rolls, attack.DamageBonus, total, attack.DamageType)
+		attack.Name, result.Rolls, attack.TwoHandDamageBonus, total, attack.DamageType)
 }
 
 // rollCriticalDamage performs a critical hit damage roll (double dice)
@@ -686,14 +687,20 @@ func (m *Model) rollCriticalDamage(attack *models.Attack, damageDice string) str
 		return fmt.Sprintf("Error rolling critical damage: %v", err)
 	}
 
-	total := result.Total + attack.DamageBonus
+	// Determine which damage bonus to use
+	damageBonus := attack.DamageBonus
 	label := "Critical Hit"
+
+	// If this is a two-handed critical (versatile weapon), use TwoHandDamageBonus
 	if attack.VersatileDamage != "" && damageDice == attack.VersatileDamage {
 		label = "Critical Hit (2-Hands)"
+		damageBonus = attack.TwoHandDamageBonus
 	}
 
+	total := result.Total + damageBonus
+
 	return fmt.Sprintf("%s %s: Damage = %v +%d = %d %s",
-		attack.Name, label, result.Rolls, attack.DamageBonus, total, attack.DamageType)
+		attack.Name, label, result.Rolls, damageBonus, total, attack.DamageType)
 }
 
 // handleAttackRollerKeys handles keys when attack roller is visible

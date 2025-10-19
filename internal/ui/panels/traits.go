@@ -137,6 +137,29 @@ func (p *TraitsPanel) View(width, height int) string {
 	rightCol = append(rightCol, "")
 	rightCol = append(rightCol, "")
 
+	// Fighting Style Section (if character has one)
+	if p.character.FightingStyle != "" {
+		rightCol = append(rightCol, titleStyle.Render("⚔️  FIGHTING STYLE"))
+		rightCol = append(rightCol, "")
+
+		// Get fighting style details for description
+		fightingStyleData := models.GetFightingStyleByName(p.character.FightingStyle)
+		if fightingStyleData != nil {
+			rightCol = append(rightCol, normalStyle.Render("  "+p.character.FightingStyle))
+			// Add description with wrapping
+			descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+			wrapped := wrapText(fightingStyleData.Description, width/2-6)
+			for _, line := range wrapped {
+				rightCol = append(rightCol, descStyle.Render("    "+line))
+			}
+		} else {
+			rightCol = append(rightCol, normalStyle.Render("  "+p.character.FightingStyle))
+		}
+
+		rightCol = append(rightCol, "")
+		rightCol = append(rightCol, "")
+	}
+
 	// Feats Section
 	rightCol = append(rightCol, titleStyle.Render("⭐ FEATS"))
 	rightCol = append(rightCol, "")

@@ -582,15 +582,36 @@ func (s *StatGenerator) renderMethodSelection(titleStyle, selectedStyle, unselec
 func (s *StatGenerator) renderStatsAssignment(titleStyle, selectedStyle, unselectedStyle, instructionStyle lipgloss.Style) string {
 	var lines []string
 
+	// Style for used stats
+	usedStatStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("196")).  // Red
+		Strikethrough(true)
+
 	switch s.method {
 	case Method4d6DropLowest:
 		lines = append(lines, titleStyle.Render("4D6 DROP LOWEST - ASSIGN STATS"))
 		lines = append(lines, "")
 		lines = append(lines, "Roll Results:")
+
+		// Create a map to track which stats are used
+		usedStats := make(map[int]bool)
+		for _, idx := range s.assignments {
+			if idx >= 0 {
+				usedStats[idx] = true
+			}
+		}
+
 		for i, detail := range s.rollDetails {
 			score := s.availableStats[i]
 			modifier := models.CalculateModifier(score)
-			lines = append(lines, fmt.Sprintf("  %d: %s (mod: %+d)", i+1, detail, modifier))
+			line := fmt.Sprintf("  %d: %s (mod: %+d)", i+1, detail, modifier)
+
+			// Mark used stats in red
+			if usedStats[i] {
+				lines = append(lines, usedStatStyle.Render(line)+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("(used)"))
+			} else {
+				lines = append(lines, line)
+			}
 		}
 		lines = append(lines, "")
 		lines = append(lines, s.renderAssignments(selectedStyle, unselectedStyle))
@@ -601,9 +622,25 @@ func (s *StatGenerator) renderStatsAssignment(titleStyle, selectedStyle, unselec
 		lines = append(lines, titleStyle.Render("STANDARD ARRAY - ASSIGN STATS"))
 		lines = append(lines, "")
 		lines = append(lines, "Available values (with modifiers):")
+
+		// Create a map to track which stats are used
+		usedStats := make(map[int]bool)
+		for _, idx := range s.assignments {
+			if idx >= 0 {
+				usedStats[idx] = true
+			}
+		}
+
 		for i, score := range s.availableStats {
 			modifier := models.CalculateModifier(score)
-			lines = append(lines, fmt.Sprintf("  %d: %d (%+d)", i+1, score, modifier))
+			line := fmt.Sprintf("  %d: %d (%+d)", i+1, score, modifier)
+
+			// Mark used stats in red
+			if usedStats[i] {
+				lines = append(lines, usedStatStyle.Render(line)+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("(used)"))
+			} else {
+				lines = append(lines, line)
+			}
 		}
 		lines = append(lines, "")
 		lines = append(lines, s.renderAssignments(selectedStyle, unselectedStyle))
