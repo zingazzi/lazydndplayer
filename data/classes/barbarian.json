@@ -1,0 +1,369 @@
+{
+  "name": "Barbarian",
+  "description": "A fierce warrior of primitive background who can enter a battle rage.",
+  "hit_die": 12,
+  "primary_ability": "Strength",
+  "saving_throws": ["Strength", "Constitution"],
+  "armor_proficiencies": ["Light", "Medium", "Shields"],
+  "weapon_proficiencies": ["Simple", "Martial"],
+  "tool_proficiencies": [],
+  "skill_choices": {
+    "choose": 2,
+    "from": ["Animal Handling", "Athletics", "Intimidation", "Nature", "Perception", "Survival"]
+  },
+  "starting_equipment": [
+    "Greataxe or any Martial Melee Weapon",
+    "2 Handaxes or any Simple Weapon",
+    "Explorer's Pack",
+    "4 Javelins"
+  ],
+  "spellcasting": null,
+  "level_progression": [
+    {
+      "level": 1,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Rage",
+          "description": "In battle, you fight with primal ferocity. On your turn, you can enter a rage as a bonus action. While raging, you gain the following benefits if you aren't wearing heavy armor:\n• You have advantage on Strength checks and Strength saving throws.\n• When you make a melee weapon attack using Strength, you gain a +2 bonus to the damage roll.\n• You have resistance to bludgeoning, piercing, and slashing damage.",
+          "uses": {
+            "max": 2,
+            "recharge": "long_rest"
+          },
+          "mechanics": {
+            "damage_bonus": 2,
+            "rage_count": 2
+          }
+        },
+        {
+          "name": "Unarmored Defense",
+          "description": "While you are not wearing any armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit."
+        },
+        {
+          "name": "Weapon Mastery",
+          "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons of your choice with which you have proficiency, such as Greataxes and Handaxes.",
+          "mechanics": {
+            "weapons_mastered": 2
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 2,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Reckless Attack",
+          "description": "Starting at 2nd level, you can throw aside all concern for defense to attack with fierce desperation. When you make your first attack on your turn, you can decide to attack recklessly. Doing so gives you advantage on melee weapon attack rolls using Strength during this turn, but attack rolls against you have advantage until your next turn."
+        },
+        {
+          "name": "Danger Sense",
+          "description": "At 2nd level, you gain an uncanny sense of when things nearby aren't as they should be, giving you an edge when you dodge away from danger. You have advantage on Dexterity saving throws against effects that you can see, such as traps and spells. To gain this benefit, you can't be blinded, deafened, or incapacitated."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 3,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Primal Path",
+          "description": "At 3rd level, you choose a path that shapes the nature of your rage. Your choice grants you features at 3rd level and again at 6th, 10th, and 14th levels.",
+          "subclass_choice": true
+        },
+        {
+          "name": "Rage Improvement",
+          "description": "Your rage damage bonus increases and you gain more uses.",
+          "uses": {
+            "max": 3,
+            "recharge": "long_rest"
+          },
+          "mechanics": {
+            "rage_count": 3
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 4,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "When you reach 4th level, and again at 8th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. You can't increase an ability score above 20 using this feature. Alternatively, you can take a feat."
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 5,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Extra Attack",
+          "description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
+        },
+        {
+          "name": "Fast Movement",
+          "description": "Starting at 5th level, your speed increases by 10 feet while you aren't wearing heavy armor.",
+          "mechanics": {
+            "speed_bonus": 10
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 6,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Primal Path Feature",
+          "description": "You gain a feature from your Primal Path.",
+          "subclass_feature": true
+        },
+        {
+          "name": "Rage Improvement",
+          "description": "Your rage damage bonus increases and you gain more uses.",
+          "uses": {
+            "max": 4,
+            "recharge": "long_rest"
+          },
+          "mechanics": {
+            "rage_count": 4
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 7,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Feral Instinct",
+          "description": "By 7th level, your instincts are so honed that you have advantage on initiative rolls. Additionally, if you are surprised at the beginning of combat and aren't incapacitated, you can act normally on your first turn, but only if you enter your rage before doing anything else on that turn."
+        },
+        {
+          "name": "Instinctive Pounce",
+          "description": "At 7th level, as part of the bonus action you take to enter your rage, you can move up to half your speed."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 8,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 9,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Brutal Critical (1 die)",
+          "description": "Beginning at 9th level, you can roll one additional weapon damage die when determining the extra damage for a critical hit with a melee attack.",
+          "mechanics": {
+            "brutal_critical_dice": 1
+          }
+        },
+        {
+          "name": "Rage Improvement",
+          "description": "Your rage damage bonus increases.",
+          "mechanics": {
+            "damage_bonus": 3
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 10,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Primal Path Feature",
+          "description": "You gain a feature from your Primal Path.",
+          "subclass_feature": true
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 11,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Relentless Rage",
+          "description": "Starting at 11th level, your rage can keep you fighting despite grievous wounds. If you drop to 0 hit points while you're raging and don't die outright, you can make a DC 10 Constitution saving throw. If you succeed, you drop to 1 hit point instead. Each time you use this feature after the first, the DC increases by 5. When you finish a short or long rest, the DC resets to 10."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 12,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Rage Improvement",
+          "description": "Your rage uses increase.",
+          "uses": {
+            "max": 5,
+            "recharge": "long_rest"
+          },
+          "mechanics": {
+            "rage_count": 5
+          }
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 13,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Brutal Critical (2 dice)",
+          "description": "Your ability to deal devastating critical hits improves. You can now roll two additional weapon damage dice.",
+          "mechanics": {
+            "brutal_critical_dice": 2
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 14,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Primal Path Feature",
+          "description": "You gain a feature from your Primal Path.",
+          "subclass_feature": true
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 15,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Persistent Rage",
+          "description": "Beginning at 15th level, your rage is so fierce that it ends early only if you fall unconscious or if you choose to end it."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 16,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Rage Improvement",
+          "description": "Your rage damage bonus increases.",
+          "mechanics": {
+            "damage_bonus": 4
+          }
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 17,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Brutal Critical (3 dice)",
+          "description": "Your critical hits are now truly devastating. You can roll three additional weapon damage dice.",
+          "mechanics": {
+            "brutal_critical_dice": 3
+          }
+        },
+        {
+          "name": "Rage Improvement",
+          "description": "Your rage uses increase.",
+          "uses": {
+            "max": 6,
+            "recharge": "long_rest"
+          },
+          "mechanics": {
+            "rage_count": 6
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 18,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Indomitable Might",
+          "description": "Beginning at 18th level, if your total for a Strength check is less than your Strength score, you can use that score in place of the total."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 19,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 20,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Primal Champion",
+          "description": "At 20th level, you embody the power of the wilds. Your Strength and Constitution scores increase by 4. Your maximum for those scores is now 24.",
+          "mechanics": {
+            "ability_increases": {
+              "Strength": 4,
+              "Constitution": 4
+            },
+            "ability_max_increase": {
+              "Strength": 24,
+              "Constitution": 24
+            }
+          }
+        },
+        {
+          "name": "Unlimited Rage",
+          "description": "Your rage uses become unlimited.",
+          "uses": {
+            "max": "unlimited",
+            "recharge": "long_rest"
+          },
+          "mechanics": {
+            "rage_count": "unlimited"
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    }
+  ]
+}

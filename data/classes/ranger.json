@@ -1,0 +1,419 @@
+{
+  "name": "Ranger",
+  "description": "A warrior who uses martial prowess and nature magic to combat threats on the edges of civilization.",
+  "hit_die": 10,
+  "primary_ability": "Dexterity & Wisdom",
+  "saving_throws": ["Strength", "Dexterity"],
+  "armor_proficiencies": ["Light", "Medium", "Shields"],
+  "weapon_proficiencies": ["Simple", "Martial"],
+  "tool_proficiencies": [],
+  "skill_choices": {
+    "choose": 3,
+    "from": ["Animal Handling", "Athletics", "Insight", "Investigation", "Nature", "Perception", "Stealth", "Survival"]
+  },
+  "starting_equipment": [
+    "Scale Mail or Leather Armor",
+    "Two Shortswords or Two Simple Melee Weapons",
+    "Dungeoneer's Pack or Explorer's Pack",
+    "Longbow and Quiver of 20 Arrows"
+  ],
+  "spellcasting": {
+    "ability": "Wisdom",
+    "half_caster": true
+  },
+  "level_progression": [
+    {
+      "level": 1,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Favored Enemy",
+          "description": "You have significant experience studying, tracking, hunting, and even talking to a certain type of enemy. Choose a type of favored enemy."
+        },
+        {
+          "name": "Natural Explorer",
+          "description": "You are particularly familiar with one type of natural environment and are adept at traveling and surviving in such regions."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 2,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Fighting Style",
+          "description": "You adopt a particular style of fighting as your specialty.",
+          "choices": ["Archery", "Defense", "Dueling", "Two-Weapon Fighting"]
+        },
+        {
+          "name": "Spellcasting",
+          "description": "By 2nd level, you have learned to use the magical essence of nature to cast spells. Wisdom is your spellcasting ability for your ranger spells."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 2,
+        "spell_slots": {
+          "1": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 3,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Ranger Archetype",
+          "description": "At 3rd level, you choose an archetype that you strive to emulate. Your choice grants you features at 3rd level and again at 7th, 11th, and 15th level.",
+          "subclass_choice": true
+        },
+        {
+          "name": "Primeval Awareness",
+          "description": "You can use your action to focus your awareness on the region around you. For 1 minute per level of the spell slot you expend, you can sense whether certain types of creatures are present."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 3,
+        "spell_slots": {
+          "1": 3
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 4,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 3,
+        "spell_slots": {
+          "1": 3
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 5,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Extra Attack",
+          "description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 4,
+        "spell_slots": {
+          "1": 4,
+          "2": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 6,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Favored Enemy Improvement",
+          "description": "You choose one additional favored enemy, as well as an associated language."
+        },
+        {
+          "name": "Natural Explorer Improvement",
+          "description": "You choose one additional favored terrain."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 4,
+        "spell_slots": {
+          "1": 4,
+          "2": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 7,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Ranger Archetype Feature",
+          "description": "You gain a feature from your Ranger Archetype.",
+          "subclass_feature": true
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 5,
+        "spell_slots": {
+          "1": 4,
+          "2": 3
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 8,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Land's Stride",
+          "description": "Starting at 8th level, moving through nonmagical difficult terrain costs you no extra movement. You can also pass through nonmagical plants without being slowed by them and without taking damage from them."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 5,
+        "spell_slots": {
+          "1": 4,
+          "2": 3
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 9,
+      "proficiency_bonus": 4,
+      "features": [],
+      "spellcasting_info": {
+        "spells_known": 6,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 10,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Natural Explorer Improvement",
+          "description": "You choose one additional favored terrain."
+        },
+        {
+          "name": "Hide in Plain Sight",
+          "description": "Starting at 10th level, you can spend 1 minute creating camouflage for yourself. Once camouflaged in this way, you can try to hide by pressing yourself up against a solid surface."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 6,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 11,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Ranger Archetype Feature",
+          "description": "You gain a feature from your Ranger Archetype.",
+          "subclass_feature": true
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 7,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 12,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 7,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 13,
+      "proficiency_bonus": 5,
+      "features": [],
+      "spellcasting_info": {
+        "spells_known": 8,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 1
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 14,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Favored Enemy Improvement",
+          "description": "You choose one additional favored enemy, as well as an associated language."
+        },
+        {
+          "name": "Vanish",
+          "description": "Starting at 14th level, you can use the Hide action as a bonus action on your turn. Also, you can't be tracked by nonmagical means, unless you choose to leave a trail."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 8,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 1
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 15,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Ranger Archetype Feature",
+          "description": "You gain a feature from your Ranger Archetype.",
+          "subclass_feature": true
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 9,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 16,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 9,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 2
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 17,
+      "proficiency_bonus": 6,
+      "features": [],
+      "spellcasting_info": {
+        "spells_known": 10,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 1
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 18,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Feral Senses",
+          "description": "At 18th level, you gain preternatural senses that help you fight creatures you can't see. When you attack a creature you can't see, your inability to see it doesn't impose disadvantage on your attack rolls against it. You are also aware of the location of any invisible creature within 30 feet of you."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 10,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 1
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 19,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 11,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 2
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 20,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Foe Slayer",
+          "description": "At 20th level, you become an unparalleled hunter of your enemies. Once on each of your turns, you can add your Wisdom modifier to the attack roll or the damage roll of an attack you make against one of your favored enemies. You can choose to use this feature before or after the roll, but before any effects of the roll are applied."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_known": 11,
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 2
+        }
+      },
+      "ability_score_improvement": false
+    }
+  ]
+}
+

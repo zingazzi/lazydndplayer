@@ -1,0 +1,552 @@
+{
+  "name": "Monk",
+  "description": "A master of martial arts, harnessing the power of the body in pursuit of physical and spiritual perfection.",
+  "hit_die": 8,
+  "primary_ability": "Dexterity & Wisdom",
+  "saving_throws": ["Strength", "Dexterity"],
+  "armor_proficiencies": [],
+  "weapon_proficiencies": ["Simple", "Shortswords"],
+  "tool_proficiencies": ["Choose one type of artisan's tools or one musical instrument"],
+  "skill_choices": {
+    "choose": 2,
+    "from": ["Acrobatics", "Athletics", "History", "Insight", "Religion", "Stealth"]
+  },
+  "starting_equipment": [
+    "Shortsword or any Simple Weapon",
+    "Dungeoneer's Pack or Explorer's Pack",
+    "10 Darts"
+  ],
+  "spellcasting": null,
+  "level_progression": [
+    {
+      "level": 1,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Unarmored Defense",
+          "description": "Beginning at 1st level, while you are wearing no armor and not wielding a shield, your AC equals 10 + your Dexterity modifier + your Wisdom modifier."
+        },
+        {
+          "name": "Martial Arts",
+          "description": "At 1st level, your practice of martial arts gives you mastery of combat styles that use unarmed strikes and monk weapons. You gain the following benefits while you are unarmed or wielding only monk weapons and you aren't wearing armor or wielding a shield: You can use Dexterity instead of Strength for attack and damage rolls, you can roll a d4 in place of normal damage, and when you use the Attack action with an unarmed strike or monk weapon on your turn, you can make one unarmed strike as a bonus action.",
+          "mechanics": {
+            "martial_arts_die": "d4"
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 2,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Ki",
+          "description": "Starting at 2nd level, your training allows you to harness the mystic energy of ki. You have 2 ki points. You can spend ki points to fuel various ki features. You regain all expended ki points when you finish a short or long rest.",
+          "uses": {
+            "max": 2,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 2
+          }
+        },
+        {
+          "name": "Unarmored Movement",
+          "description": "Starting at 2nd level, your speed increases by 10 feet while you are not wearing armor or wielding a shield.",
+          "mechanics": {
+            "speed_bonus": 10
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 3,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Monastic Tradition",
+          "description": "At 3rd level, you commit yourself to a monastic tradition. Your tradition grants you features at 3rd level and again at 6th, 11th, and 17th level.",
+          "subclass_choice": true
+        },
+        {
+          "name": "Deflect Missiles",
+          "description": "Starting at 3rd level, you can use your reaction to deflect or catch the missile when you are hit by a ranged weapon attack. The damage you take from the attack is reduced by 1d10 + your Dexterity modifier + your monk level."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 3,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 3
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 4,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Slow Fall",
+          "description": "Beginning at 4th level, you can use your reaction when you fall to reduce any falling damage you take by an amount equal to five times your monk level."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 4,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 4
+          }
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 5,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Extra Attack",
+          "description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
+        },
+        {
+          "name": "Stunning Strike",
+          "description": "Starting at 5th level, you can interfere with the flow of ki in an opponent's body. When you hit another creature with a melee weapon attack, you can spend 1 ki point to attempt a stunning strike."
+        },
+        {
+          "name": "Martial Arts (d6)",
+          "description": "Your Martial Arts die becomes a d6.",
+          "mechanics": {
+            "martial_arts_die": "d6"
+          }
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 5,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 5
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 6,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Ki-Empowered Strikes",
+          "description": "Starting at 6th level, your unarmed strikes count as magical for the purpose of overcoming resistance and immunity to nonmagical attacks and damage."
+        },
+        {
+          "name": "Monastic Tradition Feature",
+          "description": "You gain a feature from your Monastic Tradition.",
+          "subclass_feature": true
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 6,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 6
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 7,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Evasion",
+          "description": "At 7th level, your instinctive agility lets you dodge out of the way of certain area effects. When you are subjected to an effect that allows you to make a Dexterity saving throw to take only half damage, you instead take no damage if you succeed on the saving throw, and only half damage if you fail."
+        },
+        {
+          "name": "Stillness of Mind",
+          "description": "Starting at 7th level, you can use your action to end one effect on yourself that is causing you to be charmed or frightened."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 7,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 7
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 8,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 8,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 8
+          }
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 9,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Unarmored Movement Improvement",
+          "description": "At 9th level, you gain the ability to move along vertical surfaces and across liquids on your turn without falling during the move.",
+          "mechanics": {
+            "speed_bonus": 15
+          }
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 9,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 9
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 10,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Purity of Body",
+          "description": "At 10th level, your mastery of the ki flowing through you makes you immune to disease and poison."
+        },
+        {
+          "name": "Unarmored Movement (+15 ft)",
+          "description": "Your Unarmored Movement speed bonus increases.",
+          "mechanics": {
+            "speed_bonus": 15
+          }
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 10,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 10
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 11,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Martial Arts (d8)",
+          "description": "Your Martial Arts die becomes a d8.",
+          "mechanics": {
+            "martial_arts_die": "d8"
+          }
+        },
+        {
+          "name": "Monastic Tradition Feature",
+          "description": "You gain a feature from your Monastic Tradition.",
+          "subclass_feature": true
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 11,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 11
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 12,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 12,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 12
+          }
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 13,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Tongue of the Sun and Moon",
+          "description": "Starting at 13th level, you learn to touch the ki of other minds so that you understand all spoken languages."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 13,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 13
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 14,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Diamond Soul",
+          "description": "Beginning at 14th level, your mastery of ki grants you proficiency in all saving throws. Additionally, whenever you make a saving throw and fail, you can spend 1 ki point to reroll it and take the second result.",
+          "mechanics": {
+            "all_saves_proficient": true
+          }
+        },
+        {
+          "name": "Unarmored Movement (+20 ft)",
+          "description": "Your Unarmored Movement speed bonus increases.",
+          "mechanics": {
+            "speed_bonus": 20
+          }
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 14,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 14
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 15,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Timeless Body",
+          "description": "At 15th level, your ki sustains you so that you suffer none of the frailty of old age, and you can't be aged magically. You can still die of old age, however. In addition, you no longer need food or water."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 15,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 15
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 16,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 16,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 16
+          }
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 17,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Martial Arts (d10)",
+          "description": "Your Martial Arts die becomes a d10.",
+          "mechanics": {
+            "martial_arts_die": "d10"
+          }
+        },
+        {
+          "name": "Monastic Tradition Feature",
+          "description": "You gain a feature from your Monastic Tradition.",
+          "subclass_feature": true
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 17,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 17
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 18,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Empty Body",
+          "description": "Beginning at 18th level, you can use your action to spend 4 ki points to become invisible for 1 minute. During that time, you also have resistance to all damage but force damage.",
+          "uses": {
+            "cost": 4,
+            "recharge": "short_rest"
+          }
+        },
+        {
+          "name": "Unarmored Movement (+25 ft)",
+          "description": "Your Unarmored Movement speed bonus increases.",
+          "mechanics": {
+            "speed_bonus": 25
+          }
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 18,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 18
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 19,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 19,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 19
+          }
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 20,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Perfect Self",
+          "description": "At 20th level, when you roll for initiative and have no ki points remaining, you regain 4 ki points."
+        },
+        {
+          "name": "Martial Arts (d12)",
+          "description": "Your Martial Arts die becomes a d12.",
+          "mechanics": {
+            "martial_arts_die": "d12"
+          }
+        },
+        {
+          "name": "Unarmored Movement (+30 ft)",
+          "description": "Your Unarmored Movement speed bonus increases.",
+          "mechanics": {
+            "speed_bonus": 30
+          }
+        },
+        {
+          "name": "Ki Improvement",
+          "description": "Your ki points increase.",
+          "uses": {
+            "max": 20,
+            "recharge": "short_rest"
+          },
+          "mechanics": {
+            "ki_points": 20
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    }
+  ]
+}
+

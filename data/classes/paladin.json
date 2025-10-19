@@ -1,0 +1,435 @@
+{
+  "name": "Paladin",
+  "description": "A holy warrior bound to a sacred oath.",
+  "hit_die": 10,
+  "primary_ability": "Strength & Charisma",
+  "saving_throws": ["Wisdom", "Charisma"],
+  "armor_proficiencies": ["Light", "Medium", "Heavy", "Shields"],
+  "weapon_proficiencies": ["Simple", "Martial"],
+  "tool_proficiencies": [],
+  "skill_choices": {
+    "choose": 2,
+    "from": ["Athletics", "Insight", "Intimidation", "Medicine", "Persuasion", "Religion"]
+  },
+  "starting_equipment": [
+    "Martial Weapon and Shield or Two Martial Weapons",
+    "Five Javelins or any Simple Melee Weapon",
+    "Priest's Pack or Explorer's Pack",
+    "Chain Mail and Holy Symbol"
+  ],
+  "spellcasting": {
+    "ability": "Charisma",
+    "half_caster": true
+  },
+  "level_progression": [
+    {
+      "level": 1,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Divine Sense",
+          "description": "The presence of strong evil registers on your senses like a noxious odor, and powerful good rings like heavenly music in your ears. You can detect the location of any celestial, fiend, or undead within 60 feet. You can use this feature a number of times equal to 1 + your Charisma modifier.",
+          "uses": {
+            "max": "1 + Cha mod",
+            "recharge": "long_rest"
+          }
+        },
+        {
+          "name": "Lay on Hands",
+          "description": "Your blessed touch can heal wounds. You have a pool of healing power that replenishes when you take a long rest. With that pool, you can restore a total number of hit points equal to your paladin level × 5.",
+          "mechanics": {
+            "healing_pool": "level × 5"
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 2,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Fighting Style",
+          "description": "You adopt a particular style of fighting as your specialty. Choose one fighting style option.",
+          "choices": ["Defense", "Dueling", "Great Weapon Fighting", "Protection"]
+        },
+        {
+          "name": "Spellcasting",
+          "description": "By 2nd level, you have learned to draw on divine magic through meditation and prayer to cast spells. Charisma is your spellcasting ability for your paladin spells."
+        },
+        {
+          "name": "Divine Smite",
+          "description": "Starting at 2nd level, when you hit a creature with a melee weapon attack, you can expend one spell slot to deal radiant damage to the target, in addition to the weapon's damage."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 3,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Divine Health",
+          "description": "By 3rd level, the divine magic flowing through you makes you immune to disease."
+        },
+        {
+          "name": "Sacred Oath",
+          "description": "When you reach 3rd level, you swear the oath that binds you as a paladin forever. Your choice grants you features at 3rd level and again at 7th, 15th, and 20th level.",
+          "subclass_choice": true
+        },
+        {
+          "name": "Channel Divinity",
+          "description": "Your oath allows you to channel divine energy to fuel magical effects. You start with two effects determined by your oath.",
+          "uses": {
+            "max": 1,
+            "recharge": "short_rest"
+          }
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 3
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 4,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 3
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 5,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Extra Attack",
+          "description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 6,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Aura of Protection",
+          "description": "Starting at 6th level, whenever you or a friendly creature within 10 feet of you must make a saving throw, the creature gains a bonus to the saving throw equal to your Charisma modifier.",
+          "mechanics": {
+            "aura_range": 10
+          }
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 7,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Sacred Oath Feature",
+          "description": "You gain a feature from your Sacred Oath.",
+          "subclass_feature": true
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 8,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 9,
+      "proficiency_bonus": 4,
+      "features": [],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 10,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Aura of Courage",
+          "description": "Starting at 10th level, you and friendly creatures within 10 feet of you can't be frightened while you are conscious.",
+          "mechanics": {
+            "aura_range": 10
+          }
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 11,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Improved Divine Smite",
+          "description": "By 11th level, you are so suffused with righteous might that all your melee weapon strikes carry divine power with them. Whenever you hit a creature with a melee weapon, the creature takes an extra 1d8 radiant damage."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 12,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 13,
+      "proficiency_bonus": 5,
+      "features": [],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 1
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 14,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Cleansing Touch",
+          "description": "Beginning at 14th level, you can use your action to end one spell on yourself or on one willing creature that you touch. You can use this feature a number of times equal to your Charisma modifier (minimum of once). You regain expended uses when you finish a long rest.",
+          "uses": {
+            "max": "Cha mod (min 1)",
+            "recharge": "long_rest"
+          }
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 1
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 15,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Sacred Oath Feature",
+          "description": "You gain a feature from your Sacred Oath.",
+          "subclass_feature": true
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 2
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 16,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 2
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 17,
+      "proficiency_bonus": 6,
+      "features": [],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 1
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 18,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Aura Improvements",
+          "description": "At 18th level, the range of your auras increase to 30 feet.",
+          "mechanics": {
+            "aura_range": 30
+          }
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 1
+        }
+      },
+      "ability_score_improvement": false
+    },
+    {
+      "level": 19,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 2
+        }
+      },
+      "ability_score_improvement": true
+    },
+    {
+      "level": 20,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Sacred Oath Feature",
+          "description": "You gain a feature from your Sacred Oath.",
+          "subclass_feature": true
+        }
+      ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 2
+        }
+      },
+      "ability_score_improvement": false
+    }
+  ]
+}
+

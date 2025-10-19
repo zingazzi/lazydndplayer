@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -46,26 +47,48 @@ type ClassesData struct {
 
 var cachedClasses *ClassesData
 
-// LoadClassesFromJSON loads all classes from the JSON file
-func LoadClassesFromJSON(filepath string) (*ClassesData, error) {
-	data, err := os.ReadFile(filepath)
+// LoadClassesFromJSON loads all classes from individual JSON files in the directory
+func LoadClassesFromJSON(dirpath string) (*ClassesData, error) {
+	// Read all files in the classes directory
+	files, err := os.ReadDir(dirpath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read classes file: %w", err)
+		return nil, fmt.Errorf("failed to read classes directory: %w", err)
 	}
 
-	var classesData ClassesData
-	if err := json.Unmarshal(data, &classesData); err != nil {
-		return nil, fmt.Errorf("failed to parse classes JSON: %w", err)
+	var classes []Class
+
+	// Load each class file
+	for _, file := range files {
+		// Skip non-JSON files and the README
+		if file.IsDir() || !strings.HasSuffix(file.Name(), ".json") {
+			continue
+		}
+
+		filePath := filepath.Join(dirpath, file.Name())
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			fmt.Printf("Warning: failed to read class file %s: %v\n", file.Name(), err)
+			continue
+		}
+
+		var class Class
+		if err := json.Unmarshal(data, &class); err != nil {
+			fmt.Printf("Warning: failed to parse class file %s: %v\n", file.Name(), err)
+			continue
+		}
+
+		classes = append(classes, class)
 	}
 
-	cachedClasses = &classesData
-	return &classesData, nil
+	classesData := &ClassesData{Classes: classes}
+	cachedClasses = classesData
+	return classesData, nil
 }
 
 // GetAllClasses returns all available classes
 func GetAllClasses() []Class {
 	if cachedClasses == nil {
-		_, err := LoadClassesFromJSON("data/classes.json")
+		_, err := LoadClassesFromJSON("data/classes")
 		if err != nil {
 			fmt.Printf("Error loading classes: %v\n", err)
 			return []Class{}

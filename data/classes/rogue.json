@@ -1,0 +1,336 @@
+{
+  "name": "Rogue",
+  "description": "A scoundrel who uses stealth and trickery to overcome obstacles and enemies.",
+  "hit_die": 8,
+  "primary_ability": "Dexterity",
+  "saving_throws": ["Dexterity", "Intelligence"],
+  "armor_proficiencies": ["Light"],
+  "weapon_proficiencies": ["Simple", "Hand Crossbows", "Longswords", "Rapiers", "Shortswords"],
+  "tool_proficiencies": ["Thieves' Tools"],
+  "skill_choices": {
+    "choose": 4,
+    "from": ["Acrobatics", "Athletics", "Deception", "Insight", "Intimidation", "Investigation", "Perception", "Performance", "Persuasion", "Sleight of Hand", "Stealth"]
+  },
+  "starting_equipment": [
+    "Rapier or Shortsword",
+    "Shortbow and Quiver of 20 Arrows or Shortsword",
+    "Burglar's Pack, Dungeoneer's Pack, or Explorer's Pack",
+    "Leather Armor, Two Daggers, and Thieves' Tools"
+  ],
+  "spellcasting": null,
+  "level_progression": [
+    {
+      "level": 1,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Expertise",
+          "description": "At 1st level, choose two of your skill proficiencies, or one of your skill proficiencies and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.",
+          "mechanics": {
+            "expertise_count": 2
+          }
+        },
+        {
+          "name": "Sneak Attack",
+          "description": "Beginning at 1st level, you know how to strike subtly and exploit a foe's distraction. Once per turn, you can deal an extra 1d6 damage to one creature you hit with an attack if you have advantage on the attack roll. The attack must use a finesse or a ranged weapon.",
+          "mechanics": {
+            "sneak_attack_dice": 1
+          }
+        },
+        {
+          "name": "Thieves' Cant",
+          "description": "During your rogue training you learned thieves' cant, a secret mix of dialect, jargon, and code that allows you to hide messages in seemingly normal conversation."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 2,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Cunning Action",
+          "description": "Starting at 2nd level, your quick thinking and agility allow you to move and act quickly. You can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 3,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Roguish Archetype",
+          "description": "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities. Your archetype choice grants you features at 3rd level and then again at 9th, 13th, and 17th level.",
+          "subclass_choice": true
+        },
+        {
+          "name": "Sneak Attack (2d6)",
+          "description": "Your Sneak Attack damage increases to 2d6.",
+          "mechanics": {
+            "sneak_attack_dice": 2
+          }
+        },
+        {
+          "name": "Steady Aim",
+          "description": "At 3rd level, as a bonus action, you give yourself advantage on your next attack roll on the current turn. You can use this bonus action only if you haven't moved during this turn, and after you use the bonus action, your speed is 0 until the end of the current turn."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 4,
+      "proficiency_bonus": 2,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 5,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Sneak Attack (3d6)",
+          "description": "Your Sneak Attack damage increases to 3d6.",
+          "mechanics": {
+            "sneak_attack_dice": 3
+          }
+        },
+        {
+          "name": "Uncanny Dodge",
+          "description": "Starting at 5th level, when an attacker that you can see hits you with an attack, you can use your reaction to halve the attack's damage against you."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 6,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Expertise",
+          "description": "At 6th level, you can choose two more of your proficiencies to gain the benefit of Expertise.",
+          "mechanics": {
+            "expertise_count": 4
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 7,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Sneak Attack (4d6)",
+          "description": "Your Sneak Attack damage increases to 4d6.",
+          "mechanics": {
+            "sneak_attack_dice": 4
+          }
+        },
+        {
+          "name": "Evasion",
+          "description": "Beginning at 7th level, you can nimbly dodge out of the way of certain area effects. When you are subjected to an effect that allows you to make a Dexterity saving throw to take only half damage, you instead take no damage if you succeed on the saving throw, and only half damage if you fail."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 8,
+      "proficiency_bonus": 3,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 9,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Sneak Attack (5d6)",
+          "description": "Your Sneak Attack damage increases to 5d6.",
+          "mechanics": {
+            "sneak_attack_dice": 5
+          }
+        },
+        {
+          "name": "Roguish Archetype Feature",
+          "description": "You gain a feature from your Roguish Archetype.",
+          "subclass_feature": true
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 10,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 11,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Sneak Attack (6d6)",
+          "description": "Your Sneak Attack damage increases to 6d6.",
+          "mechanics": {
+            "sneak_attack_dice": 6
+          }
+        },
+        {
+          "name": "Reliable Talent",
+          "description": "By 11th level, you have refined your chosen skills until they approach perfection. Whenever you make an ability check that lets you add your proficiency bonus, you can treat a d20 roll of 9 or lower as a 10."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 12,
+      "proficiency_bonus": 4,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 13,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Sneak Attack (7d6)",
+          "description": "Your Sneak Attack damage increases to 7d6.",
+          "mechanics": {
+            "sneak_attack_dice": 7
+          }
+        },
+        {
+          "name": "Roguish Archetype Feature",
+          "description": "You gain a feature from your Roguish Archetype.",
+          "subclass_feature": true
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 14,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Blindsense",
+          "description": "Starting at 14th level, if you are able to hear, you are aware of the location of any hidden or invisible creature within 10 feet of you."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 15,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Sneak Attack (8d6)",
+          "description": "Your Sneak Attack damage increases to 8d6.",
+          "mechanics": {
+            "sneak_attack_dice": 8
+          }
+        },
+        {
+          "name": "Slippery Mind",
+          "description": "By 15th level, you have acquired greater mental strength. You gain proficiency in Wisdom saving throws."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 16,
+      "proficiency_bonus": 5,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 17,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Sneak Attack (9d6)",
+          "description": "Your Sneak Attack damage increases to 9d6.",
+          "mechanics": {
+            "sneak_attack_dice": 9
+          }
+        },
+        {
+          "name": "Roguish Archetype Feature",
+          "description": "You gain a feature from your Roguish Archetype.",
+          "subclass_feature": true
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 18,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Elusive",
+          "description": "Beginning at 18th level, you are so evasive that attackers rarely gain the upper hand against you. No attack roll has advantage against you while you aren't incapacitated."
+        }
+      ],
+      "ability_score_improvement": false
+    },
+    {
+      "level": 19,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Ability Score Improvement",
+          "description": "You can increase one ability score by 2, or two ability scores by 1. Alternatively, you can take a feat."
+        },
+        {
+          "name": "Sneak Attack (10d6)",
+          "description": "Your Sneak Attack damage increases to 10d6.",
+          "mechanics": {
+            "sneak_attack_dice": 10
+          }
+        }
+      ],
+      "ability_score_improvement": true
+    },
+    {
+      "level": 20,
+      "proficiency_bonus": 6,
+      "features": [
+        {
+          "name": "Stroke of Luck",
+          "description": "At 20th level, you have an uncanny knack for succeeding when you need to. If your attack misses a target within range, you can turn the miss into a hit. Alternatively, if you fail an ability check, you can treat the d20 roll as a 20. Once you use this feature, you can't use it again until you finish a short or long rest.",
+          "uses": {
+            "max": 1,
+            "recharge": "short_rest"
+          }
+        }
+      ],
+      "ability_score_improvement": false
+    }
+  ]
+}
+
