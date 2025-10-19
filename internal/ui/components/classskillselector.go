@@ -37,7 +37,7 @@ func (css *ClassSkillSelector) Show(className string, availableSkills []string, 
 	css.currentIndex = 0
 	css.SelectedSkills = make(map[string]bool)
 	css.existingSkills = make(map[string]bool)
-	
+
 	// Mark existing proficiencies
 	allSkills := []models.SkillType{
 		models.Acrobatics, models.AnimalHandling, models.Arcana, models.Athletics,
@@ -46,14 +46,14 @@ func (css *ClassSkillSelector) Show(className string, availableSkills []string, 
 		models.Performance, models.Persuasion, models.Religion, models.SleightOfHand,
 		models.Stealth, models.Survival,
 	}
-	
+
 	for _, skillType := range allSkills {
 		skill := char.Skills.GetSkill(skillType)
 		if skill != nil && skill.Proficiency > 0 {
 			css.existingSkills[string(skillType)] = true
 		}
 	}
-	
+
 	css.visible = true
 }
 
@@ -86,26 +86,26 @@ func (css *ClassSkillSelector) ToggleSkill() bool {
 	if css.currentIndex < 0 || css.currentIndex >= len(css.availableSkills) {
 		return false
 	}
-	
+
 	skillName := css.availableSkills[css.currentIndex]
-	
+
 	// Can't select if already proficient
 	if css.existingSkills[skillName] {
 		return false
 	}
-	
+
 	// Toggle selection
 	if css.SelectedSkills[skillName] {
 		delete(css.SelectedSkills, skillName)
 		return true
 	}
-	
+
 	// Check if we can select more
 	if len(css.SelectedSkills) < css.MaxChoices {
 		css.SelectedSkills[skillName] = true
 		return true
 	}
-	
+
 	return false
 }
 
@@ -170,7 +170,7 @@ func (css *ClassSkillSelector) View(width, height int) string {
 		var line string
 		alreadyProficient := css.existingSkills[skill]
 		alreadySelected := css.SelectedSkills[skill]
-		
+
 		// Build the line
 		if alreadyProficient {
 			line = fmt.Sprintf("  [✓] %s (Already Proficient)", skill)
@@ -201,7 +201,7 @@ func (css *ClassSkillSelector) View(width, height int) string {
 	content = append(content, helpStyle.Render("  [✓] = Selected or Already Proficient"))
 	content = append(content, helpStyle.Render("  [ ] = Available"))
 	content = append(content, "")
-	
+
 	if css.CanConfirm() {
 		content = append(content, lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("[↑/↓] Navigate • [Space] Toggle • [Enter] Confirm • [Esc] Cancel"))
 	} else {
@@ -223,4 +223,3 @@ func (css *ClassSkillSelector) View(width, height int) string {
 		boxStyle.Render(strings.Join(content, "\n")),
 	)
 }
-

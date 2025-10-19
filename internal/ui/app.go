@@ -1391,7 +1391,7 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		if m.classSkillSelector.CanConfirm() {
 			selectedSkills := m.classSkillSelector.GetSelectedSkills()
 			selectedClassName := m.classSkillSelector.ClassName
-			
+
 			// Apply the class first
 			err := models.ApplyClassToCharacter(m.character, selectedClassName)
 			if err != nil {
