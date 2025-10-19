@@ -5,12 +5,13 @@ package models
 type Character struct {
 	// Basic Info
 	Name       string `json:"name"`
-	Race       string `json:"race"`
-	Subtype    string `json:"subtype,omitempty"` // For species with subtypes (Elf, Tiefling, Dragonborn)
-	Class      string `json:"class"`
-	Background string `json:"background"`
-	Origin     string `json:"origin"`     // Character origin (2024 rules)
-	Alignment  string `json:"alignment"`
+	Race          string `json:"race"`
+	Subtype       string `json:"subtype,omitempty"`        // For species with subtypes (Elf, Tiefling, Dragonborn)
+	Class         string `json:"class"`
+	FightingStyle string `json:"fighting_style,omitempty"` // Fighting style for Fighter, Paladin, Ranger
+	Background    string `json:"background"`
+	Origin        string `json:"origin"`    // Character origin (2024 rules)
+	Alignment     string `json:"alignment"`
 
 	// Level & Experience
 	Level      int `json:"level"`

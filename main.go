@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/storage"
 	"github.com/marcozingoni/lazydndplayer/internal/ui"
 )
@@ -15,7 +16,19 @@ func main() {
 	charFile := flag.String("file", storage.GetDefaultPath(), "Path to character file")
 	importFile := flag.String("import", "", "Import character from file")
 	exportFile := flag.String("export", "", "Export character to file")
+	debugMode := flag.Bool("debug", false, "Enable debug logging to lazydnd_debug.log")
 	flag.Parse()
+
+	// Enable debug logging if requested
+	if *debugMode {
+		err := debug.Enable("lazydnd_debug.log")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Could not enable debug logging: %v\n", err)
+		} else {
+			fmt.Println("Debug logging enabled. Writing to lazydnd_debug.log")
+			defer debug.Close()
+		}
+	}
 
 	// Initialize storage
 	store := storage.NewStorage(*charFile)

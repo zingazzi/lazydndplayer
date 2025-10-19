@@ -18,6 +18,24 @@
     "4 Javelins"
   ],
   "spellcasting": null,
+  "level_1_features": [
+    {
+      "name": "Rage",
+      "description": "In battle, you fight with primal ferocity.",
+      "uses": {
+        "max": 2,
+        "recharge": "long_rest"
+      }
+    },
+    {
+      "name": "Unarmored Defense",
+      "description": "While you are not wearing any armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier."
+    },
+    {
+      "name": "Weapon Mastery",
+      "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons."
+    }
+  ],
   "level_progression": [
     {
       "level": 1,

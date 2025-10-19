@@ -167,18 +167,23 @@ func ApplyClassToCharacter(char *Character, className string) error {
 		return fmt.Errorf("class %s not found", className)
 	}
 
+	// Remove previous fighting style if changing class
+	if char.FightingStyle != "" {
+		RemoveFightingStyle(char)
+	}
+
 	// Update class name
 	char.Class = className
 
-	// Apply armor proficiencies
+	// Apply armor proficiencies (replaces old ones)
 	char.ArmorProficiencies = make([]string, len(class.ArmorProficiencies))
 	copy(char.ArmorProficiencies, class.ArmorProficiencies)
 
-	// Apply weapon proficiencies
+	// Apply weapon proficiencies (replaces old ones)
 	char.WeaponProficiencies = make([]string, len(class.WeaponProficiencies))
 	copy(char.WeaponProficiencies, class.WeaponProficiencies)
 
-	// Apply saving throw proficiencies
+	// Apply saving throw proficiencies (replaces old ones)
 	char.SavingThrowProficiencies = make([]string, len(class.SavingThrows))
 	copy(char.SavingThrowProficiencies, class.SavingThrows)
 

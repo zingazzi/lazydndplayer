@@ -18,6 +18,24 @@
     "Dungeoneer's Pack or Explorer's Pack"
   ],
   "spellcasting": null,
+  "level_1_features": [
+    {
+      "name": "Fighting Style",
+      "description": "You adopt a particular style of fighting as your specialty."
+    },
+    {
+      "name": "Second Wind",
+      "description": "You have a limited well of stamina that you can draw on to protect yourself from harm.",
+      "uses": {
+        "max": 1,
+        "recharge": "short_rest"
+      }
+    },
+    {
+      "name": "Weapon Mastery",
+      "description": "Your training with weapons allows you to use the mastery properties of three kinds of weapons."
+    }
+  ],
   "level_progression": [
     {
       "level": 1,
@@ -46,7 +64,7 @@
             "weapons_mastered": 3
           }
         }
-      },
+      ],
       "ability_score_improvement": false
     },
     {
@@ -68,7 +86,7 @@
           "name": "Tactical Mind",
           "description": "At 2nd level, you gain the ability to analyze battlefield tactics. You can give yourself a bonus to your initiative rolls equal to your Intelligence modifier."
         }
-      },
+      ],
       "ability_score_improvement": false
     },
     {

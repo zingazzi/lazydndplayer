@@ -1,0 +1,86 @@
+{
+  "fighting_styles": [
+    {
+      "name": "Archery",
+      "description": "You gain a +2 bonus to attack rolls you make with ranged weapons.",
+      "requirements": [],
+      "benefits": {
+        "attack_bonus_ranged": 2
+      }
+    },
+    {
+      "name": "Blind Fighting",
+      "description": "You have blindsight with a range of 10 feet. Within that range, you can effectively see anything that isn't behind total cover, even if you're blinded or in darkness. Moreover, you can see an invisible creature within that range, unless the creature successfully hides from you.",
+      "requirements": [],
+      "benefits": {
+        "special": "Blindsight 10 feet"
+      }
+    },
+    {
+      "name": "Defense",
+      "description": "While you are wearing armor, you gain a +1 bonus to AC.",
+      "requirements": ["Must be wearing armor"],
+      "benefits": {
+        "ac_bonus": 1
+      }
+    },
+    {
+      "name": "Dueling",
+      "description": "When you are wielding a melee weapon in one hand and no other weapons, you gain a +2 bonus to damage rolls with that weapon.",
+      "requirements": ["Must wield one melee weapon", "Other hand must be empty or holding a shield"],
+      "benefits": {
+        "damage_bonus": 2
+      }
+    },
+    {
+      "name": "Great Weapon Fighting",
+      "description": "When you roll a 1 or 2 on a damage die for an attack you make with a melee weapon that you are wielding with two hands, you can reroll the die and must use the new roll, even if the new roll is a 1 or a 2. The weapon must have the two-handed or versatile property for you to gain this benefit.",
+      "requirements": ["Must use two-handed or versatile weapon"],
+      "benefits": {
+        "special": "Reroll 1s and 2s on damage dice"
+      }
+    },
+    {
+      "name": "Interception",
+      "description": "When a creature you can see hits a target, other than you, within 5 feet of you with an attack, you can use your reaction to reduce the damage the target takes by 1d10 + your proficiency bonus (to a minimum of 0 damage). You must be wielding a shield or a simple or martial weapon to use this reaction.",
+      "requirements": ["Must be wielding a shield or weapon"],
+      "benefits": {
+        "special": "Reaction: Reduce damage by 1d10 + Prof bonus"
+      }
+    },
+    {
+      "name": "Protection",
+      "description": "When a creature you can see attacks a target other than you that is within 5 feet of you, you can use your reaction to impose disadvantage on the attack roll. You must be wielding a shield.",
+      "requirements": ["Must be wielding a shield"],
+      "benefits": {
+        "special": "Reaction: Impose disadvantage on attacks"
+      }
+    },
+    {
+      "name": "Thrown Weapon Fighting",
+      "description": "You can draw a weapon that has the thrown property as part of the attack you make with the weapon. In addition, when you hit with a ranged attack using a thrown weapon, you gain a +2 bonus to the damage roll.",
+      "requirements": [],
+      "benefits": {
+        "damage_bonus_thrown": 2,
+        "special": "Draw thrown weapons as part of attack"
+      }
+    },
+    {
+      "name": "Two-Weapon Fighting",
+      "description": "When you engage in two-weapon fighting, you can add your ability modifier to the damage of the second attack.",
+      "requirements": ["Must be wielding two weapons"],
+      "benefits": {
+        "special": "Add ability modifier to off-hand damage"
+      }
+    },
+    {
+      "name": "Unarmed Fighting",
+      "description": "Your unarmed strikes can deal bludgeoning damage equal to 1d6 + your Strength modifier on a hit. If you aren't wielding any weapons or a shield when you make the attack roll, the d6 becomes a d8. At the start of each of your turns, you can deal 1d4 bludgeoning damage to one creature grappled by you.",
+      "requirements": [],
+      "benefits": {
+        "unarmed_damage": "1d6 (1d8 if no weapons/shield)",
+        "special": "1d4 damage to grappled creatures"
+      }
+    }
+  ]
+}

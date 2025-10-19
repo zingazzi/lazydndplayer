@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 	"github.com/marcozingoni/lazydndplayer/internal/storage"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/components"
@@ -75,10 +76,11 @@ type Model struct {
 	itemDetailPopup       *components.ItemDetailPopup
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
-	itemSelector          *components.ItemSelector
-	classSelector         *components.ClassSelector
-	classSkillSelector    *components.ClassSkillSelector
-	statGenerator         *components.StatGenerator
+	itemSelector           *components.ItemSelector
+	classSelector          *components.ClassSelector
+	classSkillSelector     *components.ClassSkillSelector
+	fightingStyleSelector  *components.FightingStyleSelector
+	statGenerator          *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
 
@@ -125,10 +127,11 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		itemDetailPopup:       components.NewItemDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
-		itemSelector:          components.NewItemSelector(),
-		classSelector:         components.NewClassSelector(),
-		classSkillSelector:    components.NewClassSkillSelector(),
-		statGenerator:         components.NewStatGenerator(),
+		itemSelector:           components.NewItemSelector(),
+		classSelector:          components.NewClassSelector(),
+		classSkillSelector:     components.NewClassSkillSelector(),
+		fightingStyleSelector:  components.NewFightingStyleSelector(),
+		statGenerator:          components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
 		statsPanel:            panels.NewStatsPanel(char),
@@ -306,7 +309,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleItemSelectorKeys(msg)
 		}
 
-		// Check if class skill selector is active (highest priority in class flow)
+		// Check if fighting style selector is active (highest priority in class flow)
+		if m.fightingStyleSelector.IsVisible() {
+			return m.handleFightingStyleSelectorKeys(msg)
+		}
+
+		// Check if class skill selector is active
 		if m.classSkillSelector.IsVisible() {
 			return m.handleClassSkillSelectorKeys(msg)
 		}
@@ -1335,34 +1343,52 @@ func (m *Model) handleItemSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleClassSelectorKeys handles class selector specific keys
 func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleClassSelectorKeys: key=%s", msg.String())
+
 	switch msg.String() {
 	case "up", "k":
 		m.classSelector.Prev()
+		debug.Log("Class selector: moved up")
 	case "down", "j":
 		m.classSelector.Next()
+		debug.Log("Class selector: moved down")
 	case "enter":
 		selectedClassName := m.classSelector.GetSelectedClass()
+		debug.Log("Class selector: enter pressed, selected=%s", selectedClassName)
+
 		if selectedClassName != "" {
 			// Get the full class data to check skill choices
 			classData := models.GetClassByName(selectedClassName)
+			debug.Log("Class data loaded: %v (nil=%v)", selectedClassName, classData == nil)
+
 			if classData == nil {
+				debug.Log("ERROR: Class %s not found!", selectedClassName)
 				m.message = fmt.Sprintf("Error: Class %s not found", selectedClassName)
 				m.classSelector.Hide()
 				return m, nil
 			}
 
+			debug.Log("Class %s: SkillChoices=%v", selectedClassName, classData.SkillChoices)
+			if classData.SkillChoices != nil {
+				debug.Log("  Choose=%d, From=%v", classData.SkillChoices.Choose, classData.SkillChoices.From)
+			}
+
 			// Check if class has skill choices
 			if classData.SkillChoices != nil && classData.SkillChoices.Choose > 0 {
 				// Show skill selector
+				debug.Log("Showing skill selector for %s", selectedClassName)
 				m.classSelector.Hide()
 				m.classSkillSelector.Show(selectedClassName, classData.SkillChoices.From, classData.SkillChoices.Choose, m.character)
 				m.message = fmt.Sprintf("Select skills for %s class...", selectedClassName)
 			} else {
 				// No skill choices, apply class directly
+				debug.Log("No skill choices, applying class directly")
 				err := models.ApplyClassToCharacter(m.character, selectedClassName)
 				if err != nil {
+					debug.Log("ERROR applying class: %v", err)
 					m.message = fmt.Sprintf("Error applying class: %v", err)
 				} else {
+					debug.Log("Class applied successfully: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
 					m.message = fmt.Sprintf("Class changed to: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
 				}
 				m.storage.Save(m.character)
@@ -1370,6 +1396,7 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "esc":
+		debug.Log("Class selector: cancelled")
 		m.classSelector.Hide()
 		m.message = "Class selection cancelled"
 	}
@@ -1378,27 +1405,39 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleClassSkillSelectorKeys handles class skill selector specific keys
 func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleClassSkillSelectorKeys: key=%s", msg.String())
+
 	switch msg.String() {
 	case "up", "k":
 		m.classSkillSelector.Prev()
+		debug.Log("Skill selector: moved up")
 	case "down", "j":
 		m.classSkillSelector.Next()
+		debug.Log("Skill selector: moved down")
 	case " ": // Space to toggle
-		if !m.classSkillSelector.ToggleSkill() {
+		toggled := m.classSkillSelector.ToggleSkill()
+		debug.Log("Skill selector: toggled=%v, selected=%d/%d", toggled, len(m.classSkillSelector.SelectedSkills), m.classSkillSelector.MaxChoices)
+		if !toggled {
 			m.message = "Cannot select: already proficient or max selections reached"
 		}
 	case "enter":
-		if m.classSkillSelector.CanConfirm() {
+		canConfirm := m.classSkillSelector.CanConfirm()
+		debug.Log("Skill selector: enter pressed, canConfirm=%v", canConfirm)
+
+		if canConfirm {
 			selectedSkills := m.classSkillSelector.GetSelectedSkills()
 			selectedClassName := m.classSkillSelector.ClassName
+			debug.Log("Applying class %s with skills: %v", selectedClassName, selectedSkills)
 
 			// Apply the class first
 			err := models.ApplyClassToCharacter(m.character, selectedClassName)
 			if err != nil {
+				debug.Log("ERROR applying class: %v", err)
 				m.message = fmt.Sprintf("Error applying class: %v", err)
 				m.classSkillSelector.Hide()
 				return m, nil
 			}
+			debug.Log("Class %s applied successfully", selectedClassName)
 
 			// Apply selected skills
 			for _, skillName := range selectedSkills {
@@ -1406,18 +1445,71 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 				skill := m.character.Skills.GetSkill(skillType)
 				if skill != nil && skill.Proficiency == 0 {
 					skill.Proficiency = 1 // Grant proficiency
+					debug.Log("Granted proficiency in %s", skillName)
 				}
 			}
 
-			m.storage.Save(m.character)
 			m.classSkillSelector.Hide()
-			m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+
+			// Check if this class gets a fighting style (Fighter, Paladin, Ranger at level 1)
+			needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
+			debug.Log("Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
+
+			if needsFightingStyle {
+				// Show fighting style selector
+				debug.Log("Showing fighting style selector")
+				m.fightingStyleSelector.Show(selectedClassName)
+				m.message = fmt.Sprintf("Select fighting style for %s...", selectedClassName)
+			} else {
+				// No fighting style needed, complete class selection
+				debug.Log("Saving character and completing class selection")
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+			}
 		} else {
+			debug.Log("Cannot confirm, need more skills")
 			m.message = fmt.Sprintf("Please select %d more skill(s)", m.classSkillSelector.MaxChoices-len(m.classSkillSelector.SelectedSkills))
 		}
 	case "esc":
+		debug.Log("Skill selector: cancelled")
 		m.classSkillSelector.Hide()
 		m.message = "Skill selection cancelled"
+	}
+	return m, nil
+}
+
+// handleFightingStyleSelectorKeys handles fighting style selector specific keys
+func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleFightingStyleSelectorKeys: key=%s", msg.String())
+
+	switch msg.String() {
+	case "up", "k":
+		m.fightingStyleSelector.Prev()
+		debug.Log("Fighting style selector: moved up")
+	case "down", "j":
+		m.fightingStyleSelector.Next()
+		debug.Log("Fighting style selector: moved down")
+	case "enter":
+		selectedStyle := m.fightingStyleSelector.GetSelectedStyle()
+		debug.Log("Fighting style selector: enter pressed, selected=%s", selectedStyle)
+
+		if selectedStyle != "" {
+			// Apply fighting style
+			err := models.ApplyFightingStyle(m.character, selectedStyle)
+			if err != nil {
+				debug.Log("ERROR applying fighting style: %v", err)
+				m.message = fmt.Sprintf("Error applying fighting style: %v", err)
+			} else {
+				debug.Log("Fighting style '%s' applied successfully", selectedStyle)
+				m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
+			}
+			m.storage.Save(m.character)
+			m.fightingStyleSelector.Hide()
+		}
+	case "esc":
+		debug.Log("Fighting style selector: cancelled")
+		m.fightingStyleSelector.Hide()
+		m.message = "Fighting style selection cancelled"
 	}
 	return m, nil
 }
@@ -2136,7 +2228,12 @@ func (m *Model) View() string {
 		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
 	}
 
-	// Class skill selector takes sixth priority (Medium)
+	// Fighting style selector takes sixth priority (Medium)
+	if m.fightingStyleSelector.IsVisible() {
+		return m.fightingStyleSelector.View(m.width, m.height)
+	}
+
+	// Class skill selector takes seventh priority (Medium)
 	if m.classSkillSelector.IsVisible() {
 		return m.classSkillSelector.View(m.width, m.height)
 	}
