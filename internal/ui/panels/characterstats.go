@@ -88,9 +88,6 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 		Foreground(lipgloss.Color("42")).
 		Bold(true)
 
-	// Calculate initiative modifier (DEX modifier + bonus from feats)
-	initiativeMod := char.AbilityScores.GetModifier(models.Dexterity) + char.InitiativeBonus
-
 	// Build stat boxes for important stats (smaller for 2-row layout)
 	boxWidth := 10
 
@@ -106,7 +103,7 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 
 	initBox := statBoxStyle.Copy().Width(boxWidth).Render(
 		lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true).Render("⚡ INIT") + "\n" +
-			criticalStatStyle.Render(fmt.Sprintf("%+d", initiativeMod)),
+			criticalStatStyle.Render(fmt.Sprintf("%+d", char.Initiative)),
 	)
 
 	speedBox := statBoxStyle.Copy().Width(boxWidth).Render(
@@ -146,11 +143,12 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	lines = append(lines, "")
 
 	// Class and level (class can be changed with 'c')
-	classInfo := fmt.Sprintf("%s, Level %d", char.Class, char.Level)
+	// Class info (fighting style is shown in Traits panel)
+	classInfoFull := fmt.Sprintf("%s, Level %d", char.Class, char.Level)
 	if p.editMode == CharStatsNormal {
-		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfo)+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("(press 'c' to change)"))
+		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfoFull)+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("(press 'c' to change)"))
 	} else {
-		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfo))
+		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfoFull))
 	}
 
 	// XP information
@@ -302,9 +300,9 @@ func (p *CharacterStatsPanel) RemoveHP(amount int) {
 	}
 }
 
-// GetInitiativeModifier returns the initiative modifier
+// GetInitiativeModifier returns the initiative modifier (single source of truth from character model)
 func (p *CharacterStatsPanel) GetInitiativeModifier() int {
-	return p.character.AbilityScores.GetModifier(models.Dexterity)
+	return p.character.Initiative
 }
 
 // GetEditMode returns the current edit mode

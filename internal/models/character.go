@@ -5,12 +5,13 @@ package models
 type Character struct {
 	// Basic Info
 	Name       string `json:"name"`
-	Race       string `json:"race"`
-	Subtype    string `json:"subtype,omitempty"` // For species with subtypes (Elf, Tiefling, Dragonborn)
-	Class      string `json:"class"`
-	Background string `json:"background"`
-	Origin     string `json:"origin"`     // Character origin (2024 rules)
-	Alignment  string `json:"alignment"`
+	Race          string `json:"race"`
+	Subtype       string `json:"subtype,omitempty"`        // For species with subtypes (Elf, Tiefling, Dragonborn)
+	Class         string `json:"class"`
+	FightingStyle string `json:"fighting_style,omitempty"` // Fighting style for Fighter, Paladin, Ranger
+	Background    string `json:"background"`
+	Origin        string `json:"origin"`    // Character origin (2024 rules)
+	Alignment     string `json:"alignment"`
 
 	// Level & Experience
 	Level      int `json:"level"`
@@ -34,10 +35,12 @@ type Character struct {
 	// Skills & Proficiencies
 	Skills                    Skills   `json:"skills"`
 	ProficiencyBonus          int      `json:"proficiency_bonus"`
+	ClassSkills               []SkillType `json:"class_skills"`             // Track which skills came from class
 	ToolProficiencies         []string `json:"tool_proficiencies"`          // Tool proficiencies from origins/classes
 	ArmorProficiencies        []string `json:"armor_proficiencies"`         // Armor proficiencies from class
 	WeaponProficiencies       []string `json:"weapon_proficiencies"`        // Weapon proficiencies from class
 	SavingThrowProficiencies  []string `json:"saving_throw_proficiencies"`  // Saving throw proficiencies from class
+	MasteredWeapons           []string `json:"mastered_weapons"`            // Weapons with mastery properties
 
 	// Combat & Features
 	Initiative       int         `json:"initiative"`
@@ -64,6 +67,9 @@ type Character struct {
 	SpeciesTraits       []SpeciesTrait `json:"species_traits"`
 	SpeciesSkills       []SkillType    `json:"species_skills"` // Track which skills came from species
 	SpeciesSpells       []string       `json:"species_spells"` // Track which spells came from species
+
+	// Choice Tracking (for easy rollback)
+	Choices *CharacterChoices `json:"choices"` // Tracks all user choices for rollback
 
 	// Inspiration
 	Inspiration bool `json:"inspiration"` // Can be used to gain advantage on rolls
@@ -116,6 +122,8 @@ func NewCharacter() *Character {
 		SpeciesTraits: []SpeciesTrait{},
 		SpeciesSkills: []SkillType{},
 		SpeciesSpells: []string{},
+		ClassSkills:   []SkillType{},
+		Choices:       NewCharacterChoices(),
 	}
 	char.UpdateDerivedStats()
 	return char

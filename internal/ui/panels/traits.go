@@ -137,6 +137,29 @@ func (p *TraitsPanel) View(width, height int) string {
 	rightCol = append(rightCol, "")
 	rightCol = append(rightCol, "")
 
+	// Fighting Style Section (if character has one)
+	if p.character.FightingStyle != "" {
+		rightCol = append(rightCol, titleStyle.Render("⚔️  FIGHTING STYLE"))
+		rightCol = append(rightCol, "")
+
+		// Get fighting style details for description
+		fightingStyleData := models.GetFightingStyleByName(p.character.FightingStyle)
+		if fightingStyleData != nil {
+			rightCol = append(rightCol, normalStyle.Render("  "+p.character.FightingStyle))
+			// Add description with wrapping
+			descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+			wrapped := wrapText(fightingStyleData.Description, width/2-6)
+			for _, line := range wrapped {
+				rightCol = append(rightCol, descStyle.Render("    "+line))
+			}
+		} else {
+			rightCol = append(rightCol, normalStyle.Render("  "+p.character.FightingStyle))
+		}
+
+		rightCol = append(rightCol, "")
+		rightCol = append(rightCol, "")
+	}
+
 	// Feats Section
 	rightCol = append(rightCol, titleStyle.Render("⭐ FEATS"))
 	rightCol = append(rightCol, "")
@@ -151,6 +174,77 @@ func (p *TraitsPanel) View(width, height int) string {
 				rightCol = append(rightCol, normalStyle.Render(fmt.Sprintf("    %s", feat)))
 			}
 		}
+	}
+
+	rightCol = append(rightCol, "")
+	rightCol = append(rightCol, "")
+
+	// Weapon Mastery Section
+	rightCol = append(rightCol, titleStyle.Render("⚔️  WEAPON MASTERY"))
+	rightCol = append(rightCol, "")
+
+	if p.hasWeaponMasteryFeature(p.character) {
+		// Get mastery count
+		masteryCount := p.getWeaponMasteryCount(p.character)
+		masteryInfo := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render(fmt.Sprintf("  Can master %d weapons", masteryCount))
+		rightCol = append(rightCol, masteryInfo)
+		rightCol = append(rightCol, "")
+
+		// Show currently mastered weapons
+		if len(p.character.MasteredWeapons) > 0 {
+			masteredStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("86")).
+				Bold(true)
+			rightCol = append(rightCol, masteredStyle.Render("  Mastered:"))
+			for _, weapon := range p.character.MasteredWeapons {
+				itemDef := models.GetItemDefinitionByName(weapon)
+				masteryText := weapon
+				if itemDef != nil && itemDef.Mastery != "" {
+					masteryText = fmt.Sprintf("%s (%s)", weapon, itemDef.Mastery)
+				}
+				rightCol = append(rightCol, normalStyle.Render(fmt.Sprintf("    ✓ %s", masteryText)))
+			}
+			rightCol = append(rightCol, "")
+		}
+
+		// Show available weapons to master
+		availableWeapons := p.getAvailableWeaponsToMaster(p.character)
+		if len(availableWeapons) > 0 {
+			availableStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Italic(true)
+			rightCol = append(rightCol, availableStyle.Render("  Available:"))
+			// Limit to first 5 to avoid clutter
+			displayCount := len(availableWeapons)
+			if displayCount > 5 {
+				displayCount = 5
+			}
+			for i := 0; i < displayCount; i++ {
+				weapon := availableWeapons[i]
+				itemDef := models.GetItemDefinitionByName(weapon)
+				masteryText := weapon
+				if itemDef != nil && itemDef.Mastery != "" {
+					masteryText = fmt.Sprintf("%s (%s)", weapon, itemDef.Mastery)
+				}
+				rightCol = append(rightCol, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render(fmt.Sprintf("    • %s", masteryText)))
+			}
+			if len(availableWeapons) > 5 {
+				rightCol = append(rightCol, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render(fmt.Sprintf("    ... and %d more", len(availableWeapons)-5)))
+			}
+			rightCol = append(rightCol, "")
+		}
+
+		rightCol = append(rightCol, lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render("  Press 'm' to manage"))
+	} else {
+		rightCol = append(rightCol, emptyStyle.Render("  No weapon mastery feature"))
 	}
 
 	// Build traits section (full width, below columns)
@@ -413,6 +507,82 @@ func (p *TraitsPanel) GetSelectedFeat() string {
 // IsOnFeat returns true if currently on a feat
 func (p *TraitsPanel) IsOnFeat() bool {
 	return p.selectedType == "feat" && len(p.character.Feats) > 0
+}
+
+// hasWeaponMasteryFeature checks if the character has a weapon mastery feature
+func (p *TraitsPanel) hasWeaponMasteryFeature(char *models.Character) bool {
+	for _, feature := range char.Features.Features {
+		if feature.Name == "Weapon Mastery" {
+			return true
+		}
+	}
+	return false
+}
+
+// getWeaponMasteryCount returns the number of weapons the character can master
+func (p *TraitsPanel) getWeaponMasteryCount(char *models.Character) int {
+	switch char.Class {
+	case "Fighter":
+		return 3
+	case "Barbarian", "Paladin":
+		return 2
+	default:
+		return 0
+	}
+}
+
+// getAvailableWeaponsToMaster returns weapons the character has proficiency with but hasn't mastered
+func (p *TraitsPanel) getAvailableWeaponsToMaster(char *models.Character) []string {
+	availableWeapons := []string{}
+
+	// Get all weapon items
+	allItems := models.GetAllItemDefinitions()
+
+	// Build a map of already mastered weapons for quick lookup
+	masteredMap := make(map[string]bool)
+	for _, weapon := range char.MasteredWeapons {
+		masteredMap[weapon] = true
+	}
+
+	// Check each weapon
+	for _, itemDef := range allItems {
+		// Only consider weapons
+		if itemDef.Category != "weapon" {
+			continue
+		}
+
+		// Skip if already mastered
+		if masteredMap[itemDef.Name] {
+			continue
+		}
+
+		// Check if character has proficiency with this weapon
+		if p.hasProficiencyForWeapon(char, itemDef.Subcategory) {
+			availableWeapons = append(availableWeapons, itemDef.Name)
+		}
+	}
+
+	return availableWeapons
+}
+
+// hasProficiencyForWeapon checks if the character has proficiency with a weapon type
+func (p *TraitsPanel) hasProficiencyForWeapon(char *models.Character, subcategory string) bool {
+	subcategory = strings.ToLower(subcategory)
+
+	// Check weapon proficiencies
+	for _, prof := range char.WeaponProficiencies {
+		profLower := strings.ToLower(prof)
+
+		// Check for "Simple" or "Martial" proficiency
+		if profLower == "simple" && strings.Contains(subcategory, "simple") {
+			return true
+		}
+		if profLower == "martial" && strings.Contains(subcategory, "martial") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // wrapText wraps text to a specified width

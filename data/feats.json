@@ -93,7 +93,8 @@
       ],
       "description": "You master fighting with two weapons, gaining the following benefits.",
       "grants_bonus": {
-        "ac": 1
+        "ac_conditional": 1,
+        "condition": "dual_wielding_melee"
       }
     },
     {

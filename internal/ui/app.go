@@ -7,6 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
+	"github.com/marcozingoni/lazydndplayer/internal/dice"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 	"github.com/marcozingoni/lazydndplayer/internal/storage"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/components"
@@ -75,12 +77,17 @@ type Model struct {
 	itemDetailPopup       *components.ItemDetailPopup
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
-	itemSelector          *components.ItemSelector
-	classSelector         *components.ClassSelector
-	classSkillSelector    *components.ClassSkillSelector
-	statGenerator         *components.StatGenerator
+	itemSelector           *components.ItemSelector
+	classSelector          *components.ClassSelector
+	classSkillSelector     *components.ClassSkillSelector
+	fightingStyleSelector  *components.FightingStyleSelector
+	cantripSelector        *components.CantripSelector
+	statGenerator          *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
+	attackRoller          *components.AttackRoller
+	attackMenu            *components.AttackMenu
+	weaponMasterySelector *components.WeaponMasterySelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -106,6 +113,7 @@ type Model struct {
 	quitting           bool
 	pendingFeat        *models.Feat   // Temporarily store feat while choosing ability
 	pendingOrigin      *models.Origin // Temporarily store origin while choosing ability
+	pendingChanges     *models.PendingChanges // Transaction system for rollback support
 }
 
 // NewModel creates a new application model
@@ -125,12 +133,17 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		itemDetailPopup:       components.NewItemDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
-		itemSelector:          components.NewItemSelector(),
-		classSelector:         components.NewClassSelector(),
-		classSkillSelector:    components.NewClassSkillSelector(),
-		statGenerator:         components.NewStatGenerator(),
+		itemSelector:           components.NewItemSelector(),
+		classSelector:          components.NewClassSelector(),
+		classSkillSelector:     components.NewClassSkillSelector(),
+		fightingStyleSelector:  components.NewFightingStyleSelector(),
+		cantripSelector:        components.NewCantripSelector(char),
+		statGenerator:          components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
+		attackRoller:          components.NewAttackRoller(),
+		attackMenu:            components.NewAttackMenu(),
+		weaponMasterySelector: components.NewWeaponMasterySelector(char),
 		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:           panels.NewSkillsPanel(char),
 		inventoryPanel:        panels.NewInventoryPanel(char),
@@ -143,6 +156,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		actionsPanel:        panels.NewActionsPanel(char),
 		currentPanel:        StatsPanel,
 		focusArea:           FocusMain,
+		pendingChanges:      models.NewPendingChanges(),
 	}
 }
 
@@ -301,12 +315,27 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleToolSelectorKeys(msg)
 		}
 
+		// Check if weapon mastery selector is active
+		if m.weaponMasterySelector.IsVisible() {
+			return m.handleWeaponMasterySelectorKeys(msg)
+		}
+
 		// Check if item selector is active
 		if m.itemSelector.IsVisible() {
 			return m.handleItemSelectorKeys(msg)
 		}
 
-		// Check if class skill selector is active (highest priority in class flow)
+		// Check if fighting style selector is active (highest priority in class flow)
+		if m.fightingStyleSelector.IsVisible() {
+			return m.handleFightingStyleSelectorKeys(msg)
+		}
+
+		// Check if cantrip selector is active
+		if m.cantripSelector.IsVisible() {
+			return m.handleCantripSelectorKeys(msg)
+		}
+
+		// Check if class skill selector is active
 		if m.classSkillSelector.IsVisible() {
 			return m.handleClassSkillSelectorKeys(msg)
 		}
@@ -469,14 +498,274 @@ func (m *Model) rollAbilityCheck(ability models.AbilityType) {
 
 // handleActionsPanelKeys handles keys when actions panel has focus
 func (m *Model) handleActionsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Check if attack menu is active
+	if m.attackMenu.IsVisible() {
+		return m.handleAttackMenuKeys(msg)
+	}
+
 	switch msg.String() {
 	case "up", "k":
 		m.actionsPanel.Prev()
 	case "down", "j":
 		m.actionsPanel.Next()
+	case "r":
+		// Roll normal attack
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				result := m.rollAttackDirect(attack, "normal")
+				m.dicePanel.LastMessage = result
+				m.message = result
+			}
+		}
+	case "a":
+		// Roll attack with advantage
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				result := m.rollAttackDirect(attack, "advantage")
+				m.dicePanel.LastMessage = result
+				m.message = result
+			}
+		}
+	case "x":
+		// Roll attack with disadvantage
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				result := m.rollAttackDirect(attack, "disadvantage")
+				m.dicePanel.LastMessage = result
+				m.message = result
+			}
+		}
+	case "d":
+		// Roll damage
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				result := m.rollDamageDirect(attack)
+				m.dicePanel.LastMessage = result
+				m.message = result
+			}
+		}
 	case "enter":
-		m.message = "Action activated (not fully implemented)"
+		// Show attack menu if attack is selected
+		if m.actionsPanel.IsAttackSelected() {
+			attack := m.actionsPanel.GetSelectedAttack()
+			if attack != nil {
+				debug.Log("Opening attack menu for: %s", attack.Name)
+				m.attackMenu.Show(attack)
+				m.message = "Select attack option..."
+			} else {
+				debug.Log("No attack selected (attack is nil)")
+			}
+		} else {
+			// For non-attack actions
+			m.message = "Other actions not fully implemented"
+		}
 	}
+	return m, nil
+}
+
+// handleAttackMenuKeys handles keys when attack menu is visible
+func (m *Model) handleAttackMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleAttackMenuKeys: key=%s", msg.String())
+
+	switch msg.String() {
+	case "up", "k":
+		m.attackMenu.Prev()
+		debug.Log("Attack menu: moved up")
+	case "down", "j":
+		m.attackMenu.Next()
+		debug.Log("Attack menu: moved down")
+	case "enter":
+		option := m.attackMenu.GetSelectedOption()
+		attack := m.attackMenu.GetAttack()
+		debug.Log("Attack menu: enter pressed, option=%s, attack=%v", option, attack != nil)
+
+		if attack != nil {
+			var result string
+			switch {
+			case option == "Attack with Advantage":
+				result = m.rollAttackDirect(attack, "advantage")
+			case option == "Attack with Disadvantage":
+				result = m.rollAttackDirect(attack, "disadvantage")
+			case option == "Attack (Normal)":
+				result = m.rollAttackDirect(attack, "normal")
+			case strings.HasPrefix(option, "1-Hand Damage"):
+				result = m.rollDamageDirect(attack)
+			case strings.HasPrefix(option, "1-Hand Critical"):
+				result = m.rollCriticalDamage(attack, attack.DamageDice)
+			case strings.HasPrefix(option, "2-Hands Damage"):
+				result = m.rollVersatileDamage(attack)
+			case strings.HasPrefix(option, "2-Hands Critical"):
+				result = m.rollCriticalDamage(attack, attack.VersatileDamage)
+			case strings.HasPrefix(option, "Damage"):
+				result = m.rollDamageDirect(attack)
+			case strings.HasPrefix(option, "Critical Hit"):
+				result = m.rollCriticalDamage(attack, attack.DamageDice)
+			default:
+				result = fmt.Sprintf("Unknown option: %s", option)
+			}
+			debug.Log("Attack result: %s", result)
+			m.dicePanel.LastMessage = result
+			m.message = result
+		}
+		m.attackMenu.Hide()
+		debug.Log("Attack menu hidden")
+	case "esc":
+		debug.Log("Attack menu: cancelled")
+		m.attackMenu.Hide()
+		m.message = ""
+	}
+	return m, nil
+}
+
+// rollAttackDirect performs an attack roll directly without popup
+func (m *Model) rollAttackDirect(attack *models.Attack, rollType string) string {
+	var diceRollType dice.RollType
+	var advantageStr string
+
+	switch rollType {
+	case "advantage":
+		diceRollType = dice.Advantage
+		advantageStr = "Advantage"
+	case "disadvantage":
+		diceRollType = dice.Disadvantage
+		advantageStr = "Disadvantage"
+	default:
+		diceRollType = dice.Normal
+		advantageStr = ""
+	}
+
+	result, err := dice.Roll("1d20", diceRollType)
+	if err != nil {
+		return fmt.Sprintf("Error rolling: %v", err)
+	}
+
+	roll := 0
+	if len(result.Rolls) > 0 {
+		roll = result.Rolls[0]
+	}
+
+	total := roll + attack.AttackBonus
+	return attack.FormatAttackRoll(roll, total, advantageStr)
+}
+
+// rollDamageDirect performs a damage roll directly without popup
+func (m *Model) rollDamageDirect(attack *models.Attack) string {
+	result, err := dice.Roll(attack.DamageDice, dice.Normal)
+	if err != nil {
+		return fmt.Sprintf("Error rolling damage: %v", err)
+	}
+
+	total := result.Total + attack.DamageBonus
+	return attack.FormatDamageRoll(result.Rolls, total)
+}
+
+// rollVersatileDamage performs a damage roll with two-handed versatile damage
+func (m *Model) rollVersatileDamage(attack *models.Attack) string {
+	result, err := dice.Roll(attack.VersatileDamage, dice.Normal)
+	if err != nil {
+		return fmt.Sprintf("Error rolling damage: %v", err)
+	}
+
+	// Use TwoHandDamageBonus for two-handed attacks (no Dueling bonus)
+	total := result.Total + attack.TwoHandDamageBonus
+	return fmt.Sprintf("%s (2-Hands): Damage = %v +%d = %d %s",
+		attack.Name, result.Rolls, attack.TwoHandDamageBonus, total, attack.DamageType)
+}
+
+// rollCriticalDamage performs a critical hit damage roll (double dice)
+func (m *Model) rollCriticalDamage(attack *models.Attack, damageDice string) string {
+	// Double the damage dice for critical hits
+	// Parse dice notation (e.g., "1d8" -> "2d8", "2d6" -> "4d6")
+	critDice := damageDice
+
+	// Simple parsing: if it starts with a number, double it
+	parts := strings.Split(damageDice, "d")
+	if len(parts) == 2 {
+		numDice := 1
+		if parts[0] != "" {
+			if n, err := fmt.Sscanf(parts[0], "%d", &numDice); err == nil && n == 1 {
+				critDice = fmt.Sprintf("%dd%s", numDice*2, parts[1])
+			}
+		} else {
+			// "d8" format, assume 1d8
+			critDice = fmt.Sprintf("2d%s", parts[1])
+		}
+	}
+
+	result, err := dice.Roll(critDice, dice.Normal)
+	if err != nil {
+		return fmt.Sprintf("Error rolling critical damage: %v", err)
+	}
+
+	// Determine which damage bonus to use
+	damageBonus := attack.DamageBonus
+	label := "Critical Hit"
+
+	// If this is a two-handed critical (versatile weapon), use TwoHandDamageBonus
+	if attack.VersatileDamage != "" && damageDice == attack.VersatileDamage {
+		label = "Critical Hit (2-Hands)"
+		damageBonus = attack.TwoHandDamageBonus
+	}
+
+	total := result.Total + damageBonus
+
+	return fmt.Sprintf("%s %s: Damage = %v +%d = %d %s",
+		attack.Name, label, result.Rolls, damageBonus, total, attack.DamageType)
+}
+
+// handleAttackRollerKeys handles keys when attack roller is visible
+func (m *Model) handleAttackRollerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	state := m.attackRoller.GetState()
+
+	switch state {
+	case "select_attack":
+		switch msg.String() {
+		case "up", "k":
+			m.attackRoller.Prev()
+		case "down", "j":
+			m.attackRoller.Next()
+		case "enter":
+			m.attackRoller.SelectAttack()
+			m.message = "Choose action: 'a'ttack, 'd'amage, ad'v'antage, disadvantage (x)"
+		case "esc":
+			m.attackRoller.Hide()
+			m.message = ""
+		}
+	case "select_roll_type":
+		switch msg.String() {
+		case "a":
+			// Roll normal attack
+			m.attackRoller.SetRollType("normal")
+			result := m.attackRoller.RollAttack()
+			m.dicePanel.LastMessage = result
+			m.message = result
+		case "d":
+			// Roll damage
+			result := m.attackRoller.RollDamage()
+			m.dicePanel.LastMessage = result
+			m.message = result
+		case "v":
+			// Roll attack with advantage
+			m.attackRoller.SetRollType("advantage")
+			result := m.attackRoller.RollAttack()
+			m.dicePanel.LastMessage = result
+			m.message = result
+		case "x":
+			// Roll attack with disadvantage
+			m.attackRoller.SetRollType("disadvantage")
+			result := m.attackRoller.RollAttack()
+			m.dicePanel.LastMessage = result
+			m.message = result
+		case "esc":
+			m.attackRoller.Hide()
+			m.message = ""
+		}
+	}
+
 	return m, nil
 }
 
@@ -678,24 +967,31 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleSpellsPanel handles spells panel specific keys
 func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "up", "k":
+		m.spellsPanel.HandleKey(msg)
+	case "down", "j":
+		m.spellsPanel.HandleKey(msg)
+	case "pgup":
+		m.spellsPanel.HandleKey(msg)
+	case "pgdown":
+		m.spellsPanel.HandleKey(msg)
 	case "r":
-		m.character.SpellBook.LongRest()
+		// Rest - restore all spell slots
+		m.spellsPanel.Rest()
+		m.storage.Save(m.character)
 		m.message = "Spell slots restored!"
-	case "a":
-		// Add a sample spell for demonstration
-		m.character.SpellBook.AddSpell(models.Spell{
-			Name:        "New Spell",
-			Level:       1,
-			School:      models.Evocation,
-			CastingTime: "1 action",
-			Range:       "60 feet",
-			Components:  "V, S",
-			Duration:    "Instantaneous",
-			Description: "A new spell",
-			Prepared:    false,
-			Known:       true,
-		})
-		m.message = "Spell added (edit - not fully implemented)"
+	case "c":
+		// Change cantrips
+		if m.character.SpellBook.IsPreparedCaster {
+			m.cantripSelector.Show(m.character.Class, m.character.SpellBook.CantripsKnown)
+			m.message = fmt.Sprintf("Select %d cantrips...", m.character.SpellBook.CantripsKnown)
+		} else {
+			m.message = "Only prepared casters can change cantrips this way"
+		}
+	case " ", "enter":
+		// Note: This is simplified - we'd need to track selected spell
+		// For now, just show a message
+		m.message = "Spell prepare/unprepare coming soon - use spell selector"
 	}
 	return m, nil
 }
@@ -716,10 +1012,57 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+e":
 		m.featuresPanel.ScrollDown()
 	case "u":
-		// Use feature (decrement uses)
-		m.featuresPanel.UseFeature()
-		m.message = "Feature used"
-		m.storage.Save(m.character)
+		// Use feature (decrement uses and apply effect)
+		debug.Log("Features panel: 'u' pressed")
+		debug.Log("Total features: %d", len(m.character.Features.Features))
+
+		feature := m.featuresPanel.GetSelectedFeature()
+		debug.Log("Selected feature: %v", feature != nil)
+
+		if feature != nil {
+			debug.Log("Feature name: %s, CurrentUses: %d, MaxUses: %d", feature.Name, feature.CurrentUses, feature.MaxUses)
+
+			// Check if feature has uses remaining
+			if feature.CurrentUses > 0 {
+				debug.Log("Using feature: %s", feature.Name)
+
+				// Apply feature effect based on name
+				switch feature.Name {
+				case "Second Wind":
+					debug.Log("Applying Second Wind effect")
+					// Roll 1d10 + level
+					result, err := dice.Roll("1d10", dice.Normal)
+					if err == nil {
+						healing := result.Total + m.character.Level
+						oldHP := m.character.CurrentHP
+						m.character.CurrentHP += healing
+						if m.character.CurrentHP > m.character.MaxHP {
+							m.character.CurrentHP = m.character.MaxHP
+						}
+						debug.Log("Second Wind: Healed from %d to %d HP (rolled %d + level %d)", oldHP, m.character.CurrentHP, result.Total, m.character.Level)
+						m.message = fmt.Sprintf("Second Wind: Healed %d HP (1d10[%d] + %d level)", healing, result.Total, m.character.Level)
+					} else {
+						debug.Log("Error rolling dice for Second Wind: %v", err)
+						m.message = fmt.Sprintf("Second Wind: Healed %d HP", m.character.Level)
+						m.character.CurrentHP += m.character.Level
+					}
+				default:
+					debug.Log("Using generic feature: %s", feature.Name)
+					m.message = fmt.Sprintf("%s used", feature.Name)
+				}
+
+				// Decrement uses
+				m.featuresPanel.UseFeature()
+				debug.Log("Feature uses decremented. New uses: %d", feature.CurrentUses)
+				m.storage.Save(m.character)
+			} else {
+				debug.Log("Feature %s has no uses remaining", feature.Name)
+				m.message = fmt.Sprintf("%s has no uses remaining", feature.Name)
+			}
+		} else {
+			debug.Log("No feature selected")
+			m.message = "No feature selected"
+		}
 	case "+", "=":
 		// Restore one use
 		m.featuresPanel.RestoreFeature()
@@ -828,6 +1171,16 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.featSelector.ShowForDeletion(m.character)
 			m.message = "Select a feat to remove..."
 		}
+	case "m":
+		// Manage weapon mastery
+		// Check if character has weapon mastery feature
+		masteryCount := m.getWeaponMasteryCount()
+		if masteryCount > 0 {
+			m.weaponMasterySelector.Show(masteryCount)
+			m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+		} else {
+			m.message = "You don't have the Weapon Mastery feature"
+		}
 	case "d", "x":
 		m.traitsPanel.RemoveSelected()
 		m.message = "Item removed"
@@ -872,6 +1225,9 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// In normal mode, allow class change
 	switch msg.String() {
 	case "c":
+		// Backup current class state before opening selector
+		m.pendingChanges.BackupClass(m.character)
+		debug.Log("Backed up class state: %s", m.character.Class)
 		m.classSelector.Show()
 		m.message = "Select a class..."
 		return m, nil
@@ -1312,6 +1668,36 @@ func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleWeaponMasterySelectorKeys handles weapon mastery selector specific keys
+func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.weaponMasterySelector.Prev()
+	case "down", "j":
+		m.weaponMasterySelector.Next()
+	case " ":
+		// Toggle selection
+		if !m.weaponMasterySelector.ToggleSelection() {
+			m.message = "Maximum weapons already selected"
+		}
+	case "enter":
+		// Confirm selection
+		if m.weaponMasterySelector.CanConfirm() {
+			m.character.MasteredWeapons = m.weaponMasterySelector.GetSelectedWeapons()
+			m.weaponMasterySelector.Hide()
+			m.storage.Save(m.character)
+			m.message = fmt.Sprintf("Mastered %d weapons", len(m.character.MasteredWeapons))
+		} else {
+			m.message = "Please select at least one weapon"
+		}
+	case "esc":
+		// Cancel
+		m.weaponMasterySelector.Hide()
+		m.message = "Cancelled"
+	}
+	return m, nil
+}
+
 // handleItemSelectorKeys handles item selector specific keys
 func (m *Model) handleItemSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle the key once and store the result
@@ -1335,34 +1721,52 @@ func (m *Model) handleItemSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleClassSelectorKeys handles class selector specific keys
 func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleClassSelectorKeys: key=%s", msg.String())
+
 	switch msg.String() {
 	case "up", "k":
 		m.classSelector.Prev()
+		debug.Log("Class selector: moved up")
 	case "down", "j":
 		m.classSelector.Next()
+		debug.Log("Class selector: moved down")
 	case "enter":
 		selectedClassName := m.classSelector.GetSelectedClass()
+		debug.Log("Class selector: enter pressed, selected=%s", selectedClassName)
+
 		if selectedClassName != "" {
 			// Get the full class data to check skill choices
 			classData := models.GetClassByName(selectedClassName)
+			debug.Log("Class data loaded: %v (nil=%v)", selectedClassName, classData == nil)
+
 			if classData == nil {
+				debug.Log("ERROR: Class %s not found!", selectedClassName)
 				m.message = fmt.Sprintf("Error: Class %s not found", selectedClassName)
 				m.classSelector.Hide()
 				return m, nil
 			}
 
+			debug.Log("Class %s: SkillChoices=%v", selectedClassName, classData.SkillChoices)
+			if classData.SkillChoices != nil {
+				debug.Log("  Choose=%d, From=%v", classData.SkillChoices.Choose, classData.SkillChoices.From)
+			}
+
 			// Check if class has skill choices
 			if classData.SkillChoices != nil && classData.SkillChoices.Choose > 0 {
 				// Show skill selector
+				debug.Log("Showing skill selector for %s", selectedClassName)
 				m.classSelector.Hide()
 				m.classSkillSelector.Show(selectedClassName, classData.SkillChoices.From, classData.SkillChoices.Choose, m.character)
 				m.message = fmt.Sprintf("Select skills for %s class...", selectedClassName)
 			} else {
 				// No skill choices, apply class directly
+				debug.Log("No skill choices, applying class directly")
 				err := models.ApplyClassToCharacter(m.character, selectedClassName)
 				if err != nil {
+					debug.Log("ERROR applying class: %v", err)
 					m.message = fmt.Sprintf("Error applying class: %v", err)
 				} else {
+					debug.Log("Class applied successfully: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
 					m.message = fmt.Sprintf("Class changed to: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
 				}
 				m.storage.Save(m.character)
@@ -1370,35 +1774,55 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "esc":
+		debug.Log("Class selector: cancelled - restoring previous state")
+		// Restore previous class state
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
 		m.classSelector.Hide()
-		m.message = "Class selection cancelled"
+		m.storage.Save(m.character) // Save restored state
+		m.message = "Class selection cancelled - restored previous state"
 	}
 	return m, nil
 }
 
 // handleClassSkillSelectorKeys handles class skill selector specific keys
 func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleClassSkillSelectorKeys: key=%s", msg.String())
+
 	switch msg.String() {
 	case "up", "k":
 		m.classSkillSelector.Prev()
+		debug.Log("Skill selector: moved up")
 	case "down", "j":
 		m.classSkillSelector.Next()
+		debug.Log("Skill selector: moved down")
 	case " ": // Space to toggle
-		if !m.classSkillSelector.ToggleSkill() {
+		toggled := m.classSkillSelector.ToggleSkill()
+		debug.Log("Skill selector: toggled=%v, selected=%d/%d", toggled, len(m.classSkillSelector.SelectedSkills), m.classSkillSelector.MaxChoices)
+		if !toggled {
 			m.message = "Cannot select: already proficient or max selections reached"
 		}
 	case "enter":
-		if m.classSkillSelector.CanConfirm() {
+		canConfirm := m.classSkillSelector.CanConfirm()
+		debug.Log("Skill selector: enter pressed, canConfirm=%v", canConfirm)
+
+		if canConfirm {
 			selectedSkills := m.classSkillSelector.GetSelectedSkills()
 			selectedClassName := m.classSkillSelector.ClassName
+			debug.Log("Applying class %s with skills: %v", selectedClassName, selectedSkills)
+
+			// Note: Old class skills were already removed when backup was created
+			// No need to remove them again here
 
 			// Apply the class first
 			err := models.ApplyClassToCharacter(m.character, selectedClassName)
 			if err != nil {
+				debug.Log("ERROR applying class: %v", err)
 				m.message = fmt.Sprintf("Error applying class: %v", err)
 				m.classSkillSelector.Hide()
 				return m, nil
 			}
+			debug.Log("Class %s applied successfully", selectedClassName)
 
 			// Apply selected skills
 			for _, skillName := range selectedSkills {
@@ -1406,18 +1830,143 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 				skill := m.character.Skills.GetSkill(skillType)
 				if skill != nil && skill.Proficiency == 0 {
 					skill.Proficiency = 1 // Grant proficiency
+					debug.Log("Granted proficiency in %s", skillName)
 				}
+				// Track this skill as coming from class
+				m.character.ClassSkills = append(m.character.ClassSkills, skillType)
+				debug.Log("Tracked %s as class skill", skillName)
 			}
 
-			m.storage.Save(m.character)
+			// Record choices for rollback
+			debug.Log("Recording class choice: %s with skills %v", selectedClassName, selectedSkills)
+			m.character.Choices.RecordClassChoice(selectedClassName, "")
+			m.character.Choices.RecordLevelChoice(1, selectedSkills, "", []string{}, "", nil)
+
 			m.classSkillSelector.Hide()
-			m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+
+			// Check if this class gets a fighting style (Fighter, Paladin, Ranger at level 1)
+			needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
+			debug.Log("Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
+
+			// Check if this class needs cantrip selection (spellcasters)
+			classData := models.GetClassByName(selectedClassName)
+			needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
+			debug.Log("Class %s needs cantrips: %v", selectedClassName, needsCantrips)
+
+			if needsFightingStyle {
+				// Show fighting style selector
+				debug.Log("Showing fighting style selector")
+				m.fightingStyleSelector.Show(selectedClassName)
+				m.message = fmt.Sprintf("Select fighting style for %s...", selectedClassName)
+			} else if needsCantrips {
+				// Show cantrip selector
+				debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
+				m.cantripSelector.Show(selectedClassName, classData.Spellcasting.CantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, selectedClassName)
+			} else {
+				// No fighting style or cantrips needed, complete class selection
+				debug.Log("Saving character and completing class selection")
+				m.pendingChanges.Clear() // Clear backup on successful completion
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+			}
 		} else {
+			debug.Log("Cannot confirm, need more skills")
 			m.message = fmt.Sprintf("Please select %d more skill(s)", m.classSkillSelector.MaxChoices-len(m.classSkillSelector.SelectedSkills))
 		}
 	case "esc":
+		debug.Log("Skill selector: cancelled - restoring previous state")
+		// Restore previous class state
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
 		m.classSkillSelector.Hide()
-		m.message = "Skill selection cancelled"
+		m.storage.Save(m.character) // Save restored state
+		m.message = "Skill selection cancelled - restored previous state"
+	}
+	return m, nil
+}
+
+// handleCantripSelectorKeys handles cantrip selector specific keys
+func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleCantripSelectorKeys: key=%s", msg.String())
+
+	switch msg.String() {
+	case "up", "k":
+		m.cantripSelector.Prev()
+	case "down", "j":
+		m.cantripSelector.Next()
+	case " ": // Space to toggle
+		m.cantripSelector.ToggleSelection()
+	case "enter":
+		if m.cantripSelector.CanConfirm() {
+			selectedCantrips := m.cantripSelector.GetSelectedCantrips()
+			debug.Log("Selected cantrips: %v", selectedCantrips)
+
+			// Apply cantrips to character's spellbook
+			m.character.SpellBook.Cantrips = selectedCantrips
+			m.character.SpellBook.CantripsKnown = len(selectedCantrips)
+
+			m.cantripSelector.Hide()
+
+			// Complete class selection
+			debug.Log("Saving character and completing class selection")
+			m.pendingChanges.Clear() // Clear backup on successful completion
+			m.storage.Save(m.character)
+			m.message = fmt.Sprintf("Class selection complete! Selected %d cantrips", len(selectedCantrips))
+		} else {
+			needed := m.cantripSelector.GetMaxCantrips() - m.cantripSelector.GetSelectedCount()
+			m.message = fmt.Sprintf("Please select %d more cantrip(s)", needed)
+		}
+	case "esc":
+		// Cancel - rollback to previous state
+		debug.Log("Cantrip selection cancelled, rolling back changes")
+		m.cantripSelector.Hide()
+		m.pendingChanges.RestoreClass(m.character)
+		m.storage.Save(m.character)
+		m.message = "Class selection cancelled - restored previous state"
+	}
+	return m, nil
+}
+
+// handleFightingStyleSelectorKeys handles fighting style selector specific keys
+func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleFightingStyleSelectorKeys: key=%s", msg.String())
+
+	switch msg.String() {
+	case "up", "k":
+		m.fightingStyleSelector.Prev()
+		debug.Log("Fighting style selector: moved up")
+	case "down", "j":
+		m.fightingStyleSelector.Next()
+		debug.Log("Fighting style selector: moved down")
+	case "enter":
+		selectedStyle := m.fightingStyleSelector.GetSelectedStyle()
+		debug.Log("Fighting style selector: enter pressed, selected=%s", selectedStyle)
+
+		if selectedStyle != "" {
+			// Apply fighting style
+			err := models.ApplyFightingStyle(m.character, selectedStyle)
+			if err != nil {
+				debug.Log("ERROR applying fighting style: %v", err)
+				m.message = fmt.Sprintf("Error applying fighting style: %v", err)
+			} else {
+				debug.Log("Fighting style '%s' applied successfully", selectedStyle)
+				// Update the choice record with fighting style
+				m.character.Choices.Class.FightingStyle = selectedStyle
+				m.pendingChanges.Clear() // Clear backup on successful completion
+				m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
+			}
+			m.storage.Save(m.character)
+			m.fightingStyleSelector.Hide()
+		}
+	case "esc":
+		debug.Log("Fighting style selector: cancelled - restoring previous state")
+		// Restore previous class state
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
+		m.fightingStyleSelector.Hide()
+		m.storage.Save(m.character) // Save restored state
+		m.message = "Fighting style selection cancelled - restored previous state"
 	}
 	return m, nil
 }
@@ -1825,13 +2374,13 @@ func (m *Model) buildStatusBar() string {
 			contextHelp = "[a] Add Item • [e] Equip • [d] Remove 1 • [D] Remove All"
 		case SpellsPanel:
 			panelName = "Spells"
-			contextHelp = "[a] Add • [r] Rest"
+			contextHelp = "[↑/↓] Navigate • [c] Change Cantrips • [r] Rest"
 		case FeaturesPanel:
 			panelName = "Features"
 			contextHelp = "[↑/↓] Navigate • [u] Use • [+] Restore"
 		case TraitsPanel:
 			panelName = "Traits"
-			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [L] Del Lang • [f] Add Feat • [F] Del Feat"
+			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [f] Add Feat • [m] Weapon Mastery"
 		case OriginPanel:
 			panelName = "Origin"
 			contextHelp = "[o] Change Origin • [t] Add Tool • [T] Remove Tool"
@@ -2081,6 +2630,14 @@ func (m *Model) View() string {
 		return m.abilityRoller.View(popupSmallWidth, popupSmallHeight, m.character)
 	}
 
+	// Attack roller takes high priority (Medium)
+	if m.attackRoller.IsVisible() {
+		return m.attackRoller.View(popupMediumWidth, popupMediumHeight)
+	}
+
+	// Attack menu should show AFTER checking all full-screen popups
+	// but BEFORE returning mainView
+
 	// Spell selector takes high priority (Large)
 	if m.spellSelector.IsVisible() {
 		return m.spellSelector.View(popupLargeWidth, popupLargeHeight)
@@ -2131,12 +2688,27 @@ func (m *Model) View() string {
 		return m.toolSelector.View(popupSmallWidth, popupSmallHeight)
 	}
 
-	// Item selector takes fifth priority (Large)
+	// Weapon mastery selector takes fifth priority (Medium)
+	if m.weaponMasterySelector.IsVisible() {
+		return m.weaponMasterySelector.View()
+	}
+
+	// Item selector takes sixth priority (Large)
 	if m.itemSelector.IsVisible() {
 		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
 	}
 
-	// Class skill selector takes sixth priority (Medium)
+	// Fighting style selector takes sixth priority (Medium)
+	if m.fightingStyleSelector.IsVisible() {
+		return m.fightingStyleSelector.View(m.width, m.height)
+	}
+
+	// Cantrip selector takes seventh priority (Medium)
+	if m.cantripSelector.IsVisible() {
+		return m.cantripSelector.View()
+	}
+
+	// Class skill selector takes eighth priority (Medium)
 	if m.classSkillSelector.IsVisible() {
 		return m.classSkillSelector.View(m.width, m.height)
 	}
@@ -2157,7 +2729,32 @@ func (m *Model) View() string {
 		return hpPopup
 	}
 
+	// Attack menu takes priority (shows as centered overlay)
+	// Note: This will hide the TUI underneath for simplicity
+	if m.attackMenu.IsVisible() {
+		return m.attackMenu.View(m.width, m.height)
+	}
+
 	return mainView
+}
+
+// getWeaponMasteryCount returns the number of weapons the character can master
+func (m *Model) getWeaponMasteryCount() int {
+	for _, feature := range m.character.Features.Features {
+		if feature.Name == "Weapon Mastery" {
+			// Try to get the count from feature definition
+			// For now, check the class
+			switch m.character.Class {
+			case "Fighter":
+				return 3
+			case "Barbarian", "Paladin":
+				return 2
+			default:
+				return 0
+			}
+		}
+	}
+	return 0
 }
 
 // Run runs the application

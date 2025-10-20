@@ -21,6 +21,20 @@
     "ability": "Charisma",
     "ritual_casting": true
   },
+  "level_1_features": [
+    {
+      "name": "Spellcasting",
+      "description": "You have learned to cast spells through your bardic performance."
+    },
+    {
+      "name": "Bardic Inspiration",
+      "description": "You can inspire others through stirring words or music.",
+      "uses": {
+        "max": "proficiency_bonus",
+        "recharge": "long_rest"
+      }
+    }
+  ],
   "level_progression": [
     {
       "level": 1,

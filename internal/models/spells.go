@@ -104,11 +104,15 @@ func (s *SpellSlot) RestoreAll() {
 
 // SpellBook holds all character spells and slots
 type SpellBook struct {
-	Spells           []Spell    `json:"spells"`
-	Slots            SpellSlots `json:"slots"`
-	SpellcastingMod  AbilityType `json:"spellcasting_mod"`  // INT, WIS, or CHA
-	SpellSaveDC      int        `json:"spell_save_dc"`
-	SpellAttackBonus int        `json:"spell_attack_bonus"`
+	Spells            []Spell     `json:"spells"`
+	Slots             SpellSlots  `json:"slots"`
+	SpellcastingMod   AbilityType `json:"spellcasting_mod"`  // INT, WIS, or CHA
+	SpellSaveDC       int         `json:"spell_save_dc"`
+	SpellAttackBonus  int         `json:"spell_attack_bonus"`
+	IsPreparedCaster  bool        `json:"is_prepared_caster"`  // true for Druid, Cleric, Paladin, Wizard
+	MaxPreparedSpells int         `json:"max_prepared_spells"` // Number of spells that can be prepared
+	CantripsKnown     int         `json:"cantrips_known"`      // Number of cantrips known (for level)
+	Cantrips          []string    `json:"cantrips"`            // List of selected cantrip names
 }
 
 // GetSlotByLevel returns a pointer to the spell slot for a given level

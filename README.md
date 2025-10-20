@@ -2,6 +2,11 @@
 
 A terminal user interface (TUI) application for managing D&D 5e 2024 characters, inspired by lazygit.
 
+The project is currently in development. If you're excited to see the finished result, let me know, and I'll contact you when it's done!
+
+**Dungeon Masters, take note:**
+I'd love your help on *lazydnd!* If you're interested in contributing to its development, please feel free to reach out.
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Go](https://img.shields.io/badge/go-1.21+-00ADD8)
 ![License](https://img.shields.io/badge/license-MIT-green)
