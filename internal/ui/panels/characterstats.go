@@ -88,9 +88,6 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 		Foreground(lipgloss.Color("42")).
 		Bold(true)
 
-	// Calculate initiative modifier (DEX modifier + bonus from feats)
-	initiativeMod := char.AbilityScores.GetModifier(models.Dexterity) + char.InitiativeBonus
-
 	// Build stat boxes for important stats (smaller for 2-row layout)
 	boxWidth := 10
 
@@ -106,7 +103,7 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 
 	initBox := statBoxStyle.Copy().Width(boxWidth).Render(
 		lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true).Render("⚡ INIT") + "\n" +
-			criticalStatStyle.Render(fmt.Sprintf("%+d", initiativeMod)),
+			criticalStatStyle.Render(fmt.Sprintf("%+d", char.Initiative)),
 	)
 
 	speedBox := statBoxStyle.Copy().Width(boxWidth).Render(
@@ -303,9 +300,9 @@ func (p *CharacterStatsPanel) RemoveHP(amount int) {
 	}
 }
 
-// GetInitiativeModifier returns the initiative modifier (DEX + bonuses from feats)
+// GetInitiativeModifier returns the initiative modifier (single source of truth from character model)
 func (p *CharacterStatsPanel) GetInitiativeModifier() int {
-	return p.character.AbilityScores.GetModifier(models.Dexterity) + p.character.InitiativeBonus
+	return p.character.Initiative
 }
 
 // GetEditMode returns the current edit mode
