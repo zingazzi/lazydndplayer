@@ -73,8 +73,15 @@ func CalculateAC(char *Character) int {
 			}
 		}
 	} else {
-		// Unarmored: 10 + Dex modifier
-		baseAC = 10 + dexMod
+		// Unarmored: Check for special unarmored defense
+		if char.Class == "Barbarian" {
+			// Barbarian Unarmored Defense: 10 + Dex modifier + Con modifier
+			conMod := char.AbilityScores.GetModifier("Constitution")
+			baseAC = 10 + dexMod + conMod
+		} else {
+			// Standard unarmored: 10 + Dex modifier
+			baseAC = 10 + dexMod
+		}
 	}
 
 	// Add shield bonus (+2)
