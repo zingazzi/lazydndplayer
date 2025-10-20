@@ -35,11 +35,12 @@ type SkillChoiceInfo struct {
 
 // SpellcastingInfo contains spellcasting information for a class
 type SpellcastingInfo struct {
-	Ability        string         `json:"ability"`
-	CantripsKnown  int            `json:"cantrips_known"`
-	SpellsKnown    int            `json:"spells_known,omitempty"`
-	SpellsPrepared string         `json:"spells_prepared,omitempty"`
-	SpellSlots     map[string]int `json:"spell_slots"`
+	Ability              string         `json:"ability"`
+	RitualCasting        bool           `json:"ritual_casting,omitempty"`
+	SpellsKnownFormula   string         `json:"spells_known_formula,omitempty"` // "all" for prepared casters, formula for known casters
+	CantripsKnown        int            `json:"cantrips_known"`
+	PreparationFormula   string         `json:"preparation_formula,omitempty"` // e.g., "wisdom+level"
+	SpellSlots           map[string]int `json:"spell_slots,omitempty"`
 }
 
 // ClassesData represents the structure of classes.json
@@ -200,6 +201,11 @@ func ApplyClassToCharacter(char *Character, className string) error {
 	// Grant level 1 class features (this will add new class features)
 	GrantClassFeatures(char, class)
 
+	// Initialize spellcasting for spellcasting classes
+	if class.Spellcasting != nil {
+		InitializeSpellcasting(char, class)
+	}
+
 	// Calculate and set HP
 	newMaxHP := CalculateMaxHP(char, class)
 
@@ -320,4 +326,146 @@ func RemoveAllClassFeatures(char *Character) {
 
 	debug.Log("RemoveAllClassFeatures: Total features after: %d", len(newFeatures))
 	char.Features.Features = newFeatures
+}
+
+// InitializeSpellcasting sets up spellcasting for a class
+func InitializeSpellcasting(char *Character, class *Class) {
+	if class.Spellcasting == nil {
+		return
+	}
+
+	debug.Log("InitializeSpellcasting: Setting up spellcasting for %s", class.Name)
+
+	// Set spellcasting ability
+	char.SpellBook.SpellcastingMod = AbilityType(class.Spellcasting.Ability)
+
+	// Determine if this is a prepared caster (knows all spells but must prepare them)
+	isPreparedCaster := class.Spellcasting.SpellsKnownFormula == "all"
+	char.SpellBook.IsPreparedCaster = isPreparedCaster
+	debug.Log("  IsPreparedCaster: %v", isPreparedCaster)
+
+	// Set cantrips known
+	char.SpellBook.CantripsKnown = class.Spellcasting.CantripsKnown
+	debug.Log("  CantripsKnown: %d", char.SpellBook.CantripsKnown)
+
+	// Calculate max prepared spells if this is a prepared caster
+	if isPreparedCaster && class.Spellcasting.PreparationFormula != "" {
+		maxPrepared := CalculateMaxPreparedSpells(char, class.Spellcasting.PreparationFormula)
+		char.SpellBook.MaxPreparedSpells = maxPrepared
+		debug.Log("  MaxPreparedSpells: %d (formula: %s)", maxPrepared, class.Spellcasting.PreparationFormula)
+	}
+
+	// Load spell slots from class progression
+	LoadSpellSlotsForLevel(char, class, char.Level)
+
+	// Update spell save DC and attack bonus
+	char.UpdateDerivedStats()
+}
+
+// LoadSpellSlotsForLevel loads spell slots from class progression data
+func LoadSpellSlotsForLevel(char *Character, class *Class, level int) {
+	// Load class data from JSON to get spell slots
+	classData := GetClassByName(class.Name)
+	if classData == nil {
+		debug.Log("LoadSpellSlotsForLevel: Could not load class data for %s", class.Name)
+		return
+	}
+
+	// Find the level progression data
+	classFilePath := fmt.Sprintf("data/classes/%s.json", strings.ToLower(class.Name))
+	data, err := os.ReadFile(classFilePath)
+	if err != nil {
+		debug.Log("LoadSpellSlotsForLevel: Error reading class file: %v", err)
+		return
+	}
+
+	var classWithProgression struct {
+		LevelProgression []struct {
+			Level            int                   `json:"level"`
+			SpellcastingInfo *struct {
+				SpellSlots map[string]int `json:"spell_slots"`
+			} `json:"spellcasting_info"`
+		} `json:"level_progression"`
+	}
+
+	if err := json.Unmarshal(data, &classWithProgression); err != nil {
+		debug.Log("LoadSpellSlotsForLevel: Error unmarshaling class data: %v", err)
+		return
+	}
+
+	// Find spell slots for current level
+	for _, levelData := range classWithProgression.LevelProgression {
+		if levelData.Level == level && levelData.SpellcastingInfo != nil {
+			debug.Log("LoadSpellSlotsForLevel: Found spell slots for level %d", level)
+
+			// Set spell slots
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["1"]; ok {
+				char.SpellBook.Slots.Level1.Maximum = slots
+				char.SpellBook.Slots.Level1.Current = slots
+			}
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["2"]; ok {
+				char.SpellBook.Slots.Level2.Maximum = slots
+				char.SpellBook.Slots.Level2.Current = slots
+			}
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["3"]; ok {
+				char.SpellBook.Slots.Level3.Maximum = slots
+				char.SpellBook.Slots.Level3.Current = slots
+			}
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["4"]; ok {
+				char.SpellBook.Slots.Level4.Maximum = slots
+				char.SpellBook.Slots.Level4.Current = slots
+			}
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["5"]; ok {
+				char.SpellBook.Slots.Level5.Maximum = slots
+				char.SpellBook.Slots.Level5.Current = slots
+			}
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["6"]; ok {
+				char.SpellBook.Slots.Level6.Maximum = slots
+				char.SpellBook.Slots.Level6.Current = slots
+			}
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["7"]; ok {
+				char.SpellBook.Slots.Level7.Maximum = slots
+				char.SpellBook.Slots.Level7.Current = slots
+			}
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["8"]; ok {
+				char.SpellBook.Slots.Level8.Maximum = slots
+				char.SpellBook.Slots.Level8.Current = slots
+			}
+			if slots, ok := levelData.SpellcastingInfo.SpellSlots["9"]; ok {
+				char.SpellBook.Slots.Level9.Maximum = slots
+				char.SpellBook.Slots.Level9.Current = slots
+			}
+
+			debug.Log("  Level 1 slots: %d", char.SpellBook.Slots.Level1.Maximum)
+			break
+		}
+	}
+}
+
+// CalculateMaxPreparedSpells calculates how many spells can be prepared
+// Formula examples: "wisdom+level", "intelligence+level"
+func CalculateMaxPreparedSpells(char *Character, formula string) int {
+	parts := strings.Split(strings.ToLower(formula), "+")
+	total := 0
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		switch part {
+		case "level":
+			total += char.Level
+		case "wisdom", "wis":
+			total += char.AbilityScores.GetModifier("Wisdom")
+		case "intelligence", "int":
+			total += char.AbilityScores.GetModifier("Intelligence")
+		case "charisma", "cha":
+			total += char.AbilityScores.GetModifier("Charisma")
+		}
+	}
+
+	// Minimum of 1
+	if total < 1 {
+		total = 1
+	}
+
+	return total
 }

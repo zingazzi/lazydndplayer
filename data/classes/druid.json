@@ -5,7 +5,7 @@
   "primary_ability": "Wisdom",
   "saving_throws": ["Intelligence", "Wisdom"],
   "armor_proficiencies": ["Light", "Medium", "Shields"],
-  "weapon_proficiencies": ["Clubs", "Daggers", "Darts", "Javelins", "Maces", "Quarterstaffs", "Scimitars", "Sickles", "Slings", "Spears"],
+  "weapon_proficiencies": ["Club", "Dagger", "Dart", "Javelin", "Mace", "Quarterstaff", "Scimitar", "Sickle", "Sling", "Spear"],
   "tool_proficiencies": ["Herbalism Kit"],
   "skill_choices": {
     "choose": 2,
@@ -18,8 +18,25 @@
   ],
   "spellcasting": {
     "ability": "Wisdom",
-    "ritual_casting": true
+    "ritual_casting": true,
+    "spells_known_formula": "all",
+    "cantrips_known": 2,
+    "preparation_formula": "wisdom+level"
   },
+  "level_1_features": [
+    {
+      "name": "Druidic",
+      "description": "You know Druidic, the secret language of druids. You can speak the language and use it to leave hidden messages.",
+      "uses_formula": "0",
+      "rest_type": "None"
+    },
+    {
+      "name": "Spellcasting",
+      "description": "Drawing on the divine essence of nature itself, you can cast spells to shape that essence to your will. You prepare spells from the druid spell list. Wisdom is your spellcasting ability.",
+      "uses_formula": "0",
+      "rest_type": "None"
+    }
+  ],
   "level_progression": [
     {
       "level": 1,
@@ -474,4 +491,3 @@
     }
   ]
 }
-

@@ -81,6 +81,7 @@ type Model struct {
 	classSelector          *components.ClassSelector
 	classSkillSelector     *components.ClassSkillSelector
 	fightingStyleSelector  *components.FightingStyleSelector
+	cantripSelector        *components.CantripSelector
 	statGenerator          *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
@@ -136,6 +137,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		classSelector:          components.NewClassSelector(),
 		classSkillSelector:     components.NewClassSkillSelector(),
 		fightingStyleSelector:  components.NewFightingStyleSelector(),
+		cantripSelector:        components.NewCantripSelector(char),
 		statGenerator:          components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
@@ -326,6 +328,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if fighting style selector is active (highest priority in class flow)
 		if m.fightingStyleSelector.IsVisible() {
 			return m.handleFightingStyleSelectorKeys(msg)
+		}
+
+		// Check if cantrip selector is active
+		if m.cantripSelector.IsVisible() {
+			return m.handleCantripSelectorKeys(msg)
 		}
 
 		// Check if class skill selector is active
@@ -960,24 +967,31 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleSpellsPanel handles spells panel specific keys
 func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "up", "k":
+		m.spellsPanel.HandleKey(msg)
+	case "down", "j":
+		m.spellsPanel.HandleKey(msg)
+	case "pgup":
+		m.spellsPanel.HandleKey(msg)
+	case "pgdown":
+		m.spellsPanel.HandleKey(msg)
 	case "r":
-		m.character.SpellBook.LongRest()
+		// Rest - restore all spell slots
+		m.spellsPanel.Rest()
+		m.storage.Save(m.character)
 		m.message = "Spell slots restored!"
-	case "a":
-		// Add a sample spell for demonstration
-		m.character.SpellBook.AddSpell(models.Spell{
-			Name:        "New Spell",
-			Level:       1,
-			School:      models.Evocation,
-			CastingTime: "1 action",
-			Range:       "60 feet",
-			Components:  "V, S",
-			Duration:    "Instantaneous",
-			Description: "A new spell",
-			Prepared:    false,
-			Known:       true,
-		})
-		m.message = "Spell added (edit - not fully implemented)"
+	case "c":
+		// Change cantrips
+		if m.character.SpellBook.IsPreparedCaster {
+			m.cantripSelector.Show(m.character.Class, m.character.SpellBook.CantripsKnown)
+			m.message = fmt.Sprintf("Select %d cantrips...", m.character.SpellBook.CantripsKnown)
+		} else {
+			m.message = "Only prepared casters can change cantrips this way"
+		}
+	case " ", "enter":
+		// Note: This is simplified - we'd need to track selected spell
+		// For now, just show a message
+		m.message = "Spell prepare/unprepare coming soon - use spell selector"
 	}
 	return m, nil
 }
@@ -1834,13 +1848,23 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
 			debug.Log("Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
 
+			// Check if this class needs cantrip selection (spellcasters)
+			classData := models.GetClassByName(selectedClassName)
+			needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
+			debug.Log("Class %s needs cantrips: %v", selectedClassName, needsCantrips)
+
 			if needsFightingStyle {
 				// Show fighting style selector
 				debug.Log("Showing fighting style selector")
 				m.fightingStyleSelector.Show(selectedClassName)
 				m.message = fmt.Sprintf("Select fighting style for %s...", selectedClassName)
+			} else if needsCantrips {
+				// Show cantrip selector
+				debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
+				m.cantripSelector.Show(selectedClassName, classData.Spellcasting.CantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, selectedClassName)
 			} else {
-				// No fighting style needed, complete class selection
+				// No fighting style or cantrips needed, complete class selection
 				debug.Log("Saving character and completing class selection")
 				m.pendingChanges.Clear() // Clear backup on successful completion
 				m.storage.Save(m.character)
@@ -1858,6 +1882,48 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		m.classSkillSelector.Hide()
 		m.storage.Save(m.character) // Save restored state
 		m.message = "Skill selection cancelled - restored previous state"
+	}
+	return m, nil
+}
+
+// handleCantripSelectorKeys handles cantrip selector specific keys
+func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleCantripSelectorKeys: key=%s", msg.String())
+
+	switch msg.String() {
+	case "up", "k":
+		m.cantripSelector.Prev()
+	case "down", "j":
+		m.cantripSelector.Next()
+	case " ": // Space to toggle
+		m.cantripSelector.ToggleSelection()
+	case "enter":
+		if m.cantripSelector.CanConfirm() {
+			selectedCantrips := m.cantripSelector.GetSelectedCantrips()
+			debug.Log("Selected cantrips: %v", selectedCantrips)
+
+			// Apply cantrips to character's spellbook
+			m.character.SpellBook.Cantrips = selectedCantrips
+			m.character.SpellBook.CantripsKnown = len(selectedCantrips)
+
+			m.cantripSelector.Hide()
+
+			// Complete class selection
+			debug.Log("Saving character and completing class selection")
+			m.pendingChanges.Clear() // Clear backup on successful completion
+			m.storage.Save(m.character)
+			m.message = fmt.Sprintf("Class selection complete! Selected %d cantrips", len(selectedCantrips))
+		} else {
+			needed := m.cantripSelector.GetMaxCantrips() - m.cantripSelector.GetSelectedCount()
+			m.message = fmt.Sprintf("Please select %d more cantrip(s)", needed)
+		}
+	case "esc":
+		// Cancel - rollback to previous state
+		debug.Log("Cantrip selection cancelled, rolling back changes")
+		m.cantripSelector.Hide()
+		m.pendingChanges.RestoreClass(m.character)
+		m.storage.Save(m.character)
+		m.message = "Class selection cancelled - restored previous state"
 	}
 	return m, nil
 }
@@ -2308,7 +2374,7 @@ func (m *Model) buildStatusBar() string {
 			contextHelp = "[a] Add Item • [e] Equip • [d] Remove 1 • [D] Remove All"
 		case SpellsPanel:
 			panelName = "Spells"
-			contextHelp = "[a] Add • [r] Rest"
+			contextHelp = "[↑/↓] Navigate • [c] Change Cantrips • [r] Rest"
 		case FeaturesPanel:
 			panelName = "Features"
 			contextHelp = "[↑/↓] Navigate • [u] Use • [+] Restore"
@@ -2637,7 +2703,12 @@ func (m *Model) View() string {
 		return m.fightingStyleSelector.View(m.width, m.height)
 	}
 
-	// Class skill selector takes seventh priority (Medium)
+	// Cantrip selector takes seventh priority (Medium)
+	if m.cantripSelector.IsVisible() {
+		return m.cantripSelector.View()
+	}
+
+	// Class skill selector takes eighth priority (Medium)
 	if m.classSkillSelector.IsVisible() {
 		return m.classSkillSelector.View(m.width, m.height)
 	}
