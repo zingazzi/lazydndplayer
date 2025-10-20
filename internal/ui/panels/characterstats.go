@@ -303,9 +303,9 @@ func (p *CharacterStatsPanel) RemoveHP(amount int) {
 	}
 }
 
-// GetInitiativeModifier returns the initiative modifier
+// GetInitiativeModifier returns the initiative modifier (DEX + bonuses from feats)
 func (p *CharacterStatsPanel) GetInitiativeModifier() int {
-	return p.character.AbilityScores.GetModifier(models.Dexterity)
+	return p.character.AbilityScores.GetModifier(models.Dexterity) + p.character.InitiativeBonus
 }
 
 // GetEditMode returns the current edit mode
