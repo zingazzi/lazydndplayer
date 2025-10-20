@@ -35,7 +35,8 @@
       "name": "Weapon Mastery",
       "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons of your choice with which you have proficiency.",
       "uses_formula": "0",
-      "rest_type": "None"
+      "rest_type": "None",
+      "mastery_count": 2
     }
   ],
   "level_progression": [

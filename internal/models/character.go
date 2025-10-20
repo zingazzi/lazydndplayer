@@ -40,6 +40,7 @@ type Character struct {
 	ArmorProficiencies        []string `json:"armor_proficiencies"`         // Armor proficiencies from class
 	WeaponProficiencies       []string `json:"weapon_proficiencies"`        // Weapon proficiencies from class
 	SavingThrowProficiencies  []string `json:"saving_throw_proficiencies"`  // Saving throw proficiencies from class
+	MasteredWeapons           []string `json:"mastered_weapons"`            // Weapons with mastery properties
 
 	// Combat & Features
 	Initiative       int         `json:"initiative"`

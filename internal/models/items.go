@@ -23,6 +23,7 @@ type ItemDefinition struct {
 	StealthDisadvantage  bool     `json:"stealth_disadvantage,omitempty"`
 	StrengthReq          int      `json:"strength_req,omitempty"`
 	Equippable           bool     `json:"equippable,omitempty"`
+	Mastery              string   `json:"mastery,omitempty"` // Weapon mastery property
 }
 
 // ItemsDatabase holds all item definitions

@@ -86,6 +86,7 @@ type Model struct {
 	abilityChoiceSelector *components.AbilityChoiceSelector
 	attackRoller          *components.AttackRoller
 	attackMenu            *components.AttackMenu
+	weaponMasterySelector *components.WeaponMasterySelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -140,6 +141,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
 		attackRoller:          components.NewAttackRoller(),
 		attackMenu:            components.NewAttackMenu(),
+		weaponMasterySelector: components.NewWeaponMasterySelector(char),
 		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:           panels.NewSkillsPanel(char),
 		inventoryPanel:        panels.NewInventoryPanel(char),
@@ -309,6 +311,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if tool selector is active
 		if m.toolSelector.IsVisible() {
 			return m.handleToolSelectorKeys(msg)
+		}
+
+		// Check if weapon mastery selector is active
+		if m.weaponMasterySelector.IsVisible() {
+			return m.handleWeaponMasterySelectorKeys(msg)
 		}
 
 		// Check if item selector is active
@@ -1150,6 +1157,16 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.featSelector.ShowForDeletion(m.character)
 			m.message = "Select a feat to remove..."
 		}
+	case "m":
+		// Manage weapon mastery
+		// Check if character has weapon mastery feature
+		masteryCount := m.getWeaponMasteryCount()
+		if masteryCount > 0 {
+			m.weaponMasterySelector.Show(masteryCount)
+			m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+		} else {
+			m.message = "You don't have the Weapon Mastery feature"
+		}
 	case "d", "x":
 		m.traitsPanel.RemoveSelected()
 		m.message = "Item removed"
@@ -1633,6 +1650,36 @@ func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.toolSelector.Hide()
 		m.message = "Tool selection cancelled"
+	}
+	return m, nil
+}
+
+// handleWeaponMasterySelectorKeys handles weapon mastery selector specific keys
+func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.weaponMasterySelector.Prev()
+	case "down", "j":
+		m.weaponMasterySelector.Next()
+	case " ":
+		// Toggle selection
+		if !m.weaponMasterySelector.ToggleSelection() {
+			m.message = "Maximum weapons already selected"
+		}
+	case "enter":
+		// Confirm selection
+		if m.weaponMasterySelector.CanConfirm() {
+			m.character.MasteredWeapons = m.weaponMasterySelector.GetSelectedWeapons()
+			m.weaponMasterySelector.Hide()
+			m.storage.Save(m.character)
+			m.message = fmt.Sprintf("Mastered %d weapons", len(m.character.MasteredWeapons))
+		} else {
+			m.message = "Please select at least one weapon"
+		}
+	case "esc":
+		// Cancel
+		m.weaponMasterySelector.Hide()
+		m.message = "Cancelled"
 	}
 	return m, nil
 }
@@ -2267,7 +2314,7 @@ func (m *Model) buildStatusBar() string {
 			contextHelp = "[↑/↓] Navigate • [u] Use • [+] Restore"
 		case TraitsPanel:
 			panelName = "Traits"
-			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [L] Del Lang • [f] Add Feat • [F] Del Feat"
+			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [f] Add Feat • [m] Weapon Mastery"
 		case OriginPanel:
 			panelName = "Origin"
 			contextHelp = "[o] Change Origin • [t] Add Tool • [T] Remove Tool"
@@ -2575,7 +2622,12 @@ func (m *Model) View() string {
 		return m.toolSelector.View(popupSmallWidth, popupSmallHeight)
 	}
 
-	// Item selector takes fifth priority (Large)
+	// Weapon mastery selector takes fifth priority (Medium)
+	if m.weaponMasterySelector.IsVisible() {
+		return m.weaponMasterySelector.View()
+	}
+
+	// Item selector takes sixth priority (Large)
 	if m.itemSelector.IsVisible() {
 		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
 	}
@@ -2613,6 +2665,25 @@ func (m *Model) View() string {
 	}
 
 	return mainView
+}
+
+// getWeaponMasteryCount returns the number of weapons the character can master
+func (m *Model) getWeaponMasteryCount() int {
+	for _, feature := range m.character.Features.Features {
+		if feature.Name == "Weapon Mastery" {
+			// Try to get the count from feature definition
+			// For now, check the class
+			switch m.character.Class {
+			case "Fighter":
+				return 3
+			case "Barbarian", "Paladin":
+				return 2
+			default:
+				return 0
+			}
+		}
+	}
+	return 0
 }
 
 // Run runs the application
