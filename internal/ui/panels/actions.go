@@ -68,10 +68,10 @@ func (p *ActionsPanel) View(width, height int) string {
 	idx := 0
 
 	// === ATTACKS SECTION ===
-	if len(p.attacks) > 0 {
-		lines = append(lines, sectionStyle.Render("⚔️  Attacks"))
-		lines = append(lines, "")
+	lines = append(lines, sectionStyle.Render("⚔️  Attacks"))
+	lines = append(lines, "")
 
+	if len(p.attacks) > 0 {
 		for _, attack := range p.attacks {
 			line := fmt.Sprintf("%-20s %s", attack.Name, attack.GetAttackSummary())
 
@@ -82,60 +82,32 @@ func (p *ActionsPanel) View(width, height int) string {
 			}
 			idx++
 		}
-		lines = append(lines, "")
+	} else {
+		lines = append(lines, lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Italic(true).
+			Render("  No attacks available"))
 	}
-
-	// === OTHER ACTIONS SECTION ===
-	// Filter out "Attack" from actions since we show specific attacks above
-	otherActions := []models.Action{}
-	for _, action := range char.Actions.Actions {
-		if action.Name != "Attack" {
-			otherActions = append(otherActions, action)
-		}
-	}
-
-	if len(otherActions) > 0 {
-		lines = append(lines, sectionStyle.Render("📋 Other Actions"))
-		lines = append(lines, "")
-
-		for _, action := range otherActions {
-			usesStr := ""
-			if action.UsesPerRest != -1 {
-				usesStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
-				if action.UsesRemaining == 0 {
-					usesStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-				}
-				usesStr = usesStyle.Render(fmt.Sprintf(" [%d/%d]", action.UsesRemaining, action.UsesPerRest))
-			}
-
-			line := fmt.Sprintf("%-25s%s", action.Name, usesStr)
-
-			if idx == p.selectedIndex {
-				lines = append(lines, selectedStyle.Render("▶ "+line))
-			} else {
-				lines = append(lines, normalStyle.Render("  "+line))
-			}
-			idx++
-		}
-	}
-
-	p.totalItemCount = idx
-
 	lines = append(lines, "")
 
-	// Show different help based on selection
-	helpText := "↑/↓: Navigate"
-	if p.selectedIndex < len(p.attacks) {
-		// Attack selected
-		helpText = "↑/↓: Navigate • 'r': Attack • 'a': Advantage • 'x': Disadvantage • 'd': Damage"
-	} else {
-		// Other action selected
-		helpText = "↑/↓: Navigate • Enter: Activate"
-	}
-
+	// === BONUS ACTIONS SECTION ===
+	lines = append(lines, sectionStyle.Render("⚡ Bonus Actions"))
+	lines = append(lines, "")
 	lines = append(lines, lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render(helpText))
+		Italic(true).
+		Render("  No bonus actions available"))
+	lines = append(lines, "")
+
+	// === REACTIONS SECTION ===
+	lines = append(lines, sectionStyle.Render("🛡️  Reactions"))
+	lines = append(lines, "")
+	lines = append(lines, lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true).
+		Render("  No reactions available"))
+
+	p.totalItemCount = idx
 
 	content := strings.Join(lines, "\n")
 	p.viewport.SetContent(content)
