@@ -1,6 +1,8 @@
 // internal/models/character.go
 package models
 
+import "strings"
+
 // Character represents a D&D 5e character
 type Character struct {
 	// Basic Info
@@ -145,11 +147,43 @@ func (c *Character) UpdateDerivedStats() {
 		mod := c.AbilityScores.GetModifier(c.SpellBook.SpellcastingMod)
 		c.SpellBook.SpellSaveDC = 8 + c.ProficiencyBonus + mod
 		c.SpellBook.SpellAttackBonus = c.ProficiencyBonus + mod
+
+		// Update max prepared spells if prepared caster
+		if c.SpellBook.IsPreparedCaster && c.SpellBook.PreparationFormula != "" {
+			c.SpellBook.MaxPreparedSpells = c.CalculateMaxPreparedSpells(c.SpellBook.PreparationFormula)
+		}
 	}
 
 	// Update AC based on equipped armor and shield
 	c.AC = CalculateAC(c)
 	c.ArmorClass = c.AC // Keep both for compatibility
+}
+
+// CalculateMaxPreparedSpells calculates the maximum number of spells that can be prepared
+func (c *Character) CalculateMaxPreparedSpells(formula string) int {
+	parts := strings.Split(strings.ToLower(formula), "+")
+	total := 0
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		switch part {
+		case "level":
+			total += c.Level
+		case "wisdom", "wis":
+			total += c.AbilityScores.GetModifier("Wisdom")
+		case "intelligence", "int":
+			total += c.AbilityScores.GetModifier("Intelligence")
+		case "charisma", "cha":
+			total += c.AbilityScores.GetModifier("Charisma")
+		}
+	}
+
+	// Minimum of 1
+	if total < 1 {
+		total = 1
+	}
+
+	return total
 }
 
 // CalculateProficiencyBonus returns proficiency bonus for a given level

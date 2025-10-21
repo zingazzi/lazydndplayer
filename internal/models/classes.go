@@ -350,6 +350,8 @@ func InitializeSpellcasting(char *Character, class *Class) {
 
 	// Calculate max prepared spells if this is a prepared caster
 	if isPreparedCaster && class.Spellcasting.PreparationFormula != "" {
+		// Store the formula so it can be recalculated when stats change
+		char.SpellBook.PreparationFormula = class.Spellcasting.PreparationFormula
 		maxPrepared := CalculateMaxPreparedSpells(char, class.Spellcasting.PreparationFormula)
 		char.SpellBook.MaxPreparedSpells = maxPrepared
 		debug.Log("  MaxPreparedSpells: %d (formula: %s)", maxPrepared, class.Spellcasting.PreparationFormula)
