@@ -75,6 +75,7 @@ type Model struct {
 	featSelector          *components.FeatSelector
 	featDetailPopup       *components.FeatDetailPopup
 	itemDetailPopup       *components.ItemDetailPopup
+	spellDetailPopup      *components.SpellDetailPopup
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
 	itemSelector           *components.ItemSelector
@@ -82,6 +83,7 @@ type Model struct {
 	classSkillSelector     *components.ClassSkillSelector
 	fightingStyleSelector  *components.FightingStyleSelector
 	cantripSelector        *components.CantripSelector
+	spellPrepSelector      *components.SpellPrepSelector
 	statGenerator          *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
@@ -131,6 +133,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		featSelector:          components.NewFeatSelector(),
 		featDetailPopup:       components.NewFeatDetailPopup(),
 		itemDetailPopup:       components.NewItemDetailPopup(),
+		spellDetailPopup:      components.NewSpellDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
 		itemSelector:           components.NewItemSelector(),
@@ -138,6 +141,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		classSkillSelector:     components.NewClassSkillSelector(),
 		fightingStyleSelector:  components.NewFightingStyleSelector(),
 		cantripSelector:        components.NewCantripSelector(char),
+		spellPrepSelector:      components.NewSpellPrepSelector(char),
 		statGenerator:          components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
@@ -285,6 +289,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleItemDetailPopupKeys(msg)
 		}
 
+		// Check if spell detail popup is active
+		if m.spellDetailPopup.IsVisible() {
+			return m.handleSpellDetailPopupKeys(msg)
+		}
+
 		// Check if origin selector is active
 		if m.originSelector.IsVisible() {
 			return m.handleOriginSelectorKeys(msg)
@@ -333,6 +342,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if cantrip selector is active
 		if m.cantripSelector.IsVisible() {
 			return m.handleCantripSelectorKeys(msg)
+		}
+
+		// Check if spell prep selector is active
+		if m.spellPrepSelector.IsVisible() {
+			return m.handleSpellPrepSelectorKeys(msg)
 		}
 
 		// Check if class skill selector is active
@@ -988,10 +1002,14 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.message = "Only prepared casters can change cantrips this way"
 		}
-	case " ", "enter":
-		// Note: This is simplified - we'd need to track selected spell
-		// For now, just show a message
-		m.message = "Spell prepare/unprepare coming soon - use spell selector"
+	case "v":
+		// Open spell preparation selector
+		if m.character.SpellBook.IsPreparedCaster {
+			m.spellPrepSelector.Show()
+			m.message = "Select spells to prepare..."
+		} else {
+			m.message = "Only prepared casters can prepare spells"
+		}
 	}
 	return m, nil
 }
@@ -1928,6 +1946,24 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleSpellPrepSelectorKeys handles keyboard input for the spell prep selector
+func (m *Model) handleSpellPrepSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	*m.spellPrepSelector, cmd = m.spellPrepSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter":
+		m.spellPrepSelector.Hide()
+		m.storage.Save(m.character)
+		m.message = "Spell preparation updated!"
+	case "esc":
+		m.spellPrepSelector.Hide()
+		m.message = "Spell preparation cancelled"
+	}
+
+	return m, cmd
+}
+
 // handleFightingStyleSelectorKeys handles fighting style selector specific keys
 func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleFightingStyleSelectorKeys: key=%s", msg.String())
@@ -2193,6 +2229,16 @@ func (m *Model) handleItemDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "enter":
 		m.itemDetailPopup.Hide()
 		m.message = "Closed item details"
+	}
+	return m, nil
+}
+
+// handleSpellDetailPopupKeys handles keyboard input for the spell detail popup
+func (m *Model) handleSpellDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.spellDetailPopup.Hide()
+		m.message = "Closed spell details"
 	}
 	return m, nil
 }
@@ -2658,6 +2704,11 @@ func (m *Model) View() string {
 		return m.itemDetailPopup.View(m.width, m.height)
 	}
 
+	// Spell detail popup (Medium)
+	if m.spellDetailPopup.IsVisible() {
+		return m.spellDetailPopup.View()
+	}
+
 	// Origin selector (Medium)
 	if m.originSelector.IsVisible() {
 		return m.originSelector.View(popupMediumWidth, popupMediumHeight)
@@ -2708,7 +2759,12 @@ func (m *Model) View() string {
 		return m.cantripSelector.View()
 	}
 
-	// Class skill selector takes eighth priority (Medium)
+	// Spell prep selector takes eighth priority (Medium)
+	if m.spellPrepSelector.IsVisible() {
+		return m.spellPrepSelector.View()
+	}
+
+	// Class skill selector takes ninth priority (Medium)
 	if m.classSkillSelector.IsVisible() {
 		return m.classSkillSelector.View(m.width, m.height)
 	}

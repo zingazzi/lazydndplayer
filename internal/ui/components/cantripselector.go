@@ -35,7 +35,10 @@ func (cs *CantripSelector) Show(className string, maxCantrips int) {
 	cs.maxCantrips = maxCantrips
 	cs.visible = true
 	cs.cursor = 0
-	cs.selectedCantrips = []string{}
+
+	// Pre-select existing cantrips from character
+	cs.selectedCantrips = make([]string, len(cs.character.SpellBook.Cantrips))
+	copy(cs.selectedCantrips, cs.character.SpellBook.Cantrips)
 
 	// Load cantrips for this class
 	cs.loadCantrips()
@@ -187,11 +190,10 @@ func (cs *CantripSelector) View() string {
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
 
-	var lines []string
-	lines = append(lines, titleStyle.Render(fmt.Sprintf("⚡ SELECT CANTRIPS FOR %s", strings.ToUpper(cs.className))))
-	lines = append(lines, "")
-	lines = append(lines, headerStyle.Render(fmt.Sprintf("Select %d cantrips  (%d/%d selected)", cs.maxCantrips, len(cs.selectedCantrips), cs.maxCantrips)))
-	lines = append(lines, "")
+	// Left column - cantrip list
+	var leftLines []string
+	leftLines = append(leftLines, headerStyle.Render(fmt.Sprintf("Select %d cantrips  (%d/%d)", cs.maxCantrips, len(cs.selectedCantrips), cs.maxCantrips)))
+	leftLines = append(leftLines, "")
 
 	// Show cantrips
 	for i, cantrip := range cs.availableCantrips {
@@ -207,35 +209,80 @@ func (cs *CantripSelector) View() string {
 			style = selectedStyle
 		}
 
-		// Show school
-		school := string(cantrip.School)
-		line := fmt.Sprintf("%s%s %s  %s", cursor, checkbox, cantrip.Name, dimStyle.Render(fmt.Sprintf("(%s)", school)))
-		lines = append(lines, style.Render(line))
+		line := fmt.Sprintf("%s%s %s", cursor, checkbox, cantrip.Name)
+		leftLines = append(leftLines, style.Render(line))
 	}
 
-	lines = append(lines, "")
+	leftColumn := strings.Join(leftLines, "\n")
+
+	// Right column - cantrip description
+	var rightLines []string
+	if len(cs.availableCantrips) > 0 && cs.cursor < len(cs.availableCantrips) {
+		cantrip := cs.availableCantrips[cs.cursor]
+
+		rightLines = append(rightLines, headerStyle.Render(cantrip.Name))
+		rightLines = append(rightLines, dimStyle.Render(string(cantrip.School)+" Cantrip"))
+		rightLines = append(rightLines, "")
+
+		rightLines = append(rightLines, normalStyle.Render(fmt.Sprintf("Casting Time: %s", cantrip.CastingTime)))
+		rightLines = append(rightLines, normalStyle.Render(fmt.Sprintf("Range: %s", cantrip.Range)))
+		rightLines = append(rightLines, normalStyle.Render(fmt.Sprintf("Components: %s", cantrip.Components)))
+		rightLines = append(rightLines, normalStyle.Render(fmt.Sprintf("Duration: %s", cantrip.Duration)))
+		rightLines = append(rightLines, "")
+
+		// Wrap description
+		descWords := strings.Fields(cantrip.Description)
+		line := ""
+		for _, word := range descWords {
+			if len(line)+len(word)+1 > 35 {
+				rightLines = append(rightLines, normalStyle.Render(line))
+				line = word
+			} else {
+				if line != "" {
+					line += " "
+				}
+				line += word
+			}
+		}
+		if line != "" {
+			rightLines = append(rightLines, normalStyle.Render(line))
+		}
+	}
+
+	rightColumn := strings.Join(rightLines, "\n")
+
+	// Combine columns
+	leftBox := lipgloss.NewStyle().Width(35).Render(leftColumn)
+	rightBox := lipgloss.NewStyle().Width(40).Padding(0, 1).Render(rightColumn)
+
+	columns := lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightBox)
+
+	// Build final content
+	var content strings.Builder
+	content.WriteString(titleStyle.Render(fmt.Sprintf("⚡ SELECT CANTRIPS FOR %s", strings.ToUpper(cs.className))))
+	content.WriteString("\n\n")
+	content.WriteString(columns)
+	content.WriteString("\n\n")
 
 	// Help text
 	if cs.CanConfirm() {
-		lines = append(lines, helpStyle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Esc: Cancel"))
+		content.WriteString(helpStyle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Esc: Cancel"))
 	} else {
-		lines = append(lines, helpStyle.Render(fmt.Sprintf("↑/↓: Navigate • Space: Toggle • Esc: Cancel (need %d more)", cs.maxCantrips-len(cs.selectedCantrips))))
+		content.WriteString(helpStyle.Render(fmt.Sprintf("↑/↓: Navigate • Space: Toggle • Esc: Cancel (need %d more)", cs.maxCantrips-len(cs.selectedCantrips))))
 	}
 
-	content := strings.Join(lines, "\n")
-
-	// Create popup with medium size
+	// Create popup with larger size
 	popupStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("205")).
 		Padding(1, 2).
-		Width(60)
+		Width(82)
 
 	return lipgloss.Place(
-		80,
-		24,
+		100,
+		30,
 		lipgloss.Center,
 		lipgloss.Center,
-		popupStyle.Render(content),
+		popupStyle.Render(content.String()),
 	)
 }

@@ -11,23 +11,19 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
-// SpellsPanel displays character spells with prepare/unprepare functionality
+// SpellsPanel displays character spells
 type SpellsPanel struct {
-	character     *models.Character
-	selectedIndex int
-	viewport      viewport.Model
-	ready         bool
-	allSpells     []models.Spell // All spells available to the class
-	filterLevel   int            // -1 = all, 0 = cantrips, 1-9 = spell level
+	character *models.Character
+	viewport  viewport.Model
+	ready     bool
+	allSpells []models.Spell // All spells available to the class
 }
 
 // NewSpellsPanel creates a new spells panel
 func NewSpellsPanel(char *models.Character) *SpellsPanel {
 	return &SpellsPanel{
-		character:     char,
-		selectedIndex: 0,
-		filterLevel:   -1, // Show all by default
-		allSpells:     []models.Spell{},
+		character: char,
+		allSpells: []models.Spell{},
 	}
 }
 
@@ -115,9 +111,9 @@ func (p *SpellsPanel) View(width, height int) string {
 		p.Init()
 	}
 
-	// Update viewport size if needed
-	viewportWidth := width - 6
-	viewportHeight := height - 1
+	// Update viewport size if needed (maximize available space)
+	viewportWidth := width - 4
+	viewportHeight := height - 2
 	if p.viewport.Width != viewportWidth || p.viewport.Height != viewportHeight {
 		p.viewport.Width = viewportWidth
 		p.viewport.Height = viewportHeight
@@ -178,25 +174,25 @@ func (p *SpellsPanel) View(width, height int) string {
 	lines = append(lines, dimStyle.Render(fmt.Sprintf("  Press 'c' to change cantrips (%d known)", char.SpellBook.CantripsKnown)))
 	lines = append(lines, "")
 
-	// Known spells section (grouped by level)
-	lines = append(lines, headerStyle.Render("KNOWN SPELLS"))
+	// Prepared spells section (show only prepared spells)
+	lines = append(lines, headerStyle.Render("PREPARED SPELLS"))
 
 	if char.SpellBook.IsPreparedCaster {
-		lines = append(lines, dimStyle.Render("  (All spells available, prepare to cast)"))
+		preparedCount := p.getPreparedCount()
+		lines = append(lines, dimStyle.Render(fmt.Sprintf("  (%d/%d prepared)", preparedCount, char.SpellBook.MaxPreparedSpells)))
 		lines = append(lines, "")
 	}
 
-	spellLines, totalCount := p.renderSpellsByLevel()
+	spellLines, totalCount := p.renderPreparedSpellsByLevel()
 	lines = append(lines, spellLines...)
 
 	if totalCount == 0 {
-		lines = append(lines, dimStyle.Render("  No spells available"))
+		lines = append(lines, dimStyle.Render("  No spells prepared"))
+		lines = append(lines, dimStyle.Render("  Press 'v' to prepare spells"))
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Legend: ● = Prepared  (R) = Ritual"))
-	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Keys: ↑/↓ or j/k: Scroll • PgUp/PgDn: Page • 'c': Change Cantrips • 'r': Rest"))
+	lines = append(lines, dimStyle.Render("Keys: 'v': Prepare Spells • 'c': Change Cantrips • 'r': Rest"))
 
 	content := strings.Join(lines, "\n")
 
@@ -301,6 +297,49 @@ func (p *SpellsPanel) renderSpellsByLevel() ([]string, int) {
 	return lines, totalCount
 }
 
+// renderPreparedSpellsByLevel renders only prepared spells grouped by level
+func (p *SpellsPanel) renderPreparedSpellsByLevel() ([]string, int) {
+	var lines []string
+	totalCount := 0
+
+	// Group prepared spells by level
+	spellsByLevel := make(map[int][]models.Spell)
+	for _, spell := range p.character.SpellBook.Spells {
+		if spell.Level > 0 && spell.Prepared { // Skip cantrips and unprepared
+			spellsByLevel[spell.Level] = append(spellsByLevel[spell.Level], spell)
+		}
+	}
+
+	// Display by level
+	for level := 1; level <= 9; level++ {
+		spells := spellsByLevel[level]
+		if len(spells) == 0 {
+			continue
+		}
+
+		levelStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("170")).
+			Bold(true)
+		lines = append(lines, levelStyle.Render(fmt.Sprintf("Level %d:", level)))
+
+		preparedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
+
+		for _, spell := range spells {
+			ritualMarker := ""
+			if spell.Ritual {
+				ritualMarker = " (R)"
+			}
+
+			line := fmt.Sprintf("  ● %s%s", spell.Name, ritualMarker)
+			lines = append(lines, preparedStyle.Render(line))
+			totalCount++
+		}
+		lines = append(lines, "")
+	}
+
+	return lines, totalCount
+}
+
 // isSpellPrepared checks if a spell is prepared
 func (p *SpellsPanel) isSpellPrepared(spellName string) bool {
 	for _, spell := range p.character.SpellBook.Spells {
@@ -375,14 +414,6 @@ func (p *SpellsPanel) canPrepareMore() bool {
 
 	preparedCount := p.getPreparedCount()
 	return preparedCount < p.character.SpellBook.MaxPreparedSpells
-}
-
-// GetSelectedSpell returns the currently selected spell name
-// This would need to track which spell is selected in the UI
-func (p *SpellsPanel) GetSelectedSpell() string {
-	// This is a simplified version - in real implementation,
-	// track cursor position through the spell list
-	return ""
 }
 
 // Rest restores all spell slots
