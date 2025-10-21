@@ -573,8 +573,24 @@ func (m *Model) handleActionsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				debug.Log("No attack selected (attack is nil)")
 			}
+		} else if m.actionsPanel.IsSpellSelected() {
+			// Cast spell if spell is selected
+			spell := m.actionsPanel.GetSelectedSpell()
+			if spell != nil {
+				debug.Log("Attempting to cast spell: %s", spell.Name)
+				msg, success := m.actionsPanel.CastSelectedSpell()
+				if success {
+					m.storage.Save(m.character)
+					m.dicePanel.LastMessage = msg
+					m.message = msg
+					debug.Log("Spell cast successfully: %s", spell.Name)
+				} else {
+					m.message = msg
+					debug.Log("Failed to cast spell: %s", msg)
+				}
+			}
 		} else {
-			// For non-attack actions
+			// For non-attack/spell actions
 			m.message = "Other actions not fully implemented"
 		}
 	}

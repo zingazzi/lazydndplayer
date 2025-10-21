@@ -17,7 +17,10 @@ type ActionsPanel struct {
 	viewport        viewport.Model
 	ready           bool
 	attacks         []models.Attack // Cached attacks list
-	totalItemCount  int             // Total number of items (attacks + actions)
+	actionSpells    []models.Spell  // Spells that are actions
+	bonusSpells     []models.Spell  // Spells that are bonus actions
+	reactionSpells  []models.Spell  // Spells that are reactions
+	totalItemCount  int             // Total number of items (attacks + spells + actions)
 }
 
 // NewActionsPanel creates a new actions panel
@@ -44,6 +47,26 @@ func (p *ActionsPanel) View(width, height int) string {
 	attackList := models.GenerateAttacks(char)
 	p.attacks = attackList.Attacks
 
+	// Filter prepared spells by action type
+	p.actionSpells = []models.Spell{}
+	p.bonusSpells = []models.Spell{}
+	p.reactionSpells = []models.Spell{}
+
+	for _, spell := range char.SpellBook.Spells {
+		if !spell.Prepared || spell.Level == 0 {
+			continue // Skip unprepared spells and cantrips
+		}
+
+		actionType := strings.ToLower(spell.ActionType)
+		if strings.Contains(actionType, "action") && !strings.Contains(actionType, "bonus") && !strings.Contains(actionType, "reaction") {
+			p.actionSpells = append(p.actionSpells, spell)
+		} else if strings.Contains(actionType, "bonus") {
+			p.bonusSpells = append(p.bonusSpells, spell)
+		} else if strings.Contains(actionType, "reaction") {
+			p.reactionSpells = append(p.reactionSpells, spell)
+		}
+	}
+
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("205")).
@@ -60,6 +83,9 @@ func (p *ActionsPanel) View(width, height int) string {
 		Bold(true).
 		Foreground(lipgloss.Color("230")).
 		Background(lipgloss.Color("237"))
+
+	spellStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("141")) // Purple for spells
 
 	var lines []string
 	lines = append(lines, titleStyle.Render("ACTIONS"))
@@ -88,24 +114,81 @@ func (p *ActionsPanel) View(width, height int) string {
 			Italic(true).
 			Render("  No attacks available"))
 	}
+
+	// Show action spells
+	if len(p.actionSpells) > 0 {
+		for _, spell := range p.actionSpells {
+			slot := char.SpellBook.GetSlotByLevel(spell.Level)
+			slotInfo := ""
+			if slot != nil {
+				slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
+			}
+			line := fmt.Sprintf("%-20s Lv%d%s", spell.Name, spell.Level, slotInfo)
+
+			if idx == p.selectedIndex {
+				lines = append(lines, selectedStyle.Render("▶ "+line))
+			} else {
+				lines = append(lines, spellStyle.Render("  "+line))
+			}
+			idx++
+		}
+	}
 	lines = append(lines, "")
 
 	// === BONUS ACTIONS SECTION ===
 	lines = append(lines, sectionStyle.Render("⚡ Bonus Actions"))
 	lines = append(lines, "")
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Italic(true).
-		Render("  No bonus actions available"))
+
+	if len(p.bonusSpells) > 0 {
+		for _, spell := range p.bonusSpells {
+			slot := char.SpellBook.GetSlotByLevel(spell.Level)
+			slotInfo := ""
+			if slot != nil {
+				slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
+			}
+			line := fmt.Sprintf("%-20s Lv%d%s", spell.Name, spell.Level, slotInfo)
+
+			if idx == p.selectedIndex {
+				lines = append(lines, selectedStyle.Render("▶ "+line))
+			} else {
+				lines = append(lines, spellStyle.Render("  "+line))
+			}
+			idx++
+		}
+	} else {
+		lines = append(lines, lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Italic(true).
+			Render("  No bonus actions available"))
+	}
 	lines = append(lines, "")
 
 	// === REACTIONS SECTION ===
 	lines = append(lines, sectionStyle.Render("🛡️  Reactions"))
 	lines = append(lines, "")
-	lines = append(lines, lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Italic(true).
-		Render("  No reactions available"))
+
+	if len(p.reactionSpells) > 0 {
+		for _, spell := range p.reactionSpells {
+			slot := char.SpellBook.GetSlotByLevel(spell.Level)
+			slotInfo := ""
+			if slot != nil {
+				slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
+			}
+			line := fmt.Sprintf("%-20s Lv%d%s", spell.Name, spell.Level, slotInfo)
+
+			if idx == p.selectedIndex {
+				lines = append(lines, selectedStyle.Render("▶ "+line))
+			} else {
+				lines = append(lines, spellStyle.Render("  "+line))
+			}
+			idx++
+		}
+	} else {
+		lines = append(lines, lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Italic(true).
+			Render("  No reactions available"))
+	}
 
 	p.totalItemCount = idx
 
@@ -155,4 +238,56 @@ func (p *ActionsPanel) GetSelectedAttack() *models.Attack {
 // IsAttackSelected returns true if the selected item is an attack
 func (p *ActionsPanel) IsAttackSelected() bool {
 	return p.selectedIndex < len(p.attacks)
+}
+
+// GetSelectedSpell returns the currently selected spell (if any)
+func (p *ActionsPanel) GetSelectedSpell() *models.Spell {
+	idx := p.selectedIndex - len(p.attacks)
+
+	// Check if in action spells
+	if idx >= 0 && idx < len(p.actionSpells) {
+		return &p.actionSpells[idx]
+	}
+	idx -= len(p.actionSpells)
+
+	// Check if in bonus action spells
+	if idx >= 0 && idx < len(p.bonusSpells) {
+		return &p.bonusSpells[idx]
+	}
+	idx -= len(p.bonusSpells)
+
+	// Check if in reaction spells
+	if idx >= 0 && idx < len(p.reactionSpells) {
+		return &p.reactionSpells[idx]
+	}
+
+	return nil
+}
+
+// IsSpellSelected returns true if the selected item is a spell
+func (p *ActionsPanel) IsSpellSelected() bool {
+	return p.selectedIndex >= len(p.attacks) && p.GetSelectedSpell() != nil
+}
+
+// CastSelectedSpell casts the currently selected spell and consumes a slot
+func (p *ActionsPanel) CastSelectedSpell() (string, bool) {
+	spell := p.GetSelectedSpell()
+	if spell == nil {
+		return "", false
+	}
+
+	// Get the appropriate spell slot
+	slot := p.character.SpellBook.GetSlotByLevel(spell.Level)
+	if slot == nil || slot.Current <= 0 {
+		return fmt.Sprintf("No spell slots available for level %d!", spell.Level), false
+	}
+
+	// Consume the spell slot
+	slot.Current--
+
+	// Format the result message
+	msg := fmt.Sprintf("Cast %s! (%d/%d level %d slots remaining)",
+		spell.Name, slot.Current, slot.Maximum, spell.Level)
+
+	return msg, true
 }
