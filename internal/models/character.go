@@ -9,14 +9,16 @@ type Character struct {
 	Name       string `json:"name"`
 	Race          string `json:"race"`
 	Subtype       string `json:"subtype,omitempty"`        // For species with subtypes (Elf, Tiefling, Dragonborn)
-	Class         string `json:"class"`
-	FightingStyle string `json:"fighting_style,omitempty"` // Fighting style for Fighter, Paladin, Ranger
+	Class         string `json:"class"`                    // Backward compatibility - formatted as "Fighter 3 / Druid 2"
+	Classes       []ClassLevel `json:"classes"`            // Multiclass support
+	FightingStyle string `json:"fighting_style,omitempty"` // Fighting style for Fighter, Paladin, Ranger (deprecated - use ClassLevel.FightingStyle)
 	Background    string `json:"background"`
 	Origin        string `json:"origin"`    // Character origin (2024 rules)
 	Alignment     string `json:"alignment"`
 
 	// Level & Experience
-	Level      int `json:"level"`
+	Level      int `json:"level"`      // Total character level (sum of all class levels)
+	TotalLevel int `json:"total_level"` // Explicit total level field
 	Experience int `json:"experience"`
 
 	// Hit Points
@@ -43,6 +45,7 @@ type Character struct {
 	WeaponProficiencies       []string `json:"weapon_proficiencies"`        // Weapon proficiencies from class
 	SavingThrowProficiencies  []string `json:"saving_throw_proficiencies"`  // Saving throw proficiencies from class
 	MasteredWeapons           []string `json:"mastered_weapons"`            // Weapons with mastery properties
+	MulticlassProficiencies   []string `json:"multiclass_proficiencies"`    // Track proficiencies from multiclassing
 
 	// Combat & Features
 	Initiative       int         `json:"initiative"`
@@ -80,14 +83,43 @@ type Character struct {
 	Notes string `json:"notes"`
 }
 
+// SyncClassData ensures Classes array and Class string are in sync
+func (c *Character) SyncClassData() {
+	// If we have Classes array, sync Class string
+	if len(c.Classes) > 0 {
+		c.Class = c.GetClassDisplayString()
+		c.TotalLevel = c.CalculateTotalLevel()
+		c.Level = c.TotalLevel // Keep Level in sync for compatibility
+	} else if c.Class != "" {
+		// Backward compatibility: if only Class string exists, create Classes array
+		// This handles old save files
+		// For now, assume single class at current level
+		c.Classes = []ClassLevel{
+			{
+				ClassName:     c.Class,
+				Level:         c.Level,
+				FightingStyle: c.FightingStyle,
+			},
+		}
+		c.TotalLevel = c.Level
+	}
+}
+
 // NewCharacter creates a new character with default values
 func NewCharacter() *Character {
 	char := &Character{
 		Name:       "New Character",
 		Race:       "Human",
 		Class:      "Fighter",
+		Classes: []ClassLevel{
+			{
+				ClassName: "Fighter",
+				Level:     1,
+			},
+		},
 		Background: "Folk Hero",
 		Level:      1,
+		TotalLevel: 1,
 		MaxHP:      10,
 		CurrentHP:  10,
 		ArmorClass: 10,
@@ -119,6 +151,7 @@ func NewCharacter() *Character {
 		ArmorProficiencies:       []string{},
 		WeaponProficiencies:      []string{},
 		SavingThrowProficiencies: []string{},
+		MulticlassProficiencies:  []string{},
 		BenefitTracker:    NewBenefitTracker(),
 		Darkvision:        0,
 		SpeciesTraits: []SpeciesTrait{},
@@ -133,6 +166,9 @@ func NewCharacter() *Character {
 
 // UpdateDerivedStats updates calculated values based on ability scores
 func (c *Character) UpdateDerivedStats() {
+	// Sync multiclass data first
+	c.SyncClassData()
+
 	// Update initiative (DEX modifier + bonus from feats)
 	c.Initiative = c.AbilityScores.GetModifier(Dexterity) + c.InitiativeBonus
 

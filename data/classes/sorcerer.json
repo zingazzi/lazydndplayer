@@ -487,6 +487,88 @@
       },
       "ability_score_improvement": false
     }
+  ],
+  "subclasses": [
+    {
+      "name": "Draconic Bloodline",
+      "description": "Your innate magic comes from draconic magic that was mingled with your blood or that of your ancestors. Most often, sorcerers with this origin trace their descent back to a mighty sorcerer of ancient times who made a bargain with a dragon or who might even have claimed a dragon parent.",
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "1": [
+          {
+            "name": "Dragon Ancestor",
+            "description": "You choose one type of dragon as your ancestor. The damage type associated with each dragon is used by features you gain later. You can speak, read, and write Draconic. Additionally, whenever you make a Charisma check when interacting with dragons, your proficiency bonus is doubled if it applies to the check.",
+            "choices": ["Black (Acid)", "Blue (Lightning)", "Brass (Fire)", "Bronze (Lightning)", "Copper (Acid)", "Gold (Fire)", "Green (Poison)", "Red (Fire)", "Silver (Cold)", "White (Cold)"]
+          },
+          {
+            "name": "Draconic Resilience",
+            "description": "As magic flows through your body, it causes physical traits of your dragon ancestors to emerge. Your hit point maximum increases by 1 and increases by 1 again whenever you gain a level in this class. Additionally, parts of your skin are covered by a thin sheen of dragon-like scales. When you aren't wearing armor, your AC equals 13 + your Dexterity modifier.",
+            "mechanics": {
+              "hp_per_level": 1,
+              "unarmored_ac": "13 + dex"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Wild Magic",
+      "description": "Your innate magic comes from the wild forces of chaos that underlie the order of creation. You might have endured exposure to some form of raw magic, perhaps through a planar portal leading to Limbo, the Elemental Planes, or the Far Realm.",
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "1": [
+          {
+            "name": "Wild Magic Surge",
+            "description": "Your spellcasting can unleash surges of untamed magic. Immediately after you cast a sorcerer spell of 1st level or higher, the DM can have you roll a d20. If you roll a 1, roll on the Wild Magic Surge table to create a random magical effect."
+          },
+          {
+            "name": "Tides of Chaos",
+            "description": "You can manipulate the forces of chance and chaos to gain advantage on one attack roll, ability check, or saving throw. Once you do so, you must finish a long rest before you can use this feature again. Any time before you regain the use of this feature, the DM can have you roll on the Wild Magic Surge table immediately after you cast a sorcerer spell of 1st level or higher.",
+            "uses": {
+              "max": 1,
+              "recharge": "long_rest"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Storm Sorcery",
+      "description": "Your innate magic comes from the power of elemental air. Many with this power can trace their magic back to a near-death experience caused by the Great Rain, but perhaps you were born during a howling gale so powerful that folk still tell stories of it, or your lineage might include the influence of potent air creatures such as djinn.",
+      "source": "Xanathar's Guide / Sword Coast",
+      "features_by_level": {
+        "1": [
+          {
+            "name": "Wind Speaker",
+            "description": "The arcane magic you command is infused with elemental air. You can speak, read, and write Primordial. Knowing this language allows you to understand and be understood by those who speak its dialects: Aquan, Auran, Ignan, and Terran."
+          },
+          {
+            "name": "Tempestuous Magic",
+            "description": "You can use a bonus action on your turn to cause whirling gusts of elemental air to briefly surround you, immediately before or after you cast a spell of 1st level or higher. Doing so allows you to fly up to 10 feet without provoking opportunity attacks."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Divine Soul",
+      "description": "Sometimes the spark of magic that fuels a sorcerer comes from a divine source that glimmers within the soul. Having such a blessed soul is a sign that your innate magic might come from a distant but powerful familial connection to a divine being.",
+      "source": "Xanathar's Guide",
+      "features_by_level": {
+        "1": [
+          {
+            "name": "Divine Magic",
+            "description": "Your link to the divine allows you to learn spells from the cleric class. When your Spellcasting feature lets you learn or replace a sorcerer cantrip or a sorcerer spell of 1st level or higher, you can choose the new spell from the cleric spell list or the sorcerer spell list. You must otherwise obey all the restrictions for selecting the spell, and it becomes a sorcerer spell for you."
+          },
+          {
+            "name": "Favored by the Gods",
+            "description": "Divine power guards your destiny. If you fail a saving throw or miss with an attack roll, you can roll 2d4 and add it to the total, possibly changing the outcome. Once you use this feature, you can't use it again until you finish a short or long rest.",
+            "uses": {
+              "max": 1,
+              "recharge": "short_rest"
+            }
+          }
+        ]
+      }
+    }
   ]
 }
-

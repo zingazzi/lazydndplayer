@@ -506,5 +506,109 @@
       },
       "ability_score_improvement": false
     }
+  ],
+  "subclasses": [
+    {
+      "name": "Life Domain",
+      "description": "The Life domain focuses on the vibrant positive energy that sustains all life. Clerics of this domain are masters of healing, using divine magic to cure the wounded and restore life to the fallen.",
+      "source": "Player's Handbook",
+      "domain_spells": {
+        "1": ["Bless", "Cure Wounds"],
+        "3": ["Lesser Restoration", "Spiritual Weapon"],
+        "5": ["Beacon of Hope", "Revivify"],
+        "7": ["Death Ward", "Guardian of Faith"],
+        "9": ["Mass Cure Wounds", "Raise Dead"]
+      },
+      "features_by_level": {
+        "1": [
+          {
+            "name": "Bonus Proficiency",
+            "description": "You gain proficiency with heavy armor."
+          },
+          {
+            "name": "Disciple of Life",
+            "description": "Your healing spells are more effective. Whenever you use a spell of 1st level or higher to restore hit points to a creature, the creature regains additional hit points equal to 2 + the spell's level."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Light Domain",
+      "description": "Gods of light promote the ideals of rebirth and renewal, truth, vigilance, and beauty, often using the symbol of the sun. Clerics of a god of light are enlightened souls infused with radiance and the power of their gods' discerning vision.",
+      "source": "Player's Handbook",
+      "domain_spells": {
+        "1": ["Burning Hands", "Faerie Fire"],
+        "3": ["Flaming Sphere", "Scorching Ray"],
+        "5": ["Daylight", "Fireball"],
+        "7": ["Guardian of Faith", "Wall of Fire"],
+        "9": ["Flame Strike", "Scrying"]
+      },
+      "features_by_level": {
+        "1": [
+          {
+            "name": "Bonus Cantrip",
+            "description": "You gain the Light cantrip if you don't already know it."
+          },
+          {
+            "name": "Warding Flare",
+            "description": "You can interpose divine light between yourself and an attacking enemy. When you are attacked by a creature within 30 feet of you that you can see, you can use your reaction to impose disadvantage on the attack roll. You can use this feature a number of times equal to your Wisdom modifier (minimum of once). You regain all expended uses when you finish a long rest.",
+            "uses": {
+              "max": "wisdom_mod",
+              "min": 1,
+              "recharge": "long_rest"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Trickery Domain",
+      "description": "Gods of trickery are mischief-makers and instigators who stand as a constant challenge to the accepted order among both gods and mortals. Clerics of these gods are a disruptive force in the world, puncturing pride, mocking tyrants, stealing from the rich, and freeing the downtrodden.",
+      "source": "Player's Handbook",
+      "domain_spells": {
+        "1": ["Charm Person", "Disguise Self"],
+        "3": ["Mirror Image", "Pass without Trace"],
+        "5": ["Blink", "Dispel Magic"],
+        "7": ["Dimension Door", "Polymorph"],
+        "9": ["Dominate Person", "Modify Memory"]
+      },
+      "features_by_level": {
+        "1": [
+          {
+            "name": "Blessing of the Trickster",
+            "description": "You can use your action to touch a willing creature other than yourself to give it advantage on Dexterity (Stealth) checks. This blessing lasts for 1 hour or until you use this feature again."
+          }
+        ]
+      }
+    },
+    {
+      "name": "War Domain",
+      "description": "War has many manifestations. It can make heroes of ordinary people. It can be desperate and horrific, with acts of cruelty and cowardice eclipsing instances of excellence and courage. In either case, the gods of war watch over warriors and reward them for their great deeds.",
+      "source": "Player's Handbook",
+      "domain_spells": {
+        "1": ["Divine Favor", "Shield of Faith"],
+        "3": ["Magic Weapon", "Spiritual Weapon"],
+        "5": ["Crusader's Mantle", "Spirit Guardians"],
+        "7": ["Freedom of Movement", "Stoneskin"],
+        "9": ["Flame Strike", "Hold Monster"]
+      },
+      "features_by_level": {
+        "1": [
+          {
+            "name": "Bonus Proficiency",
+            "description": "You gain proficiency with martial weapons and heavy armor."
+          },
+          {
+            "name": "War Priest",
+            "description": "When you use the Attack action, you can make one weapon attack as a bonus action. You can use this feature a number of times equal to your Wisdom modifier (minimum of once). You regain all expended uses when you finish a long rest.",
+            "uses": {
+              "max": "wisdom_mod",
+              "min": 1,
+              "recharge": "long_rest"
+            }
+          }
+        ]
+      }
+    }
   ]
 }
