@@ -142,17 +142,21 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	}
 	lines = append(lines, "")
 
-	// Class and level (class can be changed with 'c')
+	// Class and level (class can be changed with 'c', level up with 'L')
 	// Class info (fighting style is shown in Traits panel)
-	classInfoFull := fmt.Sprintf("%s, Level %d", char.Class, char.Level)
+	classDisplay := char.GetClassDisplayString()
+	if classDisplay == "" {
+		classDisplay = "None"
+	}
+	classInfoFull := fmt.Sprintf("%s (Level %d)", classDisplay, char.TotalLevel)
 	if p.editMode == CharStatsNormal {
-		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfoFull)+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("(press 'c' to change)"))
+		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfoFull)+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("(c:change, L:level up)"))
 	} else {
 		lines = append(lines, labelStyle.Render("Class:")+" "+valueStyle.Render(classInfoFull))
 	}
 
 	// XP information
-	xpToNext := getLevelXP(char.Level+1) - char.Experience
+	xpToNext := getLevelXP(char.TotalLevel+1) - char.Experience
 	xpInfo := fmt.Sprintf("%d XP (next: %d)", char.Experience, xpToNext)
 	lines = append(lines, labelStyle.Render("Experience:")+" "+valueStyle.Render(xpInfo))
 	lines = append(lines, "")

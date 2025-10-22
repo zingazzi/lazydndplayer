@@ -91,6 +91,7 @@ type Model struct {
 	attackRoller          *components.AttackRoller
 	attackMenu            *components.AttackMenu
 	weaponMasterySelector *components.WeaponMasterySelector
+	levelUpSelector       *components.LevelUpSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -150,6 +151,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		attackRoller:          components.NewAttackRoller(),
 		attackMenu:            components.NewAttackMenu(),
 		weaponMasterySelector: components.NewWeaponMasterySelector(char),
+		levelUpSelector:       components.NewLevelUpSelector(char),
 		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:           panels.NewSkillsPanel(char),
 		inventoryPanel:        panels.NewInventoryPanel(char),
@@ -268,7 +270,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tabs.Prev()
 				m.currentPanel = PanelType(m.tabs.SelectedIndex)
 			}
-			return m, nil
+				return m, nil
 		}
 
 		// Check if spell selector is active
@@ -329,6 +331,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if weapon mastery selector is active
 		if m.weaponMasterySelector.IsVisible() {
 			return m.handleWeaponMasterySelectorKeys(msg)
+		}
+
+		// Check if level-up selector is active
+		if m.levelUpSelector.IsVisible() {
+			return m.handleLevelUpSelectorKeys(msg)
 		}
 
 		// Check if item selector is active
@@ -938,7 +945,7 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					}
 				}
 
-				m.inventoryPanel.ToggleEquipped()
+		m.inventoryPanel.ToggleEquipped()
 
 				// Recalculate AC after equipping/unequipping
 				m.character.UpdateDerivedStats()
@@ -964,7 +971,7 @@ func (m *Model) handleInventoryPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.message = fmt.Sprintf("%s quantity decreased to %d", item.Name, item.Quantity)
 			} else {
 				itemName := item.Name
-				m.inventoryPanel.DeleteSelected()
+		m.inventoryPanel.DeleteSelected()
 				m.message = fmt.Sprintf("%s removed from inventory", itemName)
 			}
 
@@ -1108,9 +1115,9 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 
 				// Decrement uses
-				m.featuresPanel.UseFeature()
+		m.featuresPanel.UseFeature()
 				debug.Log("Feature uses decremented. New uses: %d", feature.CurrentUses)
-				m.storage.Save(m.character)
+		m.storage.Save(m.character)
 			} else {
 				debug.Log("Feature %s has no uses remaining", feature.Name)
 				m.message = fmt.Sprintf("%s has no uses remaining", feature.Name)
@@ -1286,6 +1293,10 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		debug.Log("Backed up class state: %s", m.character.Class)
 		m.classSelector.Show()
 		m.message = "Select a class..."
+	case "L":
+		// Open level-up selector
+		m.levelUpSelector.Show()
+		m.message = "Level up your character..."
 		return m, nil
 	}
 
@@ -1622,13 +1633,13 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 			} else {
 				// Add mode: Check if adding a new language (from Traits panel) or replacing placeholder (from species selection)
 				foundPlaceholder := false
-				for i, lang := range m.character.Languages {
-					if strings.Contains(strings.ToLower(lang), "additional") || strings.Contains(strings.ToLower(lang), "choice") {
-						m.character.Languages[i] = selectedLanguage
+			for i, lang := range m.character.Languages {
+				if strings.Contains(strings.ToLower(lang), "additional") || strings.Contains(strings.ToLower(lang), "choice") {
+					m.character.Languages[i] = selectedLanguage
 						foundPlaceholder = true
-						break
-					}
+					break
 				}
+			}
 
 				// If no placeholder found, just append the new language
 				if !foundPlaceholder {
@@ -1636,32 +1647,32 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 				}
 
 				// After language selection, check for skill, spell, or feat selection (only during species selection)
-				species := models.GetSpeciesByName(m.character.Race)
+			species := models.GetSpeciesByName(m.character.Race)
 				if species != nil && foundPlaceholder {
-					if models.HasSkillChoice(species) {
-						m.skillSelector.Show()
-						m.message = "Select your skill proficiency..."
-					} else if models.HasSpellChoice(species) {
-						// Show wizard cantrip selector for High Elf
-						cantrips := models.GetWizardCantrips()
-						m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
-						m.spellSelector.Show()
-						m.message = "Select your wizard cantrip..."
-					} else if models.HasFeatChoice(species) {
-						// Show feat selector for origin feat
-						m.featSelector.Show(m.character, true)
-						m.message = "Select your origin feat..."
-					} else {
-						m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
-						// Save when selection is complete (no more selections needed)
-						m.storage.Save(m.character)
-					}
+				if models.HasSkillChoice(species) {
+					m.skillSelector.Show()
+					m.message = "Select your skill proficiency..."
+				} else if models.HasSpellChoice(species) {
+					// Show wizard cantrip selector for High Elf
+					cantrips := models.GetWizardCantrips()
+					m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+					m.spellSelector.Show()
+					m.message = "Select your wizard cantrip..."
+				} else if models.HasFeatChoice(species) {
+					// Show feat selector for origin feat
+					m.featSelector.Show(m.character, true)
+					m.message = "Select your origin feat..."
 				} else {
-					m.message = fmt.Sprintf("Language learned: %s!", selectedLanguage)
-					// Save when adding a new language (not replacing placeholder)
+					m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
+					// Save when selection is complete (no more selections needed)
 					m.storage.Save(m.character)
 				}
-				m.languageSelector.Hide()
+			} else {
+					m.message = fmt.Sprintf("Language learned: %s!", selectedLanguage)
+					// Save when adding a new language (not replacing placeholder)
+				m.storage.Save(m.character)
+		}
+		m.languageSelector.Hide()
 			}
 		}
 	case "esc":
@@ -1752,6 +1763,21 @@ func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 		m.message = "Cancelled"
 	}
 	return m, nil
+}
+
+// handleLevelUpSelectorKeys handles level-up selector keys
+func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	updated, cmd := m.levelUpSelector.Update(msg)
+	m.levelUpSelector = &updated
+
+	// Save character if level-up is complete
+	if !m.levelUpSelector.IsVisible() {
+		m.storage.Save(m.character)
+		m.character.UpdateDerivedStats()
+		m.message = "Character updated!"
+	}
+
+	return m, cmd
 }
 
 // handleItemSelectorKeys handles item selector specific keys
@@ -2238,16 +2264,16 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 
 				// Add mode: Check if character already has this feat
-				if models.HasFeat(m.character, selectedFeat.Name) && !selectedFeat.Repeatable {
-					m.message = fmt.Sprintf("You already have %s and it's not repeatable", selectedFeat.Name)
+			if models.HasFeat(m.character, selectedFeat.Name) && !selectedFeat.Repeatable {
+				m.message = fmt.Sprintf("You already have %s and it's not repeatable", selectedFeat.Name)
 					m.featSelector.Hide()
-				} else {
-					// Add feat to character
-					err := models.AddFeatToCharacter(m.character, selectedFeat.Name)
-					if err != nil {
-						m.message = fmt.Sprintf("Error adding feat: %v", err)
+			} else {
+				// Add feat to character
+				err := models.AddFeatToCharacter(m.character, selectedFeat.Name)
+				if err != nil {
+					m.message = fmt.Sprintf("Error adding feat: %v", err)
 						m.featSelector.Hide()
-					} else {
+				} else {
 						// Check if this feat has ability choices
 						if models.HasAbilityChoice(*selectedFeat) {
 							// Store the feat and show ability choice selector
@@ -2259,13 +2285,13 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						} else {
 							// Apply feat benefits automatically (no ability choice)
 							models.ApplyFeatBenefits(m.character, *selectedFeat, "")
-							m.message = fmt.Sprintf("Feat gained: %s!", selectedFeat.Name)
-							// Save character after feat selection
-							m.storage.Save(m.character)
+					m.message = fmt.Sprintf("Feat gained: %s!", selectedFeat.Name)
+					// Save character after feat selection
+					m.storage.Save(m.character)
 							m.featSelector.Hide()
-						}
-					}
 				}
+			}
+		}
 			}
 		}
 	case "esc":
@@ -2805,7 +2831,12 @@ func (m *Model) View() string {
 		return m.weaponMasterySelector.View()
 	}
 
-	// Item selector takes sixth priority (Large)
+	// Level-up selector takes sixth priority (Medium/Large)
+	if m.levelUpSelector.IsVisible() {
+		return m.levelUpSelector.View()
+	}
+
+	// Item selector takes seventh priority (Large)
 	if m.itemSelector.IsVisible() {
 		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
 	}
