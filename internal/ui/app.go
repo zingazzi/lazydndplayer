@@ -84,6 +84,7 @@ type Model struct {
 	fightingStyleSelector  *components.FightingStyleSelector
 	cantripSelector        *components.CantripSelector
 	spellPrepSelector      *components.SpellPrepSelector
+	slotRestorer           *components.SlotRestorer
 	statGenerator          *components.StatGenerator
 	abilityRoller         *components.AbilityRoller
 	abilityChoiceSelector *components.AbilityChoiceSelector
@@ -142,6 +143,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		fightingStyleSelector:  components.NewFightingStyleSelector(),
 		cantripSelector:        components.NewCantripSelector(char),
 		spellPrepSelector:      components.NewSpellPrepSelector(char),
+		slotRestorer:           components.NewSlotRestorer(char),
 		statGenerator:          components.NewStatGenerator(),
 		abilityRoller:         components.NewAbilityRoller(),
 		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
@@ -347,6 +349,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if spell prep selector is active
 		if m.spellPrepSelector.IsVisible() {
 			return m.handleSpellPrepSelectorKeys(msg)
+		}
+
+		// Check if slot restorer is active
+		if m.slotRestorer.IsVisible() {
+			return m.handleSlotRestorerKeys(msg)
 		}
 
 		// Check if class skill selector is active
@@ -1025,6 +1032,21 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.message = "Select spells to prepare..."
 		} else {
 			m.message = "Only prepared casters can prepare spells"
+		}
+	case "s":
+		// Open slot restorer
+		if m.character.SpellBook.SpellcastingMod != "" {
+			m.slotRestorer.Show()
+			m.message = "Select spell slot to restore..."
+		} else {
+			m.message = "Not a spellcaster"
+		}
+	case "enter":
+		// View spell details
+		spell := m.spellsPanel.GetSelectedSpell()
+		if spell != nil {
+			m.spellDetailPopup.Show(*spell)
+			m.message = "Viewing spell details..."
 		}
 	}
 	return m, nil
@@ -1980,6 +2002,29 @@ func (m *Model) handleSpellPrepSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 	return m, cmd
 }
 
+// handleSlotRestorerKeys handles keyboard input for the slot restorer
+func (m *Model) handleSlotRestorerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	*m.slotRestorer, cmd = m.slotRestorer.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter", " ":
+		// Restore one slot
+		restoredMsg, success := m.slotRestorer.RestoreSlot()
+		if success {
+			m.storage.Save(m.character)
+			m.message = restoredMsg
+		} else {
+			m.message = restoredMsg
+		}
+	case "esc":
+		m.slotRestorer.Hide()
+		m.message = "Slot restoration cancelled"
+	}
+
+	return m, cmd
+}
+
 // handleFightingStyleSelectorKeys handles fighting style selector specific keys
 func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleFightingStyleSelectorKeys: key=%s", msg.String())
@@ -2780,7 +2825,12 @@ func (m *Model) View() string {
 		return m.spellPrepSelector.View()
 	}
 
-	// Class skill selector takes ninth priority (Medium)
+	// Slot restorer takes ninth priority (Small)
+	if m.slotRestorer.IsVisible() {
+		return m.slotRestorer.View()
+	}
+
+	// Class skill selector takes tenth priority (Medium)
 	if m.classSkillSelector.IsVisible() {
 		return m.classSkillSelector.View(m.width, m.height)
 	}

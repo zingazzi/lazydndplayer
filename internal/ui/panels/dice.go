@@ -28,6 +28,7 @@ type DicePanel struct {
 	input                textinput.Model
 	history              *dice.RollHistory
 	LastMessage          string
+	lastRoll             *dice.RollResult // Store last roll for formatted display
 	mode                 DicePanelMode
 	historySelectedIndex int
 	viewport             viewport.Model
@@ -83,10 +84,44 @@ func (p *DicePanel) View(width, height int) string {
 	headerLines = append(headerLines, p.input.View())
 	headerLines = append(headerLines, "")
 
-	// Last message
-	if p.LastMessage != "" {
+	// Last roll result (formatted with colored total and grey breakdown)
+	if p.lastRoll != nil {
+		// Total style (colored based on roll)
+		totalStyle := lipgloss.NewStyle().Bold(true)
+
+		// Highlight critical hits (nat 20) and fails (nat 1) for d20 rolls
+		isCritical := false
+		isFail := false
+		if len(p.lastRoll.Rolls) > 0 {
+			if strings.Contains(p.lastRoll.Expression, "d20") {
+				if p.lastRoll.Rolls[0] == 20 {
+					totalStyle = totalStyle.Foreground(lipgloss.Color("42")) // Green for nat 20
+					isCritical = true
+				} else if p.lastRoll.Rolls[0] == 1 {
+					totalStyle = totalStyle.Foreground(lipgloss.Color("196")) // Red for nat 1
+					isFail = true
+				}
+			}
+		}
+
+		// Default total color if not critical/fail (violet/purple)
+		if !isCritical && !isFail {
+			totalStyle = totalStyle.Foreground(lipgloss.Color("141")) // Violet for regular
+		}
+
+		// Breakdown style (always grey)
+		breakdownStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
+		// Combine: COLORED_TOTAL GREY_BREAKDOWN
+		formattedResult := totalStyle.Render(fmt.Sprintf("%d", p.lastRoll.GetTotal())) + " " +
+			breakdownStyle.Render(p.lastRoll.GetFormattedBreakdown())
+
+		headerLines = append(headerLines, formattedResult)
+		headerLines = append(headerLines, "")
+	} else if p.LastMessage != "" {
+		// Fallback for error messages
 		messageStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("42")).
+			Foreground(lipgloss.Color("196")).
 			Bold(true)
 		headerLines = append(headerLines, messageStyle.Render(p.LastMessage))
 		headerLines = append(headerLines, "")
@@ -137,32 +172,51 @@ func (p *DicePanel) View(width, height int) string {
 			Render("No rolls yet"))
 	} else {
 		for i, roll := range recentRolls {
-			rollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+			// Format: TOTAL = breakdown
+			// Example: 18 = 6 (1d20), 14 (1d20) +4
+
+			var formattedLine string
 
 			// Highlight selected in history mode
 			if p.mode == DiceModeHistory && i == p.historySelectedIndex {
-				rollStyle = lipgloss.NewStyle().
+				selectedStyle := lipgloss.NewStyle().
 					Foreground(lipgloss.Color("205")).
 					Bold(true).
 					Reverse(true)
+				formattedLine = selectedStyle.Render(fmt.Sprintf("%d %s", roll.GetTotal(), roll.GetFormattedBreakdown()))
 			} else {
+				// Total style (colored based on roll)
+				totalStyle := lipgloss.NewStyle().Bold(true)
+
 				// Highlight critical hits (nat 20) and fails (nat 1) for d20 rolls
+				isCritical := false
+				isFail := false
 				if len(roll.Rolls) > 0 {
-					if roll.Expression == "1d20" || roll.Expression == "d20" {
+					if strings.Contains(roll.Expression, "d20") {
 						if roll.Rolls[0] == 20 {
-							rollStyle = lipgloss.NewStyle().
-								Foreground(lipgloss.Color("42")).
-								Bold(true)
+							totalStyle = totalStyle.Foreground(lipgloss.Color("42")) // Green for nat 20
+							isCritical = true
 						} else if roll.Rolls[0] == 1 {
-							rollStyle = lipgloss.NewStyle().
-								Foreground(lipgloss.Color("196")).
-								Bold(true)
+							totalStyle = totalStyle.Foreground(lipgloss.Color("196")) // Red for nat 1
+							isFail = true
 						}
 					}
 				}
+
+				// Default total color if not critical/fail
+				if !isCritical && !isFail {
+					totalStyle = totalStyle.Foreground(lipgloss.Color("229")) // Yellow for regular
+				}
+
+				// Breakdown style (always grey)
+				breakdownStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
+				// Combine: COLORED_TOTAL GREY_BREAKDOWN
+				formattedLine = totalStyle.Render(fmt.Sprintf("%d", roll.GetTotal())) + " " +
+					breakdownStyle.Render(roll.GetFormattedBreakdown())
 			}
 
-			historyLines = append(historyLines, rollStyle.Render(roll.String()))
+			historyLines = append(historyLines, formattedLine)
 		}
 	}
 
@@ -235,7 +289,9 @@ func (p *DicePanel) Roll(expression string) {
 	}
 
 	p.history.Add(*result)
-	p.LastMessage = result.String()
+	// Store the result for formatted display
+	p.lastRoll = result
+	p.LastMessage = "" // Clear old message, we'll format in View()
 	p.input.SetValue("")
 }
 

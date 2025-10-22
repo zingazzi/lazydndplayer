@@ -13,10 +13,12 @@ import (
 
 // SpellsPanel displays character spells
 type SpellsPanel struct {
-	character *models.Character
-	viewport  viewport.Model
-	ready     bool
-	allSpells []models.Spell // All spells available to the class
+	character        *models.Character
+	viewport         viewport.Model
+	ready            bool
+	allSpells        []models.Spell // All spells available to the class
+	selectableSpells []models.Spell // Cantrips + prepared spells for navigation
+	cursorIndex      int            // Current cursor position
 }
 
 // NewSpellsPanel creates a new spells panel
@@ -144,7 +146,7 @@ func (p *SpellsPanel) View(width, height int) string {
 	if char.SpellBook.SpellcastingMod != "" {
 		lines = append(lines, headerStyle.Render(fmt.Sprintf("Spellcasting: %s", char.SpellBook.SpellcastingMod)))
 		lines = append(lines, normalStyle.Render(fmt.Sprintf("Spell Save DC: %d  Attack: +%d",
-			char.SpellBook.SpellSaveDC, char.SpellBook.SpellAttackBonus)))
+				char.SpellBook.SpellSaveDC, char.SpellBook.SpellAttackBonus)))
 		lines = append(lines, "")
 	}
 
@@ -162,13 +164,61 @@ func (p *SpellsPanel) View(width, height int) string {
 	lines = append(lines, slotLines...)
 	lines = append(lines, "")
 
-	// Cantrips section
+	selectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("230")).
+		Background(lipgloss.Color("237"))
+
+	// Build selectable list (cantrips + prepared spells)
+	p.selectableSpells = []models.Spell{}
+
+	// Add cantrips to selectable list
+	for _, cantripName := range char.SpellBook.Cantrips {
+		for _, spell := range p.allSpells {
+			if spell.Name == cantripName && spell.Level == 0 {
+				p.selectableSpells = append(p.selectableSpells, spell)
+				break
+			}
+		}
+	}
+
+	// Add prepared spells to selectable list
+	for _, spell := range char.SpellBook.Spells {
+		if spell.Prepared && spell.Level > 0 {
+			p.selectableSpells = append(p.selectableSpells, spell)
+		}
+	}
+
+	// Bounds check cursor
+	if p.cursorIndex >= len(p.selectableSpells) {
+		p.cursorIndex = len(p.selectableSpells) - 1
+	}
+	if p.cursorIndex < 0 && len(p.selectableSpells) > 0 {
+		p.cursorIndex = 0
+	}
+
+	currentIdx := 0 // Track position in selectable list
+
+	// Cantrips section with selection
 	lines = append(lines, headerStyle.Render("CANTRIPS"))
 	if len(char.SpellBook.Cantrips) == 0 {
 		lines = append(lines, dimStyle.Render("  No cantrips known"))
 	} else {
+		levelStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("99")).
+			Bold(true)
+
 		for _, cantripName := range char.SpellBook.Cantrips {
-			lines = append(lines, normalStyle.Render(fmt.Sprintf("  ● %s", cantripName)))
+			cursor := "  "
+			style := normalStyle
+			if currentIdx == p.cursorIndex {
+				cursor = "❯ "
+				style = selectedStyle
+			}
+
+			levelTag := levelStyle.Render("[0]")
+			lines = append(lines, style.Render(fmt.Sprintf("%s● %s %s", cursor, cantripName, levelTag)))
+			currentIdx++
 		}
 	}
 	lines = append(lines, dimStyle.Render(fmt.Sprintf("  Press 'c' to change cantrips (%d known)", char.SpellBook.CantripsKnown)))
@@ -183,7 +233,7 @@ func (p *SpellsPanel) View(width, height int) string {
 		lines = append(lines, "")
 	}
 
-	spellLines, totalCount := p.renderPreparedSpellsByLevel()
+	spellLines, totalCount := p.renderPreparedSpellsByLevelWithSelection(&currentIdx)
 	lines = append(lines, spellLines...)
 
 	if totalCount == 0 {
@@ -192,7 +242,7 @@ func (p *SpellsPanel) View(width, height int) string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Keys: 'v': Prepare Spells • 'c': Change Cantrips • 'r': Rest"))
+	lines = append(lines, dimStyle.Render("Keys: ↑/↓: Select • Enter: View Details • 'v': Prepare • 'c': Cantrips • 's': Restore Slot • 'r': Rest"))
 
 	content := strings.Join(lines, "\n")
 
@@ -253,39 +303,39 @@ func (p *SpellsPanel) renderSpellsByLevel() ([]string, int) {
 	totalCount := 0
 
 	// Group spells by level
-	spellsByLevel := make(map[int][]models.Spell)
+		spellsByLevel := make(map[int][]models.Spell)
 	for _, spell := range p.allSpells {
 		if spell.Level > 0 { // Skip cantrips
 			spellsByLevel[spell.Level] = append(spellsByLevel[spell.Level], spell)
 		}
-	}
+		}
 
 	// Display by level
 	for level := 1; level <= 9; level++ {
-		spells := spellsByLevel[level]
-		if len(spells) == 0 {
-			continue
-		}
+			spells := spellsByLevel[level]
+			if len(spells) == 0 {
+				continue
+			}
 
 		levelStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("170")).
+				Foreground(lipgloss.Color("170")).
 			Bold(true)
 		lines = append(lines, levelStyle.Render(fmt.Sprintf("Level %d:", level)))
 
-		for _, spell := range spells {
+			for _, spell := range spells {
 			isPrepared := p.isSpellPrepared(spell.Name)
-			prepMarker := " "
+				prepMarker := " "
 			style := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 
 			if isPrepared {
-				prepMarker = "●"
+					prepMarker = "●"
 				style = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
-			}
+				}
 
-			ritualMarker := ""
-			if spell.Ritual {
-				ritualMarker = " (R)"
-			}
+				ritualMarker := ""
+				if spell.Ritual {
+					ritualMarker = " (R)"
+				}
 
 			line := fmt.Sprintf("  %s %s%s", prepMarker, spell.Name, ritualMarker)
 			lines = append(lines, style.Render(line))
@@ -333,8 +383,70 @@ func (p *SpellsPanel) renderPreparedSpellsByLevel() ([]string, int) {
 			line := fmt.Sprintf("  ● %s%s", spell.Name, ritualMarker)
 			lines = append(lines, preparedStyle.Render(line))
 			totalCount++
+			}
+			lines = append(lines, "")
+	}
+
+	return lines, totalCount
+}
+
+// renderPreparedSpellsByLevelWithSelection renders prepared spells with selection cursor
+func (p *SpellsPanel) renderPreparedSpellsByLevelWithSelection(currentIdx *int) ([]string, int) {
+	var lines []string
+	totalCount := 0
+
+	selectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("230")).
+		Background(lipgloss.Color("237"))
+
+	preparedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
+
+	// Group prepared spells by level
+	spellsByLevel := make(map[int][]models.Spell)
+	for _, spell := range p.character.SpellBook.Spells {
+		if spell.Level > 0 && spell.Prepared { // Skip cantrips and unprepared
+			spellsByLevel[spell.Level] = append(spellsByLevel[spell.Level], spell)
 		}
-		lines = append(lines, "")
+	}
+
+	// Display by level
+	for level := 1; level <= 9; level++ {
+		spells := spellsByLevel[level]
+		if len(spells) == 0 {
+			continue
+		}
+
+		levelStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("170")).
+			Bold(true)
+		lines = append(lines, levelStyle.Render(fmt.Sprintf("Level %d:", level)))
+
+		levelTagStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("99")).
+			Bold(true)
+
+		for _, spell := range spells {
+			cursor := "  "
+			style := preparedStyle
+
+			if *currentIdx == p.cursorIndex {
+				cursor = "❯ "
+				style = selectedStyle
+			}
+
+			ritualMarker := ""
+			if spell.Ritual {
+				ritualMarker = " (R)"
+			}
+
+			levelTag := levelTagStyle.Render(fmt.Sprintf("[%d]", spell.Level))
+			line := fmt.Sprintf("%s● %s %s%s", cursor, spell.Name, levelTag, ritualMarker)
+			lines = append(lines, style.Render(line))
+			totalCount++
+			*currentIdx++
+		}
+	lines = append(lines, "")
 	}
 
 	return lines, totalCount
@@ -443,12 +555,36 @@ func (p *SpellsPanel) HandleKey(msg tea.KeyMsg) {
 
 	switch msg.String() {
 	case "up", "k":
+		p.Prev()
 		p.viewport.LineUp(1)
 	case "down", "j":
+		p.Next()
 		p.viewport.LineDown(1)
 	case "pgup":
 		p.viewport.HalfViewUp()
 	case "pgdown":
 		p.viewport.HalfViewDown()
 	}
+}
+
+// Next moves cursor to next spell
+func (p *SpellsPanel) Next() {
+	if p.cursorIndex < len(p.selectableSpells)-1 {
+		p.cursorIndex++
+	}
+}
+
+// Prev moves cursor to previous spell
+func (p *SpellsPanel) Prev() {
+	if p.cursorIndex > 0 {
+		p.cursorIndex--
+	}
+}
+
+// GetSelectedSpell returns the currently selected spell
+func (p *SpellsPanel) GetSelectedSpell() *models.Spell {
+	if p.cursorIndex >= 0 && p.cursorIndex < len(p.selectableSpells) {
+		return &p.selectableSpells[p.cursorIndex]
+	}
+	return nil
 }

@@ -31,9 +31,10 @@ type RollResult struct {
 	Total      int      `json:"total"`
 	RollType   RollType `json:"roll_type"`
 	Timestamp  time.Time `json:"timestamp"`
+	DiceSides  []int    `json:"dice_sides"` // Track sides for each die rolled
 }
 
-// String returns a formatted string of the roll result
+// String returns a formatted string of the roll result (legacy format)
 func (r *RollResult) String() string {
 	rollsStr := make([]string, len(r.Rolls))
 	for i, roll := range r.Rolls {
@@ -55,6 +56,53 @@ func (r *RollResult) String() string {
 	}
 
 	return fmt.Sprintf("%s%s: [%s]%s = %d", r.Expression, typeStr, strings.Join(rollsStr, ", "), modStr, r.Total)
+}
+
+// GetFormattedBreakdown returns just the breakdown part (for grey display)
+// Example: "= 6 (1d20), 14 (1d20) +4"
+func (r *RollResult) GetFormattedBreakdown() string {
+	var parts []string
+
+	// For advantage/disadvantage, show both rolls
+	if r.RollType == Advantage || r.RollType == Disadvantage {
+		if len(r.Rolls) >= 2 {
+			// First roll is the one used, second is discarded
+			parts = append(parts, fmt.Sprintf("%d (1d20)", r.Rolls[0]))
+			parts = append(parts, fmt.Sprintf("%d (1d20)", r.Rolls[1]))
+		}
+	} else {
+		// Normal rolls - show each die with its sides
+		if len(r.DiceSides) > 0 {
+			for i, roll := range r.Rolls {
+				if i < len(r.DiceSides) {
+					parts = append(parts, fmt.Sprintf("%d (1d%d)", roll, r.DiceSides[i]))
+				} else {
+					parts = append(parts, strconv.Itoa(roll))
+				}
+			}
+		} else {
+			// Fallback if DiceSides not set
+			for _, roll := range r.Rolls {
+				parts = append(parts, strconv.Itoa(roll))
+			}
+		}
+	}
+
+	breakdown := "= " + strings.Join(parts, ", ")
+
+	// Add modifier
+	if r.Modifier > 0 {
+		breakdown += fmt.Sprintf(" +%d", r.Modifier)
+	} else if r.Modifier < 0 {
+		breakdown += fmt.Sprintf(" %d", r.Modifier)
+	}
+
+	return breakdown
+}
+
+// GetTotal returns just the total value
+func (r *RollResult) GetTotal() int {
+	return r.Total
 }
 
 // Roll rolls dice based on expression (e.g., "2d6+3", "1d20", "1d20 adv")
@@ -93,6 +141,12 @@ func Roll(expression string, rollType RollType) (*RollResult, error) {
 	// Calculate total
 	total := sum(rolls) + modifier
 
+	// Track dice sides for each roll
+	diceSides := make([]int, len(rolls))
+	for i := range rolls {
+		diceSides[i] = sides
+	}
+
 	return &RollResult{
 		Expression: expression,
 		Rolls:      rolls,
@@ -100,6 +154,7 @@ func Roll(expression string, rollType RollType) (*RollResult, error) {
 		Total:      total,
 		RollType:   rollType,
 		Timestamp:  time.Now(),
+		DiceSides:  diceSides,
 	}, nil
 }
 
@@ -190,6 +245,19 @@ func rollComplexExpression(expr string, rollType RollType) (*RollResult, error) 
 	}
 	total += totalModifier
 
+	// Track dice sides for complex expressions
+	diceSides := make([]int, 0, len(allRolls))
+	for _, match := range diceMatches {
+		numDice := 1
+		if match[1] != "" {
+			numDice, _ = strconv.Atoi(match[1])
+		}
+		sides, _ := strconv.Atoi(match[2])
+		for i := 0; i < numDice; i++ {
+			diceSides = append(diceSides, sides)
+		}
+	}
+
 	return &RollResult{
 		Expression: expr,
 		Rolls:      allRolls,
@@ -197,6 +265,7 @@ func rollComplexExpression(expr string, rollType RollType) (*RollResult, error) 
 		Total:      total,
 		RollType:   rollType,
 		Timestamp:  time.Now(),
+		DiceSides:  diceSides,
 	}, nil
 }
 
