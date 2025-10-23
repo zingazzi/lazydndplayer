@@ -81,6 +81,7 @@ type Model struct {
 	itemSelector           *components.ItemSelector
 	classSelector          *components.ClassSelector
 	classSkillSelector     *components.ClassSkillSelector
+	subclassSelector       *components.SubclassSelector
 	fightingStyleSelector  *components.FightingStyleSelector
 	cantripSelector        *components.CantripSelector
 	spellPrepSelector      *components.SpellPrepSelector
@@ -141,6 +142,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		itemSelector:           components.NewItemSelector(),
 		classSelector:          components.NewClassSelector(char),
 		classSkillSelector:     components.NewClassSkillSelector(),
+		subclassSelector:       components.NewSubclassSelector(char),
 		fightingStyleSelector:  components.NewFightingStyleSelector(),
 		cantripSelector:        components.NewCantripSelector(char),
 		spellPrepSelector:      components.NewSpellPrepSelector(char),
@@ -366,6 +368,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if class skill selector is active
 		if m.classSkillSelector.IsVisible() {
 			return m.handleClassSkillSelectorKeys(msg)
+		}
+
+		// Check if subclass selector is active
+		if m.subclassSelector.IsVisible() {
+			return m.handleSubclassSelectorKeys(msg)
 		}
 
 		// Check if class selector is active
@@ -1872,6 +1879,60 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// handleSubclassSelectorKeys handles subclass selector specific keys
+func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleSubclassSelectorKeys: key=%s", msg.String())
+
+	// Delegate navigation to the component's Update method
+	var cmd tea.Cmd
+	*m.subclassSelector, cmd = m.subclassSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter":
+		selectedSubclass := m.subclassSelector.GetSelectedSubclass()
+		if selectedSubclass != nil {
+			debug.Log("Subclass selected: %s", selectedSubclass.Name)
+
+			// Apply the subclass to the character's current class
+			if len(m.character.Classes) > 0 {
+				// Update the most recent class (should be the only one at level 1)
+				m.character.Classes[len(m.character.Classes)-1].Subclass = selectedSubclass.Name
+				debug.Log("Set character subclass to: %s", selectedSubclass.Name)
+			}
+
+			m.subclassSelector.Hide()
+
+			// Check if we need cantrip selection next
+			classData := models.GetClassByName(m.character.Class)
+			needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
+			debug.Log("Class %s needs cantrips: %v", m.character.Class, needsCantrips)
+
+			if needsCantrips {
+				// Show cantrip selector
+				debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
+				m.cantripSelector.Show(m.character.Class, classData.Spellcasting.CantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, m.character.Class)
+			} else {
+				// Complete class selection
+				debug.Log("Saving character and completing class selection")
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Class setup complete! %s - %s (HP: %d/%d)", m.character.Class, selectedSubclass.Name, m.character.CurrentHP, m.character.MaxHP)
+			}
+		}
+	case "esc":
+		debug.Log("Subclass selection cancelled")
+		// Cancel - rollback
+		m.subclassSelector.Hide()
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
+		m.storage.Save(m.character)
+		m.message = "Subclass selection cancelled - restored previous state"
+	}
+
+	return m, cmd
+}
+
 // handleClassSkillSelectorKeys handles class skill selector specific keys
 func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleClassSkillSelectorKeys: key=%s", msg.String())
@@ -1925,31 +1986,50 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 			m.classSkillSelector.Hide()
 
-			// Check if this class gets a fighting style (Fighter, Paladin, Ranger at level 1)
-			needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
-			debug.Log("Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
-
-			// Check if this class needs cantrip selection (spellcasters)
+			// Check if this class needs a subclass at level 1
 			classData := models.GetClassByName(selectedClassName)
-			needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
-			debug.Log("Class %s needs cantrips: %v", selectedClassName, needsCantrips)
+			needsSubclass := false
+			if classData != nil && len(classData.Subclasses) > 0 {
+				// Check if any subclass is for level 1 (or has SubclassLevel == 0 which means level 1)
+				for _, subclass := range classData.Subclasses {
+					if subclass.SubclassLevel == 0 || subclass.SubclassLevel == 1 {
+						needsSubclass = true
+						break
+					}
+				}
+			}
+			debug.Log("Class %s needs subclass at level 1: %v (has %d subclasses)", selectedClassName, needsSubclass, len(classData.Subclasses))
 
-			if needsFightingStyle {
-				// Show fighting style selector
-				debug.Log("Showing fighting style selector")
-				m.fightingStyleSelector.Show(selectedClassName)
-				m.message = fmt.Sprintf("Select fighting style for %s...", selectedClassName)
-			} else if needsCantrips {
-				// Show cantrip selector
-				debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
-				m.cantripSelector.Show(selectedClassName, classData.Spellcasting.CantripsKnown)
-				m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, selectedClassName)
+			if needsSubclass {
+				// Show subclass selector
+				debug.Log("Showing subclass selector for %s", selectedClassName)
+				m.subclassSelector.Show(selectedClassName, 1)
+				m.message = fmt.Sprintf("Select subclass for %s...", selectedClassName)
 			} else {
-				// No fighting style or cantrips needed, complete class selection
-				debug.Log("Saving character and completing class selection")
-				m.pendingChanges.Clear() // Clear backup on successful completion
-				m.storage.Save(m.character)
-				m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+				// No subclass at level 1, check for fighting style or cantrips
+				needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
+				debug.Log("Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
+
+				needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
+				debug.Log("Class %s needs cantrips: %v", selectedClassName, needsCantrips)
+
+				if needsFightingStyle {
+					// Show fighting style selector
+					debug.Log("Showing fighting style selector")
+					m.fightingStyleSelector.Show(selectedClassName)
+					m.message = fmt.Sprintf("Select fighting style for %s...", selectedClassName)
+				} else if needsCantrips {
+					// Show cantrip selector
+					debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
+					m.cantripSelector.Show(selectedClassName, classData.Spellcasting.CantripsKnown)
+					m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, selectedClassName)
+				} else {
+					// No fighting style, cantrips, or subclass needed, complete class selection
+					debug.Log("Saving character and completing class selection")
+					m.pendingChanges.Clear() // Clear backup on successful completion
+					m.storage.Save(m.character)
+					m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+				}
 			}
 		} else {
 			debug.Log("Cannot confirm, need more skills")
@@ -2862,6 +2942,11 @@ func (m *Model) View() string {
 	// Class skill selector takes tenth priority (Medium)
 	if m.classSkillSelector.IsVisible() {
 		return m.classSkillSelector.View(m.width, m.height)
+	}
+
+	// Subclass selector takes priority after skills (Medium)
+	if m.subclassSelector.IsVisible() {
+		return m.subclassSelector.View()
 	}
 
 	// Class selector takes seventh priority (Medium)
