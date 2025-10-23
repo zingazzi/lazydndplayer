@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
@@ -33,15 +35,26 @@ func (c *ClassSelector) Show() {
 	c.selectedIndex = 0
 
 	// Determine if this is for multiclassing
-	c.isMulticlass = c.character.TotalLevel > 0
+	// Character is multiclassing if they have a level AND already have a class
+	c.isMulticlass = c.character.TotalLevel > 0 && c.character.Class != ""
+	debug.Log("ClassSelector.Show() - TotalLevel=%d, Class='%s', isMulticlass=%v", c.character.TotalLevel, c.character.Class, c.isMulticlass)
 
 	// Load appropriate classes
 	if c.isMulticlass {
 		// Show only classes that meet prerequisites
 		c.classes = models.GetAvailableClasses(c.character)
+		debug.Log("ClassSelector.Show() - Multiclass mode, loaded %d classes", len(c.classes))
 	} else {
 		// Show all classes for first class selection
 		c.classes = models.GetAllClasses()
+		debug.Log("ClassSelector.Show() - First class mode, loaded %d classes", len(c.classes))
+	}
+
+	// Debug: Check if classes loaded successfully
+	if len(c.classes) == 0 {
+		debug.Log("WARNING: ClassSelector.Show() - No classes loaded! isMulticlass=%v", c.isMulticlass)
+	} else {
+		debug.Log("ClassSelector - First class: %s, Last class: %s", c.classes[0].Name, c.classes[len(c.classes)-1].Name)
 	}
 }
 
@@ -59,6 +72,9 @@ func (c *ClassSelector) IsVisible() bool {
 func (c *ClassSelector) Next() {
 	if c.selectedIndex < len(c.classes)-1 {
 		c.selectedIndex++
+		debug.Log("ClassSelector.Next() - selectedIndex now: %d (total: %d)", c.selectedIndex, len(c.classes))
+	} else {
+		debug.Log("ClassSelector.Next() - Already at end (index: %d, total: %d)", c.selectedIndex, len(c.classes))
 	}
 }
 
@@ -66,15 +82,43 @@ func (c *ClassSelector) Next() {
 func (c *ClassSelector) Prev() {
 	if c.selectedIndex > 0 {
 		c.selectedIndex--
+		debug.Log("ClassSelector.Prev() - selectedIndex now: %d (total: %d)", c.selectedIndex, len(c.classes))
+	} else {
+		debug.Log("ClassSelector.Prev() - Already at start")
 	}
 }
 
 // GetSelectedClass returns the currently selected class name
 func (c *ClassSelector) GetSelectedClass() string {
+	debug.Log("GetSelectedClass() - selectedIndex=%d, classes.len=%d", c.selectedIndex, len(c.classes))
 	if c.selectedIndex >= 0 && c.selectedIndex < len(c.classes) {
-		return c.classes[c.selectedIndex].Name
+		className := c.classes[c.selectedIndex].Name
+		debug.Log("GetSelectedClass() - Returning: %s", className)
+		return className
 	}
+	debug.Log("GetSelectedClass() - Returning empty (index out of bounds)")
 	return ""
+}
+
+// Update handles keyboard input for the class selector
+func (c *ClassSelector) Update(msg tea.Msg) (ClassSelector, tea.Cmd) {
+	if !c.visible {
+		return *c, nil
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			c.Prev()
+		case "down", "j":
+			c.Next()
+		case "enter", "esc":
+			return *c, nil
+		}
+	}
+
+	return *c, nil
 }
 
 // View renders the class selector

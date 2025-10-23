@@ -3,15 +3,9 @@ package models
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/marcozingoni/lazydndplayer/internal/debug"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // LevelUpResult contains information about what was gained on level up
 type LevelUpResult struct {
@@ -54,136 +48,202 @@ func CanLevelUp(char *Character, className string) (bool, string) {
 	return true, ""
 }
 
-// LevelUp levels up a character in the specified class
+// LevelUp levels up a character in the specified class.
+// This is the main entry point that orchestrates the level-up process.
 func LevelUp(char *Character, options LevelUpOptions) (*LevelUpResult, error) {
 	debug.Log("LevelUp: class=%s, character=%s", options.ClassName, char.Name)
 
-	// Validate
-	canLevel, reason := CanLevelUp(char, options.ClassName)
-	if !canLevel {
-		return nil, fmt.Errorf("cannot level up: %s", reason)
+	// Step 1: Validate the level-up request
+	classData, err := validateLevelUp(char, options.ClassName)
+	if err != nil {
+		return nil, err
 	}
 
-	// Load class data
-	classData := GetClassByName(options.ClassName)
-	if classData == nil {
-		return nil, fmt.Errorf("class not found: %s", options.ClassName)
-	}
-
-	isNewClass := !char.HasClass(options.ClassName)
-	var classLevel *ClassLevel
-	newClassLevel := 1
-
-	if isNewClass {
-		// Add new class
-		classLevel = &ClassLevel{
-			ClassName:     options.ClassName,
-			Level:         1,
-			Subclass:      options.Subclass,
-			FightingStyle: options.FightingStyle,
-		}
-		char.Classes = append(char.Classes, *classLevel)
-		debug.Log("Added new class: %s level 1", options.ClassName)
-	} else {
-		// Level up existing class
-		for i := range char.Classes {
-			if char.Classes[i].ClassName == options.ClassName {
-				char.Classes[i].Level++
-				classLevel = &char.Classes[i]
-				newClassLevel = classLevel.Level
-
-				// Update subclass if provided (for classes that get it at higher levels)
-				if options.Subclass != "" {
-					char.Classes[i].Subclass = options.Subclass
-				}
-				if options.FightingStyle != "" {
-					char.Classes[i].FightingStyle = options.FightingStyle
-				}
-				break
-			}
-		}
-		debug.Log("Leveled up %s to level %d", options.ClassName, newClassLevel)
-	}
-
-	// Calculate new total level
+	// Step 2: Update class level (add new class or increment existing)
+	classLevel, isNewClass := updateClassLevel(char, classData, options)
 	newTotalLevel := char.CalculateTotalLevel()
 
-	// Roll/calculate HP
-	hpGained := RollHP(classData.HitDie, char.AbilityScores.GetModifier(Constitution), options.TakeAverage)
-	char.MaxHP += hpGained
-	char.CurrentHP += hpGained
-	debug.Log("HP gained: %d (new max: %d)", hpGained, char.MaxHP)
+	// Step 3: Calculate and apply HP gain
+	hpGained := applyHPGain(char, classData, options.TakeAverage)
 
-	// Apply level benefits
+	// Step 4: Initialize result structure
 	result := &LevelUpResult{
 		ClassName:     options.ClassName,
-		NewClassLevel: newClassLevel,
+		NewClassLevel: classLevel.Level,
 		NewTotalLevel: newTotalLevel,
 		HPGained:      hpGained,
 		IsNewClass:    isNewClass,
 	}
 
-	// Apply proficiencies (only for new class, and only limited ones for multiclass)
+	// Step 5: Apply proficiencies for new classes
 	if isNewClass {
-		if len(char.Classes) == 1 {
-			// First class - grant all starting proficiencies
-			result.ProficienciesGained = applyFullProficiencies(char, classData)
-		} else {
-			// Multiclassing - grant limited proficiencies
-			result.ProficienciesGained = applyMulticlassProficiencies(char, options.ClassName)
-		}
+		result.ProficienciesGained = applyClassProficiencies(char, classData, options.ClassName)
 	}
 
-	// Grant features for this level
-	features := GrantLevelFeatures(char, classData, newClassLevel)
-	result.FeaturesGained = features
+	// Step 6: Grant class features for this level
+	result.FeaturesGained = GrantLevelFeatures(char, classData, classLevel.Level)
 
-	// Handle skill choices
-	if isNewClass && classData.SkillChoices != nil {
-		result.RequiresSkills = true
-		if len(options.SelectedSkills) > 0 {
-			ApplySkillChoices(char, options.SelectedSkills, options.ClassName)
-		}
-	}
+	// Step 7: Handle skill selection requirements
+	result.RequiresSkills = handleSkillChoices(char, classData, options, isNewClass)
 
-	// Update spellcasting if applicable
-	if classData.Spellcasting != nil {
-		UpdateSpellcasting(char, classData, newClassLevel)
-		result.SpellSlotsGained = "Spell slots updated"
+	// Step 8: Update spellcasting capabilities
+	result.SpellSlotsGained, result.RequiresSpells = updateClassSpellcasting(char, classData, classLevel.Level, options.ClassName)
 
-		// Check if spell selection is needed
-		casterInfo := GetClassCasterInfo(options.ClassName)
-		if casterInfo != nil {
-			if casterInfo.Method == KnownCaster || casterInfo.Method == SpellbookCaster {
-				result.RequiresSpells = true
-			}
-		}
-	}
+	// Step 9: Check if subclass selection is required
+	result.RequiresSubclass = checkSubclassRequirement(classData, classLevel.Level, options.Subclass)
 
-	// Check if subclass selection is required
-	if options.Subclass == "" {
-		result.RequiresSubclass = RequiresSubclassAtLevel(classData, newClassLevel)
-	}
-
-	// Update derived stats
-	char.Level = newTotalLevel
-	char.TotalLevel = newTotalLevel
-	char.UpdateDerivedStats()
+	// Step 10: Finalize by updating all derived stats
+	finalizeLevelUp(char, newTotalLevel)
 
 	debug.Log("LevelUp complete: total level %d", newTotalLevel)
 	return result, nil
 }
 
-// RollHP rolls hit points for a level up
+// validateLevelUp checks if the character can level up and loads class data.
+func validateLevelUp(char *Character, className string) (*Class, error) {
+	canLevel, reason := CanLevelUp(char, className)
+	if !canLevel {
+		return nil, fmt.Errorf("cannot level up: %s", reason)
+	}
+
+	classData := GetClassByName(className)
+	if classData == nil {
+		return nil, fmt.Errorf("class not found: %s", className)
+	}
+
+	return classData, nil
+}
+
+// updateClassLevel adds a new class or increments an existing class level.
+// Returns the ClassLevel pointer and whether this is a new class.
+func updateClassLevel(char *Character, classData *Class, options LevelUpOptions) (*ClassLevel, bool) {
+	isNewClass := !char.HasClass(options.ClassName)
+
+	if isNewClass {
+		// Add new class at level 1
+		newClass := ClassLevel{
+			ClassName:     options.ClassName,
+			Level:         1,
+			Subclass:      options.Subclass,
+			FightingStyle: options.FightingStyle,
+		}
+		char.Classes = append(char.Classes, newClass)
+		debug.Log("Added new class: %s level 1", options.ClassName)
+		return &char.Classes[len(char.Classes)-1], true
+	}
+
+	// Level up existing class
+	for i := range char.Classes {
+		if char.Classes[i].ClassName == options.ClassName {
+			char.Classes[i].Level++
+
+			// Update subclass/fighting style if provided
+			if options.Subclass != "" {
+				char.Classes[i].Subclass = options.Subclass
+			}
+			if options.FightingStyle != "" {
+				char.Classes[i].FightingStyle = options.FightingStyle
+			}
+
+			debug.Log("Leveled up %s to level %d", options.ClassName, char.Classes[i].Level)
+			return &char.Classes[i], false
+		}
+	}
+
+	// Should never reach here due to validation
+	return nil, false
+}
+
+// applyHPGain rolls HP and adds it to the character.
+// Returns the amount of HP gained.
+func applyHPGain(char *Character, classData *Class, takeAverage bool) int {
+	conMod := char.AbilityScores.GetModifier(Constitution)
+	hpGained := RollHP(classData.HitDie, conMod, takeAverage)
+
+	char.MaxHP += hpGained
+	char.CurrentHP += hpGained
+
+	debug.Log("HP gained: %d (new max: %d)", hpGained, char.MaxHP)
+	return hpGained
+}
+
+// applyClassProficiencies applies either full or multiclass proficiencies.
+// Returns a list of proficiencies granted.
+func applyClassProficiencies(char *Character, classData *Class, className string) []string {
+	if len(char.Classes) == 1 {
+		// First class - grant all starting proficiencies
+		return applyFullProficiencies(char, classData)
+	}
+	// Multiclassing - grant limited proficiencies
+	return applyMulticlassProficiencies(char, className)
+}
+
+// handleSkillChoices applies selected skills or marks that skill selection is required.
+// Returns true if skill selection is still needed.
+func handleSkillChoices(char *Character, classData *Class, options LevelUpOptions, isNewClass bool) bool {
+	if !isNewClass || classData.SkillChoices == nil {
+		return false
+	}
+
+	if len(options.SelectedSkills) > 0 {
+		ApplySkillChoices(char, options.SelectedSkills, options.ClassName)
+		return false
+	}
+
+	return true // Skills selection required but not provided
+}
+
+// updateClassSpellcasting updates spellcasting capabilities for spellcasting classes.
+// Returns a message about spell slots and whether spell selection is required.
+func updateClassSpellcasting(char *Character, classData *Class, classLevel int, className string) (string, bool) {
+	if classData.Spellcasting == nil {
+		return "", false
+	}
+
+	UpdateSpellcasting(char, classData, classLevel)
+
+	// Check if spell selection is needed
+	casterInfo := GetClassCasterInfo(className)
+	requiresSpells := false
+	if casterInfo != nil {
+		if casterInfo.Method == KnownCaster || casterInfo.Method == SpellbookCaster {
+			requiresSpells = true
+		}
+	}
+
+	return "Spell slots updated", requiresSpells
+}
+
+// checkSubclassRequirement determines if subclass selection is needed at this level.
+func checkSubclassRequirement(classData *Class, classLevel int, selectedSubclass string) bool {
+	if selectedSubclass != "" {
+		return false // Already selected
+	}
+	return RequiresSubclassAtLevel(classData, classLevel)
+}
+
+// finalizeLevelUp updates all derived character statistics.
+func finalizeLevelUp(char *Character, newTotalLevel int) {
+	char.Level = newTotalLevel
+	char.TotalLevel = newTotalLevel
+	char.UpdateDerivedStats()
+}
+
+// RollHP rolls hit points for a level up using the default dice roller
 func RollHP(hitDie int, constitutionMod int, takeAverage bool) int {
+	return RollHPWithDiceRoller(hitDie, constitutionMod, takeAverage, GetDefaultDiceRoller())
+}
+
+// RollHPWithDiceRoller rolls hit points with a specified dice roller (for testing)
+func RollHPWithDiceRoller(hitDie int, constitutionMod int, takeAverage bool, roller DiceRoller) int {
 	var roll int
 
 	if takeAverage {
 		// Take average: (die / 2) + 1
 		roll = (hitDie / 2) + 1
 	} else {
-		// Roll the die
-		roll = rand.Intn(hitDie) + 1
+		// Roll the die using injected roller
+		roll = roller.Roll(hitDie)
 	}
 
 	// Add constitution modifier (minimum 1 HP per level)

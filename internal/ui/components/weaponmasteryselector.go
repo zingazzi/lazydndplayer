@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
@@ -150,6 +151,29 @@ func (s *WeaponMasterySelector) GetSelectedWeapons() []string {
 		weapons = append(weapons, weapon)
 	}
 	return weapons
+}
+
+// Update handles keyboard input for the weapon mastery selector
+func (s *WeaponMasterySelector) Update(msg tea.Msg) (WeaponMasterySelector, tea.Cmd) {
+	if !s.visible {
+		return *s, nil
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			s.Prev()
+		case "down", "j":
+			s.Next()
+		case " ":
+			s.ToggleSelection()
+		case "enter", "esc":
+			return *s, nil
+		}
+	}
+
+	return *s, nil
 }
 
 // View renders the selector

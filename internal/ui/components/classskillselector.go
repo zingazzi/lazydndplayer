@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
@@ -121,6 +122,29 @@ func (css *ClassSkillSelector) GetSelectedSkills() []string {
 // CanConfirm returns true if the correct number of skills have been selected
 func (css *ClassSkillSelector) CanConfirm() bool {
 	return len(css.SelectedSkills) == css.MaxChoices
+}
+
+// Update handles keyboard input for the class skill selector
+func (css *ClassSkillSelector) Update(msg tea.Msg) (ClassSkillSelector, tea.Cmd) {
+	if !css.visible {
+		return *css, nil
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			css.Prev()
+		case "down", "j":
+			css.Next()
+		case " ":
+			css.ToggleSkill()
+		case "enter", "esc":
+			return *css, nil
+		}
+	}
+
+	return *css, nil
 }
 
 // View renders the skill selector

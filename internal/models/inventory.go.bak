@@ -80,3 +80,6 @@ func (inv *Inventory) IsOverloaded() bool {
 }
 
 // CalculateCarryCapacity calculates carry capacity from strength score (STR × 15)
+func CalculateCarryCapacity(strength int) float64 {
+	return float64(strength * 15)
+}

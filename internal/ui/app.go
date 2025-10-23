@@ -1293,6 +1293,7 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		debug.Log("Backed up class state: %s", m.character.Class)
 		m.classSelector.Show()
 		m.message = "Select a class..."
+		return m, nil
 	case "L":
 		// Open level-up selector
 		m.levelUpSelector.Show()
@@ -1737,15 +1738,19 @@ func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleWeaponMasterySelectorKeys handles weapon mastery selector specific keys
 func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Delegate navigation and selection to the component's Update method
+	var cmd tea.Cmd
+	*m.weaponMasterySelector, cmd = m.weaponMasterySelector.Update(tea.KeyMsg(msg))
+
 	switch msg.String() {
-	case "up", "k":
-		m.weaponMasterySelector.Prev()
-	case "down", "j":
-		m.weaponMasterySelector.Next()
 	case " ":
-		// Toggle selection
-		if !m.weaponMasterySelector.ToggleSelection() {
-			m.message = "Maximum weapons already selected"
+		// Check if toggle was successful and provide feedback
+		if len(m.weaponMasterySelector.GetSelectedWeapons()) >= m.getWeaponMasteryCount() {
+			selectedCount := len(m.weaponMasterySelector.GetSelectedWeapons())
+			maxCount := m.getWeaponMasteryCount()
+			if selectedCount > maxCount {
+				m.message = "Maximum weapons already selected"
+			}
 		}
 	case "enter":
 		// Confirm selection
@@ -1762,7 +1767,8 @@ func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 		m.weaponMasterySelector.Hide()
 		m.message = "Cancelled"
 	}
-	return m, nil
+
+	return m, cmd
 }
 
 // handleLevelUpSelectorKeys handles level-up selector keys
@@ -1805,13 +1811,11 @@ func (m *Model) handleItemSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleClassSelectorKeys: key=%s", msg.String())
 
+	// Delegate navigation to the component's Update method
+	var cmd tea.Cmd
+	*m.classSelector, cmd = m.classSelector.Update(tea.KeyMsg(msg))
+
 	switch msg.String() {
-	case "up", "k":
-		m.classSelector.Prev()
-		debug.Log("Class selector: moved up")
-	case "down", "j":
-		m.classSelector.Next()
-		debug.Log("Class selector: moved down")
 	case "enter":
 		selectedClassName := m.classSelector.GetSelectedClass()
 		debug.Log("Class selector: enter pressed, selected=%s", selectedClassName)
@@ -1864,26 +1868,21 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.storage.Save(m.character) // Save restored state
 		m.message = "Class selection cancelled - restored previous state"
 	}
-	return m, nil
+
+	return m, cmd
 }
 
 // handleClassSkillSelectorKeys handles class skill selector specific keys
 func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleClassSkillSelectorKeys: key=%s", msg.String())
 
+	// Delegate navigation and selection to the component's Update method
+	var cmd tea.Cmd
+	*m.classSkillSelector, cmd = m.classSkillSelector.Update(tea.KeyMsg(msg))
+
 	switch msg.String() {
-	case "up", "k":
-		m.classSkillSelector.Prev()
-		debug.Log("Skill selector: moved up")
-	case "down", "j":
-		m.classSkillSelector.Next()
-		debug.Log("Skill selector: moved down")
-	case " ": // Space to toggle
-		toggled := m.classSkillSelector.ToggleSkill()
-		debug.Log("Skill selector: toggled=%v, selected=%d/%d", toggled, len(m.classSkillSelector.SelectedSkills), m.classSkillSelector.MaxChoices)
-		if !toggled {
-			m.message = "Cannot select: already proficient or max selections reached"
-		}
+	case " ": // Space to toggle - provide feedback
+		debug.Log("Skill selector: selected=%d/%d", len(m.classSkillSelector.SelectedSkills), m.classSkillSelector.MaxChoices)
 	case "enter":
 		canConfirm := m.classSkillSelector.CanConfirm()
 		debug.Log("Skill selector: enter pressed, canConfirm=%v", canConfirm)
@@ -1965,20 +1964,19 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		m.storage.Save(m.character) // Save restored state
 		m.message = "Skill selection cancelled - restored previous state"
 	}
-	return m, nil
+
+	return m, cmd
 }
 
 // handleCantripSelectorKeys handles cantrip selector specific keys
 func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleCantripSelectorKeys: key=%s", msg.String())
 
+	// Delegate navigation and selection to the component's Update method
+	var cmd tea.Cmd
+	*m.cantripSelector, cmd = m.cantripSelector.Update(tea.KeyMsg(msg))
+
 	switch msg.String() {
-	case "up", "k":
-		m.cantripSelector.Prev()
-	case "down", "j":
-		m.cantripSelector.Next()
-	case " ": // Space to toggle
-		m.cantripSelector.ToggleSelection()
 	case "enter":
 		if m.cantripSelector.CanConfirm() {
 			selectedCantrips := m.cantripSelector.GetSelectedCantrips()
@@ -2007,7 +2005,8 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.storage.Save(m.character)
 		m.message = "Class selection cancelled - restored previous state"
 	}
-	return m, nil
+
+	return m, cmd
 }
 
 // handleSpellPrepSelectorKeys handles keyboard input for the spell prep selector
@@ -2055,13 +2054,11 @@ func (m *Model) handleSlotRestorerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleFightingStyleSelectorKeys: key=%s", msg.String())
 
+	// Delegate navigation to the component's Update method
+	var cmd tea.Cmd
+	*m.fightingStyleSelector, cmd = m.fightingStyleSelector.Update(tea.KeyMsg(msg))
+
 	switch msg.String() {
-	case "up", "k":
-		m.fightingStyleSelector.Prev()
-		debug.Log("Fighting style selector: moved up")
-	case "down", "j":
-		m.fightingStyleSelector.Next()
-		debug.Log("Fighting style selector: moved down")
 	case "enter":
 		selectedStyle := m.fightingStyleSelector.GetSelectedStyle()
 		debug.Log("Fighting style selector: enter pressed, selected=%s", selectedStyle)
@@ -2091,7 +2088,8 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 		m.storage.Save(m.character) // Save restored state
 		m.message = "Fighting style selection cancelled - restored previous state"
 	}
-	return m, nil
+
+	return m, cmd
 }
 
 // handleSkillSelectorKeys handles skill selector specific keys

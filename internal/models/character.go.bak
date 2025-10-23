@@ -223,6 +223,19 @@ func (c *Character) CalculateMaxPreparedSpells(formula string) int {
 }
 
 // CalculateProficiencyBonus returns proficiency bonus for a given level
+func CalculateProficiencyBonus(level int) int {
+	if level <= 4 {
+		return 2
+	} else if level <= 8 {
+		return 3
+	} else if level <= 12 {
+		return 4
+	} else if level <= 16 {
+		return 5
+	}
+	return 6
+}
+
 // TakeDamage applies damage to the character
 func (c *Character) TakeDamage(damage int) {
 	// Apply to temp HP first

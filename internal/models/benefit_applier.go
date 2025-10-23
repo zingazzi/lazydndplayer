@@ -24,26 +24,36 @@ func NewBenefitApplier(char *Character) *BenefitApplier {
 func (ba *BenefitApplier) AddAbilityScore(source BenefitSource, ability string, increase int) error {
 	abilityLower := strings.ToLower(ability)
 
-	// Apply the increase
+	// Determine which ability and calculate new value
+	const maxAbilityScore = 20
+	var newValue int
+	var normalizedAbility string
+
 	switch {
 	case strings.Contains(abilityLower, "strength"):
-		ba.char.AbilityScores.Strength = min(ba.char.AbilityScores.Strength+increase, 20)
-		ability = "Strength"
+		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Strength, increase, maxAbilityScore)
+		ba.char.AbilityScores.Strength = newValue
+		normalizedAbility = "Strength"
 	case strings.Contains(abilityLower, "dexterity"):
-		ba.char.AbilityScores.Dexterity = min(ba.char.AbilityScores.Dexterity+increase, 20)
-		ability = "Dexterity"
+		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Dexterity, increase, maxAbilityScore)
+		ba.char.AbilityScores.Dexterity = newValue
+		normalizedAbility = "Dexterity"
 	case strings.Contains(abilityLower, "constitution"):
-		ba.char.AbilityScores.Constitution = min(ba.char.AbilityScores.Constitution+increase, 20)
-		ability = "Constitution"
+		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Constitution, increase, maxAbilityScore)
+		ba.char.AbilityScores.Constitution = newValue
+		normalizedAbility = "Constitution"
 	case strings.Contains(abilityLower, "intelligence"):
-		ba.char.AbilityScores.Intelligence = min(ba.char.AbilityScores.Intelligence+increase, 20)
-		ability = "Intelligence"
+		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Intelligence, increase, maxAbilityScore)
+		ba.char.AbilityScores.Intelligence = newValue
+		normalizedAbility = "Intelligence"
 	case strings.Contains(abilityLower, "wisdom"):
-		ba.char.AbilityScores.Wisdom = min(ba.char.AbilityScores.Wisdom+increase, 20)
-		ability = "Wisdom"
+		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Wisdom, increase, maxAbilityScore)
+		ba.char.AbilityScores.Wisdom = newValue
+		normalizedAbility = "Wisdom"
 	case strings.Contains(abilityLower, "charisma"):
-		ba.char.AbilityScores.Charisma = min(ba.char.AbilityScores.Charisma+increase, 20)
-		ability = "Charisma"
+		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Charisma, increase, maxAbilityScore)
+		ba.char.AbilityScores.Charisma = newValue
+		normalizedAbility = "Charisma"
 	default:
 		return fmt.Errorf("unknown ability: %s", ability)
 	}
@@ -52,9 +62,9 @@ func (ba *BenefitApplier) AddAbilityScore(source BenefitSource, ability string, 
 	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
 		Source:      source,
 		Type:        BenefitAbilityScore,
-		Target:      ability,
+		Target:      normalizedAbility,
 		Value:       increase,
-		Description: fmt.Sprintf("+%d %s", increase, ability),
+		Description: fmt.Sprintf("+%d %s", increase, normalizedAbility),
 	})
 
 	return nil

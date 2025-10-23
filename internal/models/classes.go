@@ -101,11 +101,14 @@ func LoadClassesFromJSON(dirpath string) (*ClassesData, error) {
 // GetAllClasses returns all available classes
 func GetAllClasses() []Class {
 	if cachedClasses == nil {
+		debug.Log("GetAllClasses: cachedClasses is nil, loading...")
 		_, err := LoadClassesFromJSON("data/classes")
 		if err != nil {
+			debug.Log("Error loading classes: %v", err)
 			fmt.Printf("Error loading classes: %v\n", err)
 			return []Class{}
 		}
+		debug.Log("Successfully loaded %d classes", len(cachedClasses.Classes))
 	}
 	return cachedClasses.Classes
 }
@@ -173,29 +176,53 @@ func CalculateMaxHP(char *Character, class *Class) int {
 	return totalHP
 }
 
-// ApplyClassToCharacter applies a class to a character and updates HP
+// ApplyClassToCharacter applies a class to a character and updates HP.
+// This is typically used when changing the character's primary class.
 func ApplyClassToCharacter(char *Character, className string) error {
 	class := GetClassByName(className)
 	if class == nil {
 		return fmt.Errorf("class %s not found", className)
 	}
 
-	// Note: char.Class might be empty due to BackupClass clearing it
-	// So we can't use char.Class to identify old features
-	// Features must be removed by checking their Source field
 	debug.Log("ApplyClassToCharacter: Applying %s (current char.Class='%s')", className, char.Class)
 
-	// Remove previous class features by checking Source field
+	// Step 1: Clean up previous class data
+	removePreviousClassData(char)
+
+	// Step 2: Set new class name
+	char.Class = className
+
+	// Step 3: Apply class proficiencies
+	applyClassProficienciesToCharacter(char, class)
+
+	// Step 4: Grant class features
+	GrantClassFeatures(char, class)
+
+	// Step 5: Initialize spellcasting if applicable
+	if class.Spellcasting != nil {
+		InitializeSpellcasting(char, class)
+	}
+
+	// Step 6: Update HP
+	updateCharacterHP(char, class)
+
+	// Step 7: Update all derived stats
+	char.UpdateDerivedStats()
+
+	return nil
+}
+
+// removePreviousClassData removes all features and fighting styles from the previous class.
+func removePreviousClassData(char *Character) {
 	RemoveAllClassFeatures(char)
 
-	// Remove previous fighting style if changing class
 	if char.FightingStyle != "" {
 		RemoveFightingStyle(char)
 	}
+}
 
-	// Update class name
-	char.Class = className
-
+// applyClassProficienciesToCharacter applies armor, weapon, and saving throw proficiencies.
+func applyClassProficienciesToCharacter(char *Character, class *Class) {
 	// Apply armor proficiencies (replaces old ones)
 	char.ArmorProficiencies = make([]string, len(class.ArmorProficiencies))
 	copy(char.ArmorProficiencies, class.ArmorProficiencies)
@@ -207,36 +234,22 @@ func ApplyClassToCharacter(char *Character, className string) error {
 	// Apply saving throw proficiencies (replaces old ones)
 	char.SavingThrowProficiencies = make([]string, len(class.SavingThrows))
 	copy(char.SavingThrowProficiencies, class.SavingThrows)
+}
 
-	// Grant level 1 class features (this will add new class features)
-	GrantClassFeatures(char, class)
-
-	// Initialize spellcasting for spellcasting classes
-	if class.Spellcasting != nil {
-		InitializeSpellcasting(char, class)
-	}
-
-	// Calculate and set HP
+// updateCharacterHP calculates new max HP and updates current HP proportionally.
+func updateCharacterHP(char *Character, class *Class) {
 	newMaxHP := CalculateMaxHP(char, class)
 
-	// If this is a new character or HP is at max, heal to full
+	// If new character or at full health, set to full
 	if char.CurrentHP == char.MaxHP || char.MaxHP == 0 {
 		char.CurrentHP = newMaxHP
 	} else {
-		// Adjust current HP proportionally to avoid full heal exploit
-		hpRatio := float64(char.CurrentHP) / float64(char.MaxHP)
-		char.CurrentHP = int(float64(newMaxHP) * hpRatio)
-		if char.CurrentHP < 1 {
-			char.CurrentHP = 1
-		}
+		// Adjust current HP proportionally to avoid exploits
+		ratio := CalculateHPRatio(char.CurrentHP, char.MaxHP)
+		char.CurrentHP = ApplyHPRatio(newMaxHP, ratio)
 	}
 
 	char.MaxHP = newMaxHP
-
-	// Update derived stats
-	char.UpdateDerivedStats()
-
-	return nil
 }
 
 // HasArmorProficiency checks if character is proficient with an armor type

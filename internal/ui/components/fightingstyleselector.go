@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
@@ -63,6 +64,27 @@ func (fss *FightingStyleSelector) GetSelectedStyle() string {
 		return fss.styles[fss.selectedIndex].Name
 	}
 	return ""
+}
+
+// Update handles keyboard input for the fighting style selector
+func (fss *FightingStyleSelector) Update(msg tea.Msg) (FightingStyleSelector, tea.Cmd) {
+	if !fss.visible {
+		return *fss, nil
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			fss.Prev()
+		case "down", "j":
+			fss.Next()
+		case "enter", "esc":
+			return *fss, nil
+		}
+	}
+
+	return *fss, nil
 }
 
 // View renders the fighting style selector
