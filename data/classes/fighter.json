@@ -18,27 +18,6 @@
     "Dungeoneer's Pack or Explorer's Pack"
   ],
   "spellcasting": null,
-  "level_1_features": [
-    {
-      "name": "Fighting Style",
-      "description": "You adopt a particular style of fighting as your specialty. This is selected during character creation.",
-      "uses_formula": "0",
-      "rest_type": "None"
-    },
-    {
-      "name": "Second Wind",
-      "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level.",
-      "uses_formula": "1",
-      "rest_type": "Short Rest"
-    },
-    {
-      "name": "Weapon Mastery",
-      "description": "Your training with weapons allows you to use the mastery properties of three kinds of weapons of your choice with which you have proficiency.",
-      "uses_formula": "0",
-      "rest_type": "None",
-      "mastery_count": 3
-    }
-  ],
   "level_progression": [
     {
       "level": 1,
@@ -47,25 +26,20 @@
         {
           "name": "Fighting Style",
           "description": "You adopt a particular style of fighting as your specialty. Choose one fighting style option. You can't take a Fighting Style option more than once, even if you later get to choose again.",
-          "choices": ["Archery", "Defense", "Dueling", "Great Weapon Fighting", "Protection", "Two-Weapon Fighting"]
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Second Wind",
           "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level. Once you use this feature, you must finish a short or long rest before you can use it again.",
-          "uses": {
-            "max": 1,
-            "recharge": "short_rest"
-          },
-          "mechanics": {
-            "healing": "1d10 + level"
-          }
+          "uses_formula": "1",
+          "rest_type": "Short Rest"
         },
         {
           "name": "Weapon Mastery",
           "description": "Your training with weapons allows you to use the mastery properties of three kinds of weapons of your choice with which you have proficiency.",
-          "mechanics": {
-            "weapons_mastered": 3
-          }
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -77,17 +51,14 @@
         {
           "name": "Action Surge",
           "description": "Starting at 2nd level, you can push yourself beyond your normal limits for a moment. On your turn, you can take one additional action. Once you use this feature, you must finish a short or long rest before you can use it again. Starting at 17th level, you can use it twice before a rest, but only once on the same turn.",
-          "uses": {
-            "max": 1,
-            "recharge": "short_rest"
-          },
-          "mechanics": {
-            "action_surge_uses": 1
-          }
+          "uses_formula": "action_surge_scaling",
+          "rest_type": "Short Rest"
         },
         {
           "name": "Tactical Mind",
-          "description": "At 2nd level, you gain the ability to analyze battlefield tactics. You can give yourself a bonus to your initiative rolls equal to your Intelligence modifier."
+          "description": "At 2nd level, you gain the ability to analyze battlefield tactics. You can give yourself a bonus to your initiative rolls equal to your Intelligence modifier.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -99,6 +70,8 @@
         {
           "name": "Martial Archetype",
           "description": "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques. The archetype you choose grants you features at 3rd level and again at 7th, 10th, 15th, and 18th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         }
       ],

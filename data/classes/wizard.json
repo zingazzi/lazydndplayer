@@ -29,15 +29,15 @@
       "features": [
         {
           "name": "Spellcasting",
-          "description": "As a student of arcane magic, you have a spellbook containing spells that show the first glimmerings of your true power. Intelligence is your spellcasting ability for your wizard spells."
+          "description": "As a student of arcane magic, you have a spellbook containing spells that show the first glimmerings of your true power. Intelligence is your spellcasting ability for your wizard spells.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Arcane Recovery",
           "description": "You have learned to regain some of your magical energy by studying your spellbook. Once per day when you finish a short rest, you can choose expended spell slots to recover. The spell slots can have a combined level that is equal to or less than half your wizard level (rounded up), and none of the slots can be 6th level or higher.",
-          "uses": {
-            "max": 1,
-            "recharge": "long_rest"
-          }
+          "uses_formula": "1",
+          "rest_type": "Long Rest"
         }
       ],
       "spellcasting_info": {
@@ -56,6 +56,8 @@
         {
           "name": "Arcane Tradition",
           "description": "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic. Your choice grants you features at 2nd level and again at 6th, 10th, and 14th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         }
       ],
@@ -447,6 +449,29 @@
       },
       "ability_score_improvement": false
     }
+  ],
+  "subclasses": [
+    {
+      "name": "School of Evocation",
+      "description": "You focus your study on magic that creates powerful elemental effects such as bitter cold, searing flame, rolling thunder, crackling lightning, and burning acid. Some evokers find employment in military forces, serving as artillery to blast enemy armies from afar.",
+      "subclass_level": 2,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "2": [
+          {
+            "name": "Evocation Savant",
+            "description": "The gold and time you must spend to copy an evocation spell into your spellbook is halved.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          },
+          {
+            "name": "Sculpt Spells",
+            "description": "You can create pockets of relative safety within the effects of your evocation spells. When you cast an evocation spell that affects other creatures that you can see, you can choose a number of them equal to 1 + the spell's level. The chosen creatures automatically succeed on their saving throws against the spell, and they take no damage if they would normally take half damage on a successful save.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ]
+      }
+    }
   ]
 }
-

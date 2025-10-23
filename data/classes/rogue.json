@@ -26,20 +26,20 @@
         {
           "name": "Expertise",
           "description": "At 1st level, choose two of your skill proficiencies, or one of your skill proficiencies and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.",
-          "mechanics": {
-            "expertise_count": 2
-          }
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Sneak Attack",
           "description": "Beginning at 1st level, you know how to strike subtly and exploit a foe's distraction. Once per turn, you can deal an extra 1d6 damage to one creature you hit with an attack if you have advantage on the attack roll. The attack must use a finesse or a ranged weapon.",
-          "mechanics": {
-            "sneak_attack_dice": 1
-          }
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Thieves' Cant",
-          "description": "During your rogue training you learned thieves' cant, a secret mix of dialect, jargon, and code that allows you to hide messages in seemingly normal conversation."
+          "description": "During your rogue training you learned thieves' cant, a secret mix of dialect, jargon, and code that allows you to hide messages in seemingly normal conversation.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -50,7 +50,9 @@
       "features": [
         {
           "name": "Cunning Action",
-          "description": "Starting at 2nd level, your quick thinking and agility allow you to move and act quickly. You can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action."
+          "description": "Starting at 2nd level, your quick thinking and agility allow you to move and act quickly. You can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -62,18 +64,21 @@
         {
           "name": "Roguish Archetype",
           "description": "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities. Your archetype choice grants you features at 3rd level and then again at 9th, 13th, and 17th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         },
         {
           "name": "Sneak Attack (2d6)",
           "description": "Your Sneak Attack damage increases to 2d6.",
-          "mechanics": {
-            "sneak_attack_dice": 2
-          }
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Steady Aim",
-          "description": "At 3rd level, as a bonus action, you give yourself advantage on your next attack roll on the current turn. You can use this bonus action only if you haven't moved during this turn, and after you use the bonus action, your speed is 0 until the end of the current turn."
+          "description": "At 3rd level, as a bonus action, you give yourself advantage on your next attack roll on the current turn. You can use this bonus action only if you haven't moved during this turn, and after you use the bonus action, your speed is 0 until the end of the current turn.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -331,6 +336,29 @@
       ],
       "ability_score_improvement": false
     }
+  ],
+  "subclasses": [
+    {
+      "name": "Thief",
+      "description": "You hone your skills in the larcenous arts. Burglars, bandits, cutpurses, and other criminals typically follow this archetype, but so do rogues who prefer to think of themselves as professional treasure seekers, explorers, delvers, and investigators.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Fast Hands",
+            "description": "You can use the bonus action granted by your Cunning Action to make a Dexterity (Sleight of Hand) check, use your thieves' tools to disarm a trap or open a lock, or take the Use an Object action.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          },
+          {
+            "name": "Second-Story Work",
+            "description": "You gain the ability to climb faster than normal; climbing no longer costs you extra movement. In addition, when you make a running jump, the distance you cover increases by a number of feet equal to your Dexterity modifier.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ]
+      }
+    }
   ]
 }
-

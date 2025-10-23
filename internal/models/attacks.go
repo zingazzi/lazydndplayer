@@ -34,11 +34,25 @@ func GenerateAttacks(char *Character) AttackList {
 
 	// Always add Unarmed Strike
 	strMod := char.AbilityScores.GetModifier("Strength")
+	dexMod := char.AbilityScores.GetModifier("Dexterity")
 	profBonus := char.ProficiencyBonus
 
-	// Calculate unarmed strike damage based on Unarmed Fighting style
-	unarmedDamage := "1" // Default: 1 + STR mod
-	if char.FightingStyle == "Unarmed Fighting" {
+	// Calculate unarmed strike damage and attack bonus
+	unarmedDamage := "1"      // Default: 1 + STR mod
+	attackMod := strMod       // Default: use STR
+	damageBonus := strMod     // Default: use STR
+	
+	// Check for Monk Martial Arts
+	if char.IsMonk() && char.HasFeature("Martial Arts") {
+		monk := char.GetMonkMechanics()
+		unarmedDamage = monk.GetMartialArtsDie() // 1d6->1d8->1d10->1d12
+		
+		// Monks can use Dex or Str (use whichever is higher)
+		if dexMod > strMod {
+			attackMod = dexMod
+			damageBonus = dexMod
+		}
+	} else if char.FightingStyle == "Unarmed Fighting" {
 		// Check if character has any weapons or shield equipped
 		hasWeaponOrShield := false
 		for i := range char.Inventory.Items {
@@ -59,9 +73,9 @@ func GenerateAttacks(char *Character) AttackList {
 
 	attacks.Attacks = append(attacks.Attacks, Attack{
 		Name:         "Unarmed Strike",
-		AttackBonus:  strMod + profBonus,
+		AttackBonus:  attackMod + profBonus,
 		DamageDice:   unarmedDamage,
-		DamageBonus:  strMod,
+		DamageBonus:  damageBonus,
 		DamageType:   "bludgeoning",
 		IsWeapon:     false,
 		Range:        "5 ft.",

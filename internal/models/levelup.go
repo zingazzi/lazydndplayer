@@ -2,7 +2,10 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/marcozingoni/lazydndplayer/internal/debug"
 )
@@ -63,6 +66,11 @@ func LevelUp(char *Character, options LevelUpOptions) (*LevelUpResult, error) {
 	classLevel, isNewClass := updateClassLevel(char, classData, options)
 	newTotalLevel := char.CalculateTotalLevel()
 
+	// Step 2.5: Update character level BEFORE granting features (needed for level-based formulas)
+	char.Level = newTotalLevel
+	char.TotalLevel = newTotalLevel
+	debug.Log("Updated character level to %d before granting features", newTotalLevel)
+
 	// Step 3: Calculate and apply HP gain
 	hpGained := applyHPGain(char, classData, options.TakeAverage)
 
@@ -89,8 +97,23 @@ func LevelUp(char *Character, options LevelUpOptions) (*LevelUpResult, error) {
 	// Step 8: Update spellcasting capabilities
 	result.SpellSlotsGained, result.RequiresSpells = updateClassSpellcasting(char, classData, classLevel.Level, options.ClassName)
 
-	// Step 9: Check if subclass selection is required
+	// Step 9: Check if subclass selection is required or grant subclass features
 	result.RequiresSubclass = checkSubclassRequirement(classData, classLevel.Level, options.Subclass)
+
+	// Step 9.5: If subclass was provided, grant subclass features
+	if options.Subclass != "" {
+		debug.Log("LevelUp: Granting subclass features for %s at level %d", options.Subclass, classLevel.Level)
+		subclassFeatures := GrantSubclassFeatures(char, options.ClassName, options.Subclass, classLevel.Level)
+		result.FeaturesGained = append(result.FeaturesGained, subclassFeatures...)
+
+		// Update character's subclass
+		for i := range char.Classes {
+			if char.Classes[i].ClassName == options.ClassName {
+				char.Classes[i].Subclass = options.Subclass
+				break
+			}
+		}
+	}
 
 	// Step 10: Finalize by updating all derived stats
 	finalizeLevelUp(char, newTotalLevel)
@@ -259,24 +282,153 @@ func RollHPWithDiceRoller(hitDie int, constitutionMod int, takeAverage bool, rol
 func GrantLevelFeatures(char *Character, class *Class, level int) []string {
 	grantedFeatures := []string{}
 
-	// Add level 1 features if this is level 1
-	if level == 1 && class.Level1Features != nil {
-		for _, featureDef := range class.Level1Features {
-			// Convert FeatureDefinition to Feature
-			feature := Feature{
-				Name:        featureDef.Name,
-				Description: featureDef.Description,
-				MaxUses:     ParseUsesFormula(featureDef.UsesFormula, char),
-				CurrentUses: ParseUsesFormula(featureDef.UsesFormula, char),
-				RestType:    featureDef.RestType,
-				Source:      "Class: " + class.Name,
+	debug.Log("GrantLevelFeatures: Granting features for %s at level %d", class.Name, level)
+
+	// Read class JSON to get level_progression
+	classFilePath := fmt.Sprintf("data/classes/%s.json", strings.ToLower(class.Name))
+	data, err := os.ReadFile(classFilePath)
+	if err != nil {
+		debug.Log("GrantLevelFeatures: Error reading class file: %v", err)
+		// Fallback to Level1Features if level 1 and it exists
+		if level == 1 && class.Level1Features != nil {
+			for _, featureDef := range class.Level1Features {
+				source := fmt.Sprintf("Class: %s", class.Name)
+				feature := featureDef.ToFeature(char, source)
+				char.Features.AddFeature(feature)
+				grantedFeatures = append(grantedFeatures, feature.Name)
 			}
-			char.Features.AddFeature(feature)
-			grantedFeatures = append(grantedFeatures, feature.Name)
-			debug.Log("Granted feature: %s", feature.Name)
+		}
+		return grantedFeatures
+	}
+
+	// Parse level_progression
+	var classWithProgression struct {
+		LevelProgression []struct {
+			Level    int                   `json:"level"`
+			Features []FeatureDefinition `json:"features"`
+		} `json:"level_progression"`
+	}
+
+	if err := json.Unmarshal(data, &classWithProgression); err != nil {
+		debug.Log("GrantLevelFeatures: Error unmarshaling class data: %v", err)
+		return grantedFeatures
+	}
+
+	// Find features for the specified level
+	for _, levelData := range classWithProgression.LevelProgression {
+		if levelData.Level == level {
+			debug.Log("GrantLevelFeatures: Found %d features for level %d", len(levelData.Features), level)
+			for _, featureDef := range levelData.Features {
+				// Skip subclass choice features
+				if featureDef.Name == "Divine Domain" || featureDef.Name == "Sorcerous Origin" ||
+				   featureDef.Name == "Otherworldly Patron" || featureDef.Name == "Monastic Tradition" ||
+				   featureDef.Name == "Primal Path" || strings.Contains(strings.ToLower(featureDef.Description), "subclass") {
+					debug.Log("  Skipping subclass choice feature: %s", featureDef.Name)
+					continue
+				}
+
+				// Handle special Ki improvements
+				if featureDef.Name == "Ki Improvement" {
+					// Update existing Ki feature instead of adding a new one
+					for i := range char.Features.Features {
+						if char.Features.Features[i].Name == "Ki" {
+							oldUses := char.Features.Features[i].MaxUses
+							newUses := featureDef.CalculateMaxUses(char)
+							char.Features.Features[i].MaxUses = newUses
+							char.Features.Features[i].CurrentUses = newUses
+							debug.Log("  Updated Ki: %d -> %d", oldUses, newUses)
+							grantedFeatures = append(grantedFeatures, "Ki (increased to "+fmt.Sprint(newUses)+")")
+							break
+						}
+					}
+					continue
+				}
+
+				// Handle special Focus Point improvements (Monk)
+				if featureDef.Name == "Focus Point Improvement" {
+					// Update existing Focus Points feature instead of adding a new one
+					for i := range char.Features.Features {
+						if char.Features.Features[i].Name == "Focus Points" {
+							oldUses := char.Features.Features[i].MaxUses
+							newUses := featureDef.CalculateMaxUses(char)
+							char.Features.Features[i].MaxUses = newUses
+							char.Features.Features[i].CurrentUses = newUses
+							debug.Log("  Updated Focus Points: %d -> %d", oldUses, newUses)
+							grantedFeatures = append(grantedFeatures, "Focus Points (increased to "+fmt.Sprint(newUses)+")")
+							break
+						}
+					}
+					continue
+				}
+
+				source := fmt.Sprintf("Class: %s", class.Name)
+				feature := featureDef.ToFeature(char, source)
+				debug.Log("  Adding feature: %s (uses: %d/%d, rest: %s)",
+					feature.Name, feature.CurrentUses, feature.MaxUses, feature.RestType)
+				char.Features.AddFeature(feature)
+				grantedFeatures = append(grantedFeatures, feature.Name)
+			}
+			break
 		}
 	}
 
+	debug.Log("GrantLevelFeatures: Granted %d features", len(grantedFeatures))
+	return grantedFeatures
+}
+
+// GrantSubclassFeatures grants features from a selected subclass at a specific level
+func GrantSubclassFeatures(char *Character, className string, subclassName string, level int) []string {
+	grantedFeatures := []string{}
+
+	debug.Log("GrantSubclassFeatures: className=%s, subclassName=%s, level=%d", className, subclassName, level)
+
+	// Read class JSON to get subclasses
+	classFilePath := fmt.Sprintf("data/classes/%s.json", strings.ToLower(className))
+	data, err := os.ReadFile(classFilePath)
+	if err != nil {
+		debug.Log("GrantSubclassFeatures: Error reading class file: %v", err)
+		return grantedFeatures
+	}
+
+	// Parse subclasses
+	var classWithSubclasses struct {
+		Subclasses []struct {
+			Name             string `json:"name"`
+			SubclassLevel    int    `json:"subclass_level"`
+			FeaturesByLevel  map[string][]FeatureDefinition `json:"features_by_level"`
+		} `json:"subclasses"`
+	}
+
+	if err := json.Unmarshal(data, &classWithSubclasses); err != nil {
+		debug.Log("GrantSubclassFeatures: Error unmarshaling: %v", err)
+		return grantedFeatures
+	}
+
+	// Find the selected subclass
+	for _, subclass := range classWithSubclasses.Subclasses {
+		if subclass.Name == subclassName {
+			debug.Log("GrantSubclassFeatures: Found subclass %s", subclassName)
+
+			// Grant features for the specified level
+			levelKey := fmt.Sprintf("%d", level)
+			if features, ok := subclass.FeaturesByLevel[levelKey]; ok {
+				debug.Log("GrantSubclassFeatures: Found %d features for level %d", len(features), level)
+				for _, featureDef := range features {
+					source := fmt.Sprintf("Subclass: %s", subclassName)
+					feature := featureDef.ToFeature(char, source)
+					debug.Log("  Adding subclass feature: %s (uses: %d/%d, rest: %s)",
+						feature.Name, feature.CurrentUses, feature.MaxUses, feature.RestType)
+					char.Features.AddFeature(feature)
+					grantedFeatures = append(grantedFeatures, feature.Name)
+				}
+			} else {
+				debug.Log("GrantSubclassFeatures: No features found for level %d", level)
+			}
+			break
+		}
+	}
+
+	debug.Log("GrantSubclassFeatures: Granted %d subclass features", len(grantedFeatures))
 	return grantedFeatures
 }
 

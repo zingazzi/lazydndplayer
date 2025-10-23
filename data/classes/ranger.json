@@ -28,11 +28,15 @@
       "features": [
         {
           "name": "Favored Enemy",
-          "description": "You have significant experience studying, tracking, hunting, and even talking to a certain type of enemy. Choose a type of favored enemy."
+          "description": "You have significant experience studying, tracking, hunting, and even talking to a certain type of enemy. Choose a type of favored enemy.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Natural Explorer",
-          "description": "You are particularly familiar with one type of natural environment and are adept at traveling and surviving in such regions."
+          "description": "You are particularly familiar with one type of natural environment and are adept at traveling and surviving in such regions.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -44,11 +48,14 @@
         {
           "name": "Fighting Style",
           "description": "You adopt a particular style of fighting as your specialty.",
-          "choices": ["Archery", "Defense", "Dueling", "Two-Weapon Fighting"]
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Spellcasting",
-          "description": "By 2nd level, you have learned to use the magical essence of nature to cast spells. Wisdom is your spellcasting ability for your ranger spells."
+          "description": "By 2nd level, you have learned to use the magical essence of nature to cast spells. Wisdom is your spellcasting ability for your ranger spells.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "spellcasting_info": {
@@ -66,11 +73,15 @@
         {
           "name": "Ranger Archetype",
           "description": "At 3rd level, you choose an archetype that you strive to emulate. Your choice grants you features at 3rd level and again at 7th, 11th, and 15th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         },
         {
           "name": "Primeval Awareness",
-          "description": "You can use your action to focus your awareness on the region around you. For 1 minute per level of the spell slot you expend, you can sense whether certain types of creatures are present."
+          "description": "You can use your action to focus your awareness on the region around you. For 1 minute per level of the spell slot you expend, you can sense whether certain types of creatures are present.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "spellcasting_info": {
@@ -414,6 +425,23 @@
       },
       "ability_score_improvement": false
     }
+  ],
+  "subclasses": [
+    {
+      "name": "Hunter",
+      "description": "Emulating the Hunter archetype means accepting your place as a bulwark between civilization and the terrors of the wilderness. As you walk the Hunter's path, you learn specialized techniques for fighting the threats you face, from rampaging ogres and hordes of orcs to towering giants and terrifying dragons.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Hunter's Prey",
+            "description": "You gain one of the following features of your choice: Colossus Slayer (Once per turn when you hit with a weapon attack, deal extra 1d8 damage if target is below max HP), Giant Killer (When a Large+ creature attacks you, use reaction to attack it), or Horde Breaker (Once per turn, make extra attack against different creature within 5 feet of original target).",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ]
+      }
+    }
   ]
 }
-

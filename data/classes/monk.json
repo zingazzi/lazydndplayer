@@ -23,15 +23,16 @@
       "proficiency_bonus": 2,
       "features": [
         {
-          "name": "Unarmored Defense",
-          "description": "Beginning at 1st level, while you are wearing no armor and not wielding a shield, your AC equals 10 + your Dexterity modifier + your Wisdom modifier."
+          "name": "Martial Arts",
+          "description": "Your practice of martial arts gives you mastery of combat styles that use unarmed strikes and monk weapons. You gain the following benefits:\n\n• Bonus Unarmed Strike: When you take the Attack action and attack with an unarmed strike or a Monk weapon, you can make one unarmed strike as a Bonus Action.\n\n• Martial Arts Die: You can roll 1d6 in place of the normal damage of your unarmed strike. This die changes as you gain Monk levels (1d6 at 1-3, 1d8 at 4-9, 1d10 at 10-16, 1d12 at 17-20).\n\n• Dexterous Attacks: You can use Dexterity instead of Strength for the attack and damage rolls of your unarmed strikes and Monk weapons.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
-          "name": "Martial Arts",
-          "description": "At 1st level, your practice of martial arts gives you mastery of combat styles that use unarmed strikes and monk weapons. You gain the following benefits while you are unarmed or wielding only monk weapons and you aren't wearing armor or wielding a shield: You can use Dexterity instead of Strength for attack and damage rolls, you can roll a d4 in place of normal damage, and when you use the Attack action with an unarmed strike or monk weapon on your turn, you can make one unarmed strike as a bonus action.",
-          "mechanics": {
-            "martial_arts_die": "d4"
-          }
+          "name": "Unarmored Defense",
+          "description": "While you aren't wearing armor or wielding a Shield, your base Armor Class equals 10 plus your Dexterity and Wisdom modifiers.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -41,22 +42,40 @@
       "proficiency_bonus": 2,
       "features": [
         {
-          "name": "Ki",
-          "description": "Starting at 2nd level, your training allows you to harness the mystic energy of ki. You have 2 ki points. You can spend ki points to fuel various ki features. You regain all expended ki points when you finish a short or long rest.",
-          "uses": {
-            "max": 2,
-            "recharge": "short_rest"
-          },
-          "mechanics": {
-            "ki_points": 2
-          }
+          "name": "Focus Points",
+          "description": "Your training allows you to harness the mystic energy of focus. You have Focus Points equal to your Monk level (starting at level 2: 2 FP, level 3: 3 FP, level 4: 4 FP, etc.). You can spend Focus Points to fuel various focus features.\n\nYou regain all expended Focus Points when you finish a Short or Long Rest.",
+          "uses_formula": "level",
+          "rest_type": "Short Rest"
+        },
+        {
+          "name": "Flurry of Blows",
+          "description": "Immediately after you take the Attack action, you can spend 1 Focus Point to make two unarmed strikes as a Bonus Action.",
+          "uses_formula": "0",
+          "rest_type": "None"
+        },
+        {
+          "name": "Patient Defense",
+          "description": "You can spend 1 Focus Point to take both the Disengage and Dodge actions as a Bonus Action.",
+          "uses_formula": "0",
+          "rest_type": "None"
+        },
+        {
+          "name": "Step of the Wind",
+          "description": "You can spend 1 Focus Point to take the Disengage or Dash action as a Bonus Action. When you do so, your jump distance doubles for that turn.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Unarmored Movement",
-          "description": "Starting at 2nd level, your speed increases by 10 feet while you are not wearing armor or wielding a shield.",
-          "mechanics": {
-            "speed_bonus": 10
-          }
+          "description": "Your speed increases by 10 feet while you aren't wearing armor or wielding a Shield. This bonus increases as you gain Monk levels (10 ft at level 2, 15 ft at 6, 20 ft at 10, 25 ft at 14, 30 ft at 18).",
+          "uses_formula": "0",
+          "rest_type": "None"
+        },
+        {
+          "name": "Uncanny Metabolism",
+          "description": "When you roll Initiative, you can regain all expended Focus Points. When you do so, you also regain Hit Points equal to your Monk level plus your Martial Arts die. Once you use this feature, you can't do so again until you finish a Long Rest.",
+          "uses_formula": "1",
+          "rest_type": "Long Rest"
         }
       ],
       "ability_score_improvement": false
@@ -68,22 +87,21 @@
         {
           "name": "Monastic Tradition",
           "description": "At 3rd level, you commit yourself to a monastic tradition. Your tradition grants you features at 3rd level and again at 6th, 11th, and 17th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         },
         {
           "name": "Deflect Missiles",
-          "description": "Starting at 3rd level, you can use your reaction to deflect or catch the missile when you are hit by a ranged weapon attack. The damage you take from the attack is reduced by 1d10 + your Dexterity modifier + your monk level."
+          "description": "Starting at 3rd level, you can use your reaction to deflect or catch the missile when you are hit by a ranged weapon attack. The damage you take from the attack is reduced by 1d10 + your Dexterity modifier + your monk level.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
-          "name": "Ki Improvement",
-          "description": "Your ki points increase.",
-          "uses": {
-            "max": 3,
-            "recharge": "short_rest"
-          },
-          "mechanics": {
-            "ki_points": 3
-          }
+          "name": "Focus Point Improvement",
+          "description": "Your Focus Points increase to match your Monk level.",
+          "uses_formula": "level",
+          "rest_type": "Short Rest"
         }
       ],
       "ability_score_improvement": false
@@ -547,6 +565,23 @@
       ],
       "ability_score_improvement": false
     }
+  ],
+  "subclasses": [
+    {
+      "name": "Way of the Open Hand",
+      "description": "Monks of the Way of the Open Hand are the ultimate masters of martial arts combat, whether armed or unarmed. They learn techniques to push and trip their opponents, manipulate ki to heal damage to their bodies, and practice advanced meditation that can protect them from harm.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Open Hand Technique",
+            "description": "You can manipulate your enemy's ki when you harness your own. Whenever you hit a creature with one of the attacks granted by your Flurry of Blows, you can impose one of the following effects on that target: It must succeed on a Dexterity saving throw or be knocked prone. It must make a Strength saving throw. If it fails, you can push it up to 15 feet away from you. It can't take reactions until the end of your next turn.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ]
+      }
+    }
   ]
 }
-

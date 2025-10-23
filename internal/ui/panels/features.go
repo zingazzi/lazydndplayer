@@ -70,56 +70,83 @@ func (p *FeaturesPanel) View(width, height int) string {
 		content = append(content, normalStyle.Render("Features are limited-use abilities that recharge on rest."))
 		content = append(content, normalStyle.Render("Press 'a' to add a new feature."))
 	} else {
-		// Group features by rest type
-		shortRestFeatures := []models.Feature{}
-		longRestFeatures := []models.Feature{}
-		dailyFeatures := []models.Feature{}
+		// Separate consumable and passive features
+		consumableFeatures := []models.Feature{}
 		passiveFeatures := []models.Feature{}
 
 		for _, feature := range p.character.Features.Features {
-			// Skip passive features with 0 max uses (like Fighting Style, Weapon Mastery)
-			if feature.MaxUses == 0 {
-				continue
-			}
-
-			switch feature.RestType {
-			case models.ShortRest:
-				shortRestFeatures = append(shortRestFeatures, feature)
-			case models.LongRest:
-				longRestFeatures = append(longRestFeatures, feature)
-			case models.Daily:
-				dailyFeatures = append(dailyFeatures, feature)
-			case models.None:
+			if feature.MaxUses > 0 {
+				consumableFeatures = append(consumableFeatures, feature)
+			} else {
 				passiveFeatures = append(passiveFeatures, feature)
 			}
 		}
 
-		// Render features by category
 		currentIndex := 0
 
-		if len(shortRestFeatures) > 0 {
-			content = append(content, titleStyle.Render("⚡ SHORT REST FEATURES"))
+		// Render CONSUMABLE features first (with rest type grouping)
+		if len(consumableFeatures) > 0 {
+			content = append(content, titleStyle.Render("=== CONSUMABLE FEATURES ==="))
 			content = append(content, "")
-			content = p.renderFeatureGroup(content, shortRestFeatures, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
-			content = append(content, "")
+
+			// Show Focus Points for Monk
+			if p.character.IsMonk() {
+				monk := p.character.GetMonkMechanics()
+				currentFP, maxFP := monk.GetFocusPoints()
+				if maxFP > 0 {
+					fpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Bold(true)
+					fpValueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
+					fpLine := fpStyle.Render("✧ Focus Points: ") + fpValueStyle.Render(fmt.Sprintf("%d/%d", currentFP, maxFP)) +
+						normalStyle.Render(" (Short Rest) ") +
+						lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("[+/- to adjust]")
+					content = append(content, fpLine)
+					content = append(content, "")
+				}
+			}
+
+			// Group consumable by rest type
+			shortRest := []models.Feature{}
+			longRest := []models.Feature{}
+			daily := []models.Feature{}
+
+			for _, f := range consumableFeatures {
+				switch f.RestType {
+				case models.ShortRest:
+					shortRest = append(shortRest, f)
+				case models.LongRest:
+					longRest = append(longRest, f)
+				case models.Daily:
+					daily = append(daily, f)
+				default:
+					longRest = append(longRest, f) // Default to long rest
+				}
+			}
+
+			if len(shortRest) > 0 {
+				content = append(content, titleStyle.Render("⚡ Short Rest"))
+				content = append(content, "")
+				content = p.renderFeatureGroup(content, shortRest, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
+				content = append(content, "")
+			}
+
+			if len(longRest) > 0 {
+				content = append(content, titleStyle.Render("🌙 Long Rest"))
+				content = append(content, "")
+				content = p.renderFeatureGroup(content, longRest, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
+				content = append(content, "")
+			}
+
+			if len(daily) > 0 {
+				content = append(content, titleStyle.Render("📅 Daily"))
+				content = append(content, "")
+				content = p.renderFeatureGroup(content, daily, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
+				content = append(content, "")
+			}
 		}
 
-		if len(longRestFeatures) > 0 {
-			content = append(content, titleStyle.Render("🌙 LONG REST FEATURES"))
-			content = append(content, "")
-			content = p.renderFeatureGroup(content, longRestFeatures, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
-			content = append(content, "")
-		}
-
-		if len(dailyFeatures) > 0 {
-			content = append(content, titleStyle.Render("📅 DAILY FEATURES"))
-			content = append(content, "")
-			content = p.renderFeatureGroup(content, dailyFeatures, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
-			content = append(content, "")
-		}
-
+		// Render PASSIVE features second
 		if len(passiveFeatures) > 0 {
-			content = append(content, titleStyle.Render("✨ PASSIVE FEATURES"))
+			content = append(content, titleStyle.Render("=== PASSIVE FEATURES ==="))
 			content = append(content, "")
 			content = p.renderFeatureGroup(content, passiveFeatures, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
 			content = append(content, "")
@@ -171,14 +198,20 @@ func (p *FeaturesPanel) renderFeatureGroup(
 			usageInfo = fmt.Sprintf(" (%d/%d)", feature.CurrentUses, feature.MaxUses)
 		}
 
+		// Add Focus Point cost for Monk abilities
+		fpCostInfo := ""
+		if feature.Name == "Flurry of Blows" || feature.Name == "Patient Defense" || feature.Name == "Step of the Wind" {
+			fpCostInfo = lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Render(" [Costs 1 FP]")
+		}
+
 		var featureLine string
 		if isSelected {
-			featureLine = selectedStyle.Render(fmt.Sprintf("  → %s%s", feature.Name, usageInfo))
+			featureLine = selectedStyle.Render(fmt.Sprintf("  → %s%s", feature.Name, usageInfo)) + fpCostInfo
 		} else {
 			if feature.MaxUses > 0 && feature.CurrentUses == 0 {
-				featureLine = usedStyle.Render(fmt.Sprintf("    %s%s [USED]", feature.Name, usageInfo))
+				featureLine = usedStyle.Render(fmt.Sprintf("    %s%s [USED]", feature.Name, usageInfo)) + fpCostInfo
 			} else {
-				featureLine = normalStyle.Render(fmt.Sprintf("    %s%s", feature.Name, usageInfo))
+				featureLine = normalStyle.Render(fmt.Sprintf("    %s%s", feature.Name, usageInfo)) + fpCostInfo
 			}
 		}
 		content = append(content, featureLine)
@@ -208,15 +241,10 @@ func (p *FeaturesPanel) Update(msg tea.Msg) {
 }
 
 func (p *FeaturesPanel) Next() {
-	// Count only usable features (MaxUses > 0)
-	usableCount := 0
-	for _, feature := range p.character.Features.Features {
-		if feature.MaxUses > 0 {
-			usableCount++
-		}
-	}
+	// Count all features (consumable and passive)
+	totalCount := len(p.character.Features.Features)
 
-	if p.selectedIndex < usableCount-1 {
+	if p.selectedIndex < totalCount-1 {
 		p.selectedIndex++
 		p.viewport.LineDown(3)
 	}
@@ -264,33 +292,21 @@ func (p *FeaturesPanel) RemoveFeature() {
 	if actualIndex >= 0 {
 		p.character.Features.RemoveFeature(actualIndex)
 
-		// Count remaining usable features
-		usableCount := 0
-		for _, feature := range p.character.Features.Features {
-			if feature.MaxUses > 0 {
-				usableCount++
-			}
-		}
+		// Count remaining features
+		totalCount := len(p.character.Features.Features)
 
 		// Adjust selection if needed
-		if p.selectedIndex >= usableCount && p.selectedIndex > 0 {
+		if p.selectedIndex >= totalCount && p.selectedIndex > 0 {
 			p.selectedIndex--
 		}
 	}
 }
 
-// getActualFeatureIndex maps the selected index (in usable features) to the actual index in the full features array
+// getActualFeatureIndex maps the selected index to the actual index in the full features array
 func (p *FeaturesPanel) getActualFeatureIndex() int {
-	// Build list of usable features indices (skip passive ones with MaxUses == 0)
-	usableFeatures := []int{}
-	for i, feature := range p.character.Features.Features {
-		if feature.MaxUses > 0 {
-			usableFeatures = append(usableFeatures, i)
-		}
-	}
-
-	if p.selectedIndex >= 0 && p.selectedIndex < len(usableFeatures) {
-		return usableFeatures[p.selectedIndex]
+	// Now we show all features, so selected index maps directly
+	if p.selectedIndex >= 0 && p.selectedIndex < len(p.character.Features.Features) {
+		return p.selectedIndex
 	}
 	return -1
 }
@@ -301,19 +317,10 @@ func (p *FeaturesPanel) GetSelectedIndex() int {
 }
 
 // GetSelectedFeature returns the currently selected feature (if any)
-// Only returns features with MaxUses > 0 (usable features)
+// Returns all features (consumable and passive)
 func (p *FeaturesPanel) GetSelectedFeature() *models.Feature {
-	// Build list of usable features (skip passive ones with MaxUses == 0)
-	usableFeatures := []int{}
-	for i, feature := range p.character.Features.Features {
-		if feature.MaxUses > 0 {
-			usableFeatures = append(usableFeatures, i)
-		}
-	}
-
-	if p.selectedIndex >= 0 && p.selectedIndex < len(usableFeatures) {
-		actualIndex := usableFeatures[p.selectedIndex]
-		return &p.character.Features.Features[actualIndex]
+	if p.selectedIndex >= 0 && p.selectedIndex < len(p.character.Features.Features) {
+		return &p.character.Features.Features[p.selectedIndex]
 	}
 	return nil
 }

@@ -2,7 +2,9 @@
 package components
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -119,6 +121,52 @@ func (c *ClassSelector) Update(msg tea.Msg) (ClassSelector, tea.Cmd) {
 	}
 
 	return *c, nil
+}
+
+// getFeaturesToGain returns the names of features that will be gained at the specified level
+func (c *ClassSelector) getFeaturesToGain(className string, level int) []string {
+	featureNames := []string{}
+	
+	// Read class JSON file
+	classFilePath := fmt.Sprintf("data/classes/%s.json", strings.ToLower(className))
+	data, err := os.ReadFile(classFilePath)
+	if err != nil {
+		debug.Log("getFeaturesToGain: Error reading class file: %v", err)
+		return featureNames
+	}
+	
+	// Parse level_progression
+	var classData struct {
+		LevelProgression []struct {
+			Level    int `json:"level"`
+			Features []struct {
+				Name string `json:"name"`
+			} `json:"features"`
+		} `json:"level_progression"`
+	}
+	
+	if err := json.Unmarshal(data, &classData); err != nil {
+		debug.Log("getFeaturesToGain: Error unmarshaling class data: %v", err)
+		return featureNames
+	}
+	
+	// Find features for the specified level
+	for _, levelData := range classData.LevelProgression {
+		if levelData.Level == level {
+			for _, feature := range levelData.Features {
+				// Skip subclass choice features
+				if feature.Name == "Divine Domain" || feature.Name == "Sorcerous Origin" ||
+				   feature.Name == "Otherworldly Patron" || feature.Name == "Monastic Tradition" ||
+				   feature.Name == "Primal Path" || strings.Contains(strings.ToLower(feature.Name), "subclass") {
+					continue
+				}
+				featureNames = append(featureNames, feature.Name)
+			}
+			break
+		}
+	}
+	
+	return featureNames
 }
 
 // View renders the class selector
@@ -246,6 +294,20 @@ func (c *ClassSelector) View(width, height int) string {
 			}
 		}
 
+		// Show features that will be gained
+		nextLevel := 1
+		if c.character.HasClass(currentClass.Name) {
+			nextLevel = c.character.GetClassLevel(currentClass.Name) + 1
+		}
+		
+		features := c.getFeaturesToGain(currentClass.Name, nextLevel)
+		if len(features) > 0 {
+			rightContent.WriteString("\n" + titleStyle.Render(fmt.Sprintf("FEATURES AT LEVEL %d:", nextLevel)) + "\n")
+			for _, featureName := range features {
+				rightContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("  ✦ " + featureName) + "\n")
+			}
+		}
+
 		// Show spellcasting info
 		if currentClass.Spellcasting != nil {
 			rightContent.WriteString("\n" + titleStyle.Render("SPELLCASTING:") + "\n")
@@ -259,13 +321,13 @@ func (c *ClassSelector) View(width, height int) string {
 	// Join left and right in two columns
 	leftBox := lipgloss.NewStyle().
 		Width(25).
-		Height(20).
+		Height(25).
 		Padding(1).
 		Render(leftContent.String())
 
 	rightBox := lipgloss.NewStyle().
 		Width(65).
-		Height(20).
+		Height(25).
 		Padding(1).
 		Render(rightContent.String())
 

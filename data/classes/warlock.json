@@ -29,11 +29,15 @@
         {
           "name": "Otherworldly Patron",
           "description": "At 1st level, you have struck a bargain with an otherworldly being. Your choice grants you features at 1st level and again at 6th, 10th, and 14th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         },
         {
           "name": "Pact Magic",
-          "description": "Your arcane research and the magic bestowed on you by your patron have given you facility with spells. Charisma is your spellcasting ability for your warlock spells. You regain all expended spell slots when you finish a short or long rest."
+          "description": "Your arcane research and the magic bestowed on you by your patron have given you facility with spells. Charisma is your spellcasting ability for your warlock spells. You regain all expended spell slots when you finish a short or long rest.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "spellcasting_info": {
@@ -52,9 +56,8 @@
         {
           "name": "Eldritch Invocations",
           "description": "In your study of occult lore, you have unearthed eldritch invocations, fragments of forbidden knowledge that imbue you with an abiding magical ability. You gain two eldritch invocations of your choice.",
-          "mechanics": {
-            "invocations_known": 2
-          }
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "spellcasting_info": {
@@ -73,7 +76,8 @@
         {
           "name": "Pact Boon",
           "description": "At 3rd level, your otherworldly patron bestows a gift upon you for your loyal service. You gain one of the following features of your choice: Pact of the Chain, Pact of the Blade, or Pact of the Tome.",
-          "choices": ["Pact of the Chain", "Pact of the Blade", "Pact of the Tome"]
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "spellcasting_info": {
@@ -408,10 +412,8 @@
           {
             "name": "Fey Presence",
             "description": "Your patron bestows upon you the ability to project the beguiling and fearsome presence of the fey. As an action, you can cause each creature in a 10-foot cube originating from you to make a Wisdom saving throw against your warlock spell save DC. On a failed save, they are charmed or frightened by you (your choice) until the end of your next turn. Once you use this feature, you can't use it again until you finish a short or long rest.",
-            "uses": {
-              "max": 1,
-              "recharge": "short_rest"
-            }
+            "uses_formula": "1",
+            "rest_type": "Short Rest"
           }
         ]
       }
@@ -431,7 +433,9 @@
         "1": [
           {
             "name": "Dark One's Blessing",
-            "description": "When you reduce a hostile creature to 0 hit points, you gain temporary hit points equal to your Charisma modifier + your warlock level (minimum of 1)."
+            "description": "When you reduce a hostile creature to 0 hit points, you gain temporary hit points equal to your Charisma modifier + your warlock level (minimum of 1).",
+            "uses_formula": "0",
+            "rest_type": "None"
           }
         ]
       }
@@ -451,7 +455,9 @@
         "1": [
           {
             "name": "Awakened Mind",
-            "description": "Your alien knowledge gives you the ability to touch the minds of other creatures. You can telepathically speak to any creature you can see within 30 feet of you. You don't need to share a language with the creature for it to understand your telepathic utterances, but the creature must be able to understand at least one language."
+            "description": "Your alien knowledge gives you the ability to touch the minds of other creatures. You can telepathically speak to any creature you can see within 30 feet of you. You don't need to share a language with the creature for it to understand your telepathic utterances, but the creature must be able to understand at least one language.",
+            "uses_formula": "0",
+            "rest_type": "None"
           }
         ]
       }

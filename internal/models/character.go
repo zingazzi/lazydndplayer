@@ -110,16 +110,11 @@ func NewCharacter() *Character {
 	char := &Character{
 		Name:       "New Character",
 		Race:       "Human",
-		Class:      "Fighter",
-		Classes: []ClassLevel{
-			{
-				ClassName: "Fighter",
-				Level:     1,
-			},
-		},
+		Class:      "",           // Empty - user must select a class
+		Classes:    []ClassLevel{}, // Empty - populated when class is selected
 		Background: "Folk Hero",
-		Level:      1,
-		TotalLevel: 1,
+		Level:      1,            // Start at level 1
+		TotalLevel: 1,            // Total level starts at 1
 		MaxHP:      10,
 		CurrentHP:  10,
 		ArmorClass: 10,
@@ -193,6 +188,23 @@ func (c *Character) UpdateDerivedStats() {
 	// Update AC based on equipped armor and shield
 	c.AC = CalculateAC(c)
 	c.ArmorClass = c.AC // Keep both for compatibility
+
+	// Apply Monk speed bonus if applicable
+	if c.IsMonk() && c.HasFeature("Unarmored Movement") {
+		// Check if not wearing armor or shield
+		hasArmorOrShield := false
+		for _, item := range c.Inventory.Items {
+			if item.Equipped && item.Type == Armor {
+				hasArmorOrShield = true
+				break
+			}
+		}
+
+		if !hasArmorOrShield {
+			monk := c.GetMonkMechanics()
+			c.Speed += monk.GetUnarmoredMovementBonus()
+		}
+	}
 }
 
 // CalculateMaxPreparedSpells calculates the maximum number of spells that can be prepared
@@ -308,4 +320,29 @@ func (c *Character) GetNextLevelXP() int {
 		return ExperienceThresholds[19]
 	}
 	return ExperienceThresholds[c.Level]
+}
+
+// IsMonk checks if character has Monk levels
+func (c *Character) IsMonk() bool {
+	for _, classLevel := range c.Classes {
+		if classLevel.ClassName == "Monk" {
+			return true
+		}
+	}
+	return false
+}
+
+// GetMonkMechanics returns Monk-specific mechanics handler
+func (c *Character) GetMonkMechanics() *MonkMechanics {
+	return NewMonkMechanics(c)
+}
+
+// HasFeature checks if character has a feature with the given name
+func (c *Character) HasFeature(featureName string) bool {
+	for _, feature := range c.Features.Features {
+		if feature.Name == featureName {
+			return true
+		}
+	}
+	return false
 }

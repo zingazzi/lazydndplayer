@@ -18,27 +18,6 @@
     "4 Javelins"
   ],
   "spellcasting": null,
-  "level_1_features": [
-    {
-      "name": "Rage",
-      "description": "In battle, you fight with primal ferocity. On your turn, you can enter a rage as a bonus action. While raging, you gain advantage on Strength checks and Strength saving throws, bonus damage on melee attacks using Strength (+2 at level 1), and resistance to bludgeoning, piercing, and slashing damage. Your rage lasts for 1 minute.",
-      "uses_formula": "2",
-      "rest_type": "Long Rest"
-    },
-    {
-      "name": "Unarmored Defense",
-      "description": "While you are not wearing any armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit.",
-      "uses_formula": "0",
-      "rest_type": "None"
-    },
-    {
-      "name": "Weapon Mastery",
-      "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons of your choice with which you have proficiency.",
-      "uses_formula": "0",
-      "rest_type": "None",
-      "mastery_count": 2
-    }
-  ],
   "level_progression": [
     {
       "level": 1,
@@ -47,25 +26,20 @@
         {
           "name": "Rage",
           "description": "In battle, you fight with primal ferocity. On your turn, you can enter a rage as a bonus action. While raging, you gain the following benefits if you aren't wearing heavy armor:\n• You have advantage on Strength checks and Strength saving throws.\n• When you make a melee weapon attack using Strength, you gain a +2 bonus to the damage roll.\n• You have resistance to bludgeoning, piercing, and slashing damage.",
-          "uses": {
-            "max": 2,
-            "recharge": "long_rest"
-          },
-          "mechanics": {
-            "damage_bonus": 2,
-            "rage_count": 2
-          }
+          "uses_formula": "rage_scaling",
+          "rest_type": "Long Rest"
         },
         {
           "name": "Unarmored Defense",
-          "description": "While you are not wearing any armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit."
+          "description": "While you are not wearing any armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Weapon Mastery",
           "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons of your choice with which you have proficiency, such as Greataxes and Handaxes.",
-          "mechanics": {
-            "weapons_mastered": 2
-          }
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -76,11 +50,15 @@
       "features": [
         {
           "name": "Reckless Attack",
-          "description": "Starting at 2nd level, you can throw aside all concern for defense to attack with fierce desperation. When you make your first attack on your turn, you can decide to attack recklessly. Doing so gives you advantage on melee weapon attack rolls using Strength during this turn, but attack rolls against you have advantage until your next turn."
+          "description": "Starting at 2nd level, you can throw aside all concern for defense to attack with fierce desperation. When you make your first attack on your turn, you can decide to attack recklessly. Doing so gives you advantage on melee weapon attack rolls using Strength during this turn, but attack rolls against you have advantage until your next turn.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Danger Sense",
-          "description": "At 2nd level, you gain an uncanny sense of when things nearby aren't as they should be, giving you an edge when you dodge away from danger. You have advantage on Dexterity saving throws against effects that you can see, such as traps and spells. To gain this benefit, you can't be blinded, deafened, or incapacitated."
+          "description": "At 2nd level, you gain an uncanny sense of when things nearby aren't as they should be, giving you an edge when you dodge away from danger. You have advantage on Dexterity saving throws against effects that you can see, such as traps and spells. To gain this benefit, you can't be blinded, deafened, or incapacitated.",
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "ability_score_improvement": false
@@ -92,18 +70,15 @@
         {
           "name": "Primal Path",
           "description": "At 3rd level, you choose a path that shapes the nature of your rage. Your choice grants you features at 3rd level and again at 6th, 10th, and 14th levels.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         },
         {
           "name": "Rage Improvement",
           "description": "Your rage damage bonus increases and you gain more uses.",
-          "uses": {
-            "max": 3,
-            "recharge": "long_rest"
-          },
-          "mechanics": {
-            "rage_count": 3
-          }
+          "uses_formula": "rage_scaling",
+          "rest_type": "Long Rest"
         }
       ],
       "ability_score_improvement": false
@@ -385,6 +360,24 @@
         }
       ],
       "ability_score_improvement": false
+    }
+  ],
+  "subclasses": [
+    {
+      "name": "Path of the Berserker",
+      "description": "For some barbarians, rage is a means to an end—that end being violence. The Path of the Berserker is a path of untrammeled fury, slick with blood. As you enter the berserker's rage, you thrill in the chaos of battle, heedless of your own health or well-being.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Frenzy",
+            "description": "You can go into a frenzy when you rage. If you do so, for the duration of your rage you can make a single melee weapon attack as a bonus action on each of your turns after this one. When your rage ends, you suffer one level of exhaustion.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ]
+      }
     }
   ]
 }

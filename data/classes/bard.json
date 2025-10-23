@@ -21,20 +21,6 @@
     "ability": "Charisma",
     "ritual_casting": true
   },
-  "level_1_features": [
-    {
-      "name": "Spellcasting",
-      "description": "You have learned to cast spells through your bardic performance."
-    },
-    {
-      "name": "Bardic Inspiration",
-      "description": "You can inspire others through stirring words or music.",
-      "uses": {
-        "max": "proficiency_bonus",
-        "recharge": "long_rest"
-      }
-    }
-  ],
   "level_progression": [
     {
       "level": 1,
@@ -42,18 +28,15 @@
       "features": [
         {
           "name": "Spellcasting",
-          "description": "You have learned to cast spells through your bardic performance. Charisma is your spellcasting ability for your bard spells."
+          "description": "You have learned to cast spells through your bardic performance. Charisma is your spellcasting ability for your bard spells.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Bardic Inspiration",
           "description": "You can inspire others through stirring words or music. To do so, you use a bonus action on your turn to choose one creature other than yourself within 60 feet of you who can hear you. That creature gains one Bardic Inspiration die, a d6. Once within the next 10 minutes, the creature can roll the die and add the number rolled to one ability check, attack roll, or saving throw it makes.",
-          "uses": {
-            "max": "proficiency_bonus",
-            "recharge": "long_rest"
-          },
-          "mechanics": {
-            "inspiration_die": "d6"
-          }
+          "uses_formula": "proficiency",
+          "rest_type": "Long Rest"
         }
       ],
       "spellcasting_info": {
@@ -71,14 +54,15 @@
       "features": [
         {
           "name": "Jack of All Trades",
-          "description": "Starting at 2nd level, you can add half your proficiency bonus, rounded down, to any ability check you make that doesn't already include your proficiency bonus."
+          "description": "Starting at 2nd level, you can add half your proficiency bonus, rounded down, to any ability check you make that doesn't already include your proficiency bonus.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Song of Rest",
           "description": "Beginning at 2nd level, you can use soothing music or oration to help revitalize your wounded allies during a short rest. If you or any friendly creatures who can hear your performance regain hit points at the end of the short rest by spending one or more Hit Dice, each of those creatures regains an extra 1d6 hit points.",
-          "mechanics": {
-            "healing_die": "d6"
-          }
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "spellcasting_info": {
@@ -97,14 +81,15 @@
         {
           "name": "Bard College",
           "description": "At 3rd level, you delve into the advanced techniques of a bard college of your choice. Your choice grants you features at 3rd level and again at 6th and 14th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         },
         {
           "name": "Expertise",
           "description": "At 3rd level, choose two of your skill proficiencies. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.",
-          "mechanics": {
-            "expertise_count": 2
-          }
+          "uses_formula": "0",
+          "rest_type": "None"
         }
       ],
       "spellcasting_info": {
@@ -555,6 +540,30 @@
         }
       },
       "ability_score_improvement": false
+    }
+  ],
+  "subclasses": [
+    {
+      "name": "College of Lore",
+      "description": "Bards of the College of Lore know something about most things, collecting bits of knowledge from sources as diverse as scholarly tomes and peasant tales. Whether singing folk ballads in taverns or elaborate compositions in royal courts, these bards use their gifts to hold audiences spellbound.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Bonus Proficiencies",
+            "description": "You gain proficiency with three skills of your choice.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          },
+          {
+            "name": "Cutting Words",
+            "description": "You learn how to use your wit to distract, confuse, and otherwise sap the confidence and competence of others. When a creature that you can see within 60 feet of you makes an attack roll, an ability check, or a damage roll, you can use your reaction to expend one of your uses of Bardic Inspiration, rolling a Bardic Inspiration die and subtracting the number rolled from the creature's roll.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ]
+      }
     }
   ]
 }

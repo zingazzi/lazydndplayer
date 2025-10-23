@@ -1,7 +1,10 @@
 // internal/models/feature_definitions.go
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // FeatureDefinition defines a limited-use feature that can be granted by feats or species
 type FeatureDefinition struct {
@@ -15,28 +18,64 @@ type FeatureDefinition struct {
 
 // CalculateMaxUses calculates the maximum uses based on character level and proficiency
 func (fd *FeatureDefinition) CalculateMaxUses(char *Character) int {
-	switch fd.UsesFormula {
+	formula := fd.UsesFormula
+	if formula == "" {
+		formula = fd.MaxUses
+	}
+
+	switch formula {
 	case "proficiency":
 		return char.ProficiencyBonus
 	case "level":
 		return char.Level
 	case "":
-		// If no formula, try parsing max_uses as a number
-		if fd.MaxUses != "" {
-			var uses int
-			if _, err := fmt.Sscanf(fd.MaxUses, "%d", &uses); err == nil {
+		return 1
+	default:
+		// Check if formula references a scaling table (ends with "_scaling")
+		featureName := fd.Name
+		if strings.HasSuffix(formula, "_scaling") {
+			// Use the feature name for lookup
+			if uses := GetFeatureScaling(char.Class, featureName, char.Level); uses > 0 {
 				return uses
 			}
 		}
-		return 1
-	default:
+
 		// Try to parse as a number
 		var uses int
-		if _, err := fmt.Sscanf(fd.UsesFormula, "%d", &uses); err == nil {
+		if _, err := fmt.Sscanf(formula, "%d", &uses); err == nil {
 			return uses
 		}
+
+		// Try simple arithmetic formulas
+		if parsed := parseFormulaExpression(formula, char); parsed > 0 {
+			return parsed
+		}
+
 		return 1
 	}
+}
+
+// parseFormulaExpression handles simple arithmetic formulas
+func parseFormulaExpression(formula string, char *Character) int {
+	// Handle ability modifier formulas
+	switch formula {
+	case "wisdom_mod":
+		return char.AbilityScores.GetModifier("Wisdom")
+	case "charisma_mod":
+		return char.AbilityScores.GetModifier("Charisma")
+	case "intelligence_mod":
+		return char.AbilityScores.GetModifier("Intelligence")
+	case "constitution_mod":
+		return char.AbilityScores.GetModifier("Constitution")
+	case "dexterity_mod":
+		return char.AbilityScores.GetModifier("Dexterity")
+	case "strength_mod":
+		return char.AbilityScores.GetModifier("Strength")
+	}
+
+	// For now, return 0 for complex expressions we don't support yet
+	// Future: Could implement a full expression parser
+	return 0
 }
 
 // ToFeature converts a definition to an actual Feature instance

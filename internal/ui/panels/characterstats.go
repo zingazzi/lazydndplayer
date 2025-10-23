@@ -96,6 +96,19 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 			criticalStatStyle.Render(fmt.Sprintf("%d/%d", char.CurrentHP, char.MaxHP)),
 	)
 
+	// Focus Points box for Monk
+	var fpBox string
+	if char.IsMonk() {
+		monk := char.GetMonkMechanics()
+		currentFP, maxFP := monk.GetFocusPoints()
+		if maxFP > 0 {
+			fpBox = statBoxStyle.Copy().Width(boxWidth).Render(
+				lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Bold(true).Render("✧ FP") + "\n" +
+					criticalStatStyle.Render(fmt.Sprintf("%d/%d", currentFP, maxFP)),
+			)
+		}
+	}
+
 	acBox := statBoxStyle.Copy().Width(boxWidth).Render(
 		lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true).Render("🛡 AC") + "\n" +
 			criticalStatStyle.Render(fmt.Sprintf("%d", char.ArmorClass)),
@@ -162,15 +175,13 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	lines = append(lines, "")
 
 	// Stat boxes in 2 rows
-	// Row 1: HP, AC, INIT
-	statBoxesRow1 := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		hpBox,
-		" ",
-		acBox,
-		" ",
-		initBox,
-	)
+	// Row 1: HP, [FP for Monk], AC, INIT
+	statBoxesRow1Parts := []string{hpBox}
+	if fpBox != "" {
+		statBoxesRow1Parts = append(statBoxesRow1Parts, " ", fpBox)
+	}
+	statBoxesRow1Parts = append(statBoxesRow1Parts, " ", acBox, " ", initBox)
+	statBoxesRow1 := lipgloss.JoinHorizontal(lipgloss.Top, statBoxesRow1Parts...)
 	lines = append(lines, statBoxesRow1)
 	lines = append(lines, "")
 

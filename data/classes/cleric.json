@@ -29,11 +29,15 @@
       "features": [
         {
           "name": "Spellcasting",
-          "description": "As a conduit for divine power, you can cast cleric spells. Wisdom is your spellcasting ability for your cleric spells."
+          "description": "As a conduit for divine power, you can cast cleric spells. Wisdom is your spellcasting ability for your cleric spells.",
+          "uses_formula": "0",
+          "rest_type": "None"
         },
         {
           "name": "Divine Domain",
           "description": "At 1st level, you choose a domain shaped by your deity or spiritual path. Your choice grants you domain spells and other features when you choose it at 1st level and additional benefits at 2nd, 6th, 8th, and 17th levels.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_choice": true
         }
       ],
@@ -53,14 +57,14 @@
         {
           "name": "Channel Divinity",
           "description": "At 2nd level, you gain the ability to channel divine energy directly from your deity, using that energy to fuel magical effects. You start with two such effects: Turn Undead and an effect determined by your domain. You can use Channel Divinity once, and regain the ability after a short or long rest.",
-          "uses": {
-            "max": 1,
-            "recharge": "short_rest"
-          }
+          "uses_formula": "channel_divinity_scaling",
+          "rest_type": "Short Rest"
         },
         {
           "name": "Divine Domain Feature",
           "description": "You gain a feature from your Divine Domain.",
+          "uses_formula": "0",
+          "rest_type": "None",
           "subclass_feature": true
         }
       ],
@@ -523,11 +527,15 @@
         "1": [
           {
             "name": "Bonus Proficiency",
-            "description": "You gain proficiency with heavy armor."
+            "description": "You gain proficiency with heavy armor.",
+            "uses_formula": "0",
+            "rest_type": "None"
           },
           {
             "name": "Disciple of Life",
-            "description": "Your healing spells are more effective. Whenever you use a spell of 1st level or higher to restore hit points to a creature, the creature regains additional hit points equal to 2 + the spell's level."
+            "description": "Your healing spells are more effective. Whenever you use a spell of 1st level or higher to restore hit points to a creature, the creature regains additional hit points equal to 2 + the spell's level.",
+            "uses_formula": "0",
+            "rest_type": "None"
           }
         ]
       }
@@ -547,16 +555,15 @@
         "1": [
           {
             "name": "Bonus Cantrip",
-            "description": "You gain the Light cantrip if you don't already know it."
+            "description": "You gain the Light cantrip if you don't already know it.",
+            "uses_formula": "0",
+            "rest_type": "None"
           },
           {
             "name": "Warding Flare",
             "description": "You can interpose divine light between yourself and an attacking enemy. When you are attacked by a creature within 30 feet of you that you can see, you can use your reaction to impose disadvantage on the attack roll. You can use this feature a number of times equal to your Wisdom modifier (minimum of once). You regain all expended uses when you finish a long rest.",
-            "uses": {
-              "max": "wisdom_mod",
-              "min": 1,
-              "recharge": "long_rest"
-            }
+            "uses_formula": "wisdom_mod",
+            "rest_type": "Long Rest"
           }
         ]
       }
@@ -576,7 +583,9 @@
         "1": [
           {
             "name": "Blessing of the Trickster",
-            "description": "You can use your action to touch a willing creature other than yourself to give it advantage on Dexterity (Stealth) checks. This blessing lasts for 1 hour or until you use this feature again."
+            "description": "You can use your action to touch a willing creature other than yourself to give it advantage on Dexterity (Stealth) checks. This blessing lasts for 1 hour or until you use this feature again.",
+            "uses_formula": "0",
+            "rest_type": "None"
           }
         ]
       }
@@ -596,16 +605,15 @@
         "1": [
           {
             "name": "Bonus Proficiency",
-            "description": "You gain proficiency with martial weapons and heavy armor."
+            "description": "You gain proficiency with martial weapons and heavy armor.",
+            "uses_formula": "0",
+            "rest_type": "None"
           },
           {
             "name": "War Priest",
             "description": "When you use the Attack action, you can make one weapon attack as a bonus action. You can use this feature a number of times equal to your Wisdom modifier (minimum of once). You regain all expended uses when you finish a long rest.",
-            "uses": {
-              "max": "wisdom_mod",
-              "min": 1,
-              "recharge": "long_rest"
-            }
+            "uses_formula": "wisdom_mod",
+            "rest_type": "Long Rest"
           }
         ]
       }

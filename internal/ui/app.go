@@ -1306,6 +1306,31 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.levelUpSelector.Show()
 		m.message = "Level up your character..."
 		return m, nil
+	case "+", "=":
+		// Add Focus Point (Monk only)
+		if m.character.IsMonk() {
+			monk := m.character.GetMonkMechanics()
+			monk.RestoreFocusPoints(1)
+			current, max := monk.GetFocusPoints()
+			m.message = fmt.Sprintf("Focus Point restored. Current: %d/%d", current, max)
+		} else {
+			m.message = "Only Monks can use Focus Points"
+		}
+		return m, nil
+	case "-", "_":
+		// Spend Focus Point (Monk only)
+		if m.character.IsMonk() {
+			monk := m.character.GetMonkMechanics()
+			if monk.SpendFocusPoint(1) {
+				current, max := monk.GetFocusPoints()
+				m.message = fmt.Sprintf("Focus Point spent. Current: %d/%d", current, max)
+			} else {
+				m.message = "Not enough Focus Points"
+			}
+		} else {
+			m.message = "Only Monks can use Focus Points"
+		}
+		return m, nil
 	}
 
 	// Normal mode - handle actions
@@ -1898,6 +1923,12 @@ func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 				// Update the most recent class (should be the only one at level 1)
 				m.character.Classes[len(m.character.Classes)-1].Subclass = selectedSubclass.Name
 				debug.Log("Set character subclass to: %s", selectedSubclass.Name)
+
+				// Grant subclass features for the current level
+				className := m.character.Classes[len(m.character.Classes)-1].ClassName
+				classLevel := m.character.Classes[len(m.character.Classes)-1].Level
+				subclassFeatures := models.GrantSubclassFeatures(m.character, className, selectedSubclass.Name, classLevel)
+				debug.Log("Granted %d subclass features: %v", len(subclassFeatures), subclassFeatures)
 			}
 
 			m.subclassSelector.Hide()

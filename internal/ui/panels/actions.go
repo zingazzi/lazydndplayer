@@ -10,17 +10,25 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
+// MonkBonusAction represents a Monk-specific bonus action
+type MonkBonusAction struct {
+	Name        string
+	Description string
+	FPCost      int
+}
+
 // ActionsPanel displays character actions
 type ActionsPanel struct {
 	character       *models.Character
 	selectedIndex   int
 	viewport        viewport.Model
 	ready           bool
-	attacks         []models.Attack // Cached attacks list
-	actionSpells    []models.Spell  // Spells that are actions
-	bonusSpells     []models.Spell  // Spells that are bonus actions
-	reactionSpells  []models.Spell  // Spells that are reactions
-	totalItemCount  int             // Total number of items (attacks + spells + actions)
+	attacks         []models.Attack  // Cached attacks list
+	actionSpells    []models.Spell   // Spells that are actions
+	bonusSpells     []models.Spell   // Spells that are bonus actions
+	reactionSpells  []models.Spell   // Spells that are reactions
+	monkBonusActions []MonkBonusAction // Monk bonus actions
+	totalItemCount  int              // Total number of items (attacks + spells + actions)
 }
 
 // NewActionsPanel creates a new actions panel
@@ -64,6 +72,33 @@ func (p *ActionsPanel) View(width, height int) string {
 			p.bonusSpells = append(p.bonusSpells, spell)
 		} else if strings.Contains(actionType, "reaction") {
 			p.reactionSpells = append(p.reactionSpells, spell)
+		}
+	}
+
+	// Build Monk bonus actions
+	p.monkBonusActions = []MonkBonusAction{}
+	if char.IsMonk() {
+		// Check for each Monk bonus action feature
+		if char.HasFeature("Flurry of Blows") {
+			p.monkBonusActions = append(p.monkBonusActions, MonkBonusAction{
+				Name:        "Flurry of Blows",
+				Description: "Make two unarmed strikes as bonus action",
+				FPCost:      1,
+			})
+		}
+		if char.HasFeature("Patient Defense") {
+			p.monkBonusActions = append(p.monkBonusActions, MonkBonusAction{
+				Name:        "Patient Defense",
+				Description: "Disengage + Dodge as bonus action",
+				FPCost:      1,
+			})
+		}
+		if char.HasFeature("Step of the Wind") {
+			p.monkBonusActions = append(p.monkBonusActions, MonkBonusAction{
+				Name:        "Step of the Wind",
+				Description: "Disengage or Dash, jump doubles",
+				FPCost:      1,
+			})
 		}
 	}
 
@@ -139,6 +174,39 @@ func (p *ActionsPanel) View(width, height int) string {
 	lines = append(lines, sectionStyle.Render("⚡ Bonus Actions"))
 	lines = append(lines, "")
 
+	// Monk bonus actions
+	monkActionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("99")) // Purple for Monk actions, matching FP color
+
+	if len(p.monkBonusActions) > 0 {
+		for _, action := range p.monkBonusActions {
+			// Get current FP
+			monk := char.GetMonkMechanics()
+			currentFP, _ := monk.GetFocusPoints()
+
+			// Show FP cost
+			fpCostStr := lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Render(fmt.Sprintf(" [%d FP]", action.FPCost))
+
+			// Gray out if not enough FP
+			var line string
+			if currentFP < action.FPCost {
+				line = fmt.Sprintf("%-20s%s", action.Name, fpCostStr)
+				lines = append(lines, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render("  "+line+" (Not enough FP)"))
+			} else {
+				line = fmt.Sprintf("%-20s%s", action.Name, fpCostStr)
+				if idx == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render("▶ "+line))
+				} else {
+					lines = append(lines, monkActionStyle.Render("  "+line))
+				}
+			}
+			idx++
+		}
+	}
+
+	// Bonus action spells
 	if len(p.bonusSpells) > 0 {
 		for _, spell := range p.bonusSpells {
 			slot := char.SpellBook.GetSlotByLevel(spell.Level)
@@ -155,7 +223,10 @@ func (p *ActionsPanel) View(width, height int) string {
 			}
 			idx++
 		}
-	} else {
+	}
+
+	// Show "no bonus actions" only if there are no monk actions and no spells
+	if len(p.monkBonusActions) == 0 && len(p.bonusSpells) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true).

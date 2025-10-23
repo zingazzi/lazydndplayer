@@ -184,13 +184,26 @@ func ApplyClassToCharacter(char *Character, className string) error {
 		return fmt.Errorf("class %s not found", className)
 	}
 
-	debug.Log("ApplyClassToCharacter: Applying %s (current char.Class='%s')", className, char.Class)
+	debug.Log("ApplyClassToCharacter: Applying %s (current char.Class='%s', TotalLevel=%d)", className, char.Class, char.TotalLevel)
 
 	// Step 1: Clean up previous class data
 	removePreviousClassData(char)
 
 	// Step 2: Set new class name
 	char.Class = className
+
+	// Step 2.5: Initialize Classes array if this is the first class (or it's empty)
+	if len(char.Classes) == 0 {
+		debug.Log("ApplyClassToCharacter: Initializing Classes array with %s level 1", className)
+		char.Classes = []ClassLevel{
+			{
+				ClassName: className,
+				Level:     1,
+			},
+		}
+		char.Level = 1
+		char.TotalLevel = 1
+	}
 
 	// Step 3: Apply class proficiencies
 	applyClassProficienciesToCharacter(char, class)
@@ -203,13 +216,102 @@ func ApplyClassToCharacter(char *Character, className string) error {
 		InitializeSpellcasting(char, class)
 	}
 
-	// Step 6: Update HP
+	// Step 6: Add starting equipment
+	addStartingEquipment(char, class)
+
+	// Step 7: Update HP
 	updateCharacterHP(char, class)
 
-	// Step 7: Update all derived stats
+	// Step 8: Update all derived stats
 	char.UpdateDerivedStats()
 
 	return nil
+}
+
+// addStartingEquipment adds starting equipment from the class to the character's inventory
+func addStartingEquipment(char *Character, class *Class) {
+	if len(class.StartingEquipment) == 0 {
+		debug.Log("addStartingEquipment: No starting equipment for %s", class.Name)
+		return
+	}
+
+	debug.Log("addStartingEquipment: Adding equipment for %s (count: %d)", class.Name, len(class.StartingEquipment))
+	allItems := GetAllItemDefinitions()
+
+	for _, equipmentText := range class.StartingEquipment {
+		// Parse equipment text and add items
+		// Examples: "Mace or Warhammer (if proficient)", "Light Crossbow and 20 Bolts"
+		parseAndAddEquipment(char, equipmentText, allItems)
+	}
+}
+
+// parseAndAddEquipment parses equipment text and adds items to inventory
+func parseAndAddEquipment(char *Character, equipmentText string, allItems []ItemDefinition) {
+	debug.Log("parseAndAddEquipment: Parsing '%s'", equipmentText)
+
+	// For simplicity, handle "or" by taking the first option
+	if strings.Contains(equipmentText, " or ") {
+		parts := strings.Split(equipmentText, " or ")
+		equipmentText = strings.TrimSpace(parts[0])
+		debug.Log("  Found 'or', using first option: '%s'", equipmentText)
+	}
+
+	// Handle "and" by processing each item
+	items := strings.Split(equipmentText, " and ")
+	for _, itemText := range items {
+		itemText = strings.TrimSpace(itemText)
+		addSingleItem(char, itemText, allItems)
+	}
+}
+
+// addSingleItem adds a single item to the character's inventory
+func addSingleItem(char *Character, itemText string, allItems []ItemDefinition) {
+	// Remove notes in parentheses like "(if proficient)"
+	if idx := strings.Index(itemText, "("); idx >= 0 {
+		itemText = strings.TrimSpace(itemText[:idx])
+	}
+
+	// Parse quantity (e.g., "20 Arrows" or "Explorer's Pack")
+	quantity := 1
+	parts := strings.Fields(itemText)
+	if len(parts) > 1 {
+		// Check if first part is a number
+		if qty, err := fmt.Sscanf(parts[0], "%d", &quantity); err == nil && qty == 1 {
+			itemText = strings.Join(parts[1:], " ")
+			debug.Log("  Parsed quantity: %d x %s", quantity, itemText)
+		}
+	}
+
+	// Find item in database (case-insensitive match)
+	itemName := strings.TrimSpace(itemText)
+	itemNameLower := strings.ToLower(itemName)
+	var foundItem *ItemDefinition
+
+	for i := range allItems {
+		if strings.ToLower(allItems[i].Name) == itemNameLower {
+			foundItem = &allItems[i]
+			break
+		}
+	}
+
+	if foundItem != nil {
+		// Add to inventory
+		inventoryItem := ConvertToInventoryItem(*foundItem, quantity)
+		char.Inventory.AddItem(inventoryItem)
+		debug.Log("  ✓ Added: %d x %s", quantity, foundItem.Name)
+	} else {
+		// Item not found in database, add as generic gear
+		debug.Log("  ⚠ Item '%s' not found in database, adding as generic item", itemName)
+		char.Inventory.AddItem(Item{
+			Name:        itemName,
+			Type:        Gear,
+			Quantity:    quantity,
+			Weight:      0,
+			Description: fmt.Sprintf("Starting equipment from %s class", char.Class),
+			Equipped:    false,
+			Value:       0,
+		})
+	}
 }
 
 // removePreviousClassData removes all features and fighting styles from the previous class.
@@ -288,14 +390,60 @@ func HasWeaponProficiency(char *Character, weaponType string) bool {
 	return false
 }
 
-// GrantClassFeatures grants level 1 features from a class
+// GrantClassFeatures grants level 1 features from a class using level_progression
 func GrantClassFeatures(char *Character, class *Class) {
-	// Add level 1 features (removal is now done in ApplyClassToCharacter)
-	for _, featureDef := range class.Level1Features {
-		// Convert definition to actual feature
-		source := fmt.Sprintf("Class: %s", class.Name)
-		feature := featureDef.ToFeature(char, source)
-		char.Features.AddFeature(feature)
+	debug.Log("GrantClassFeatures: Granting features for %s at level 1", class.Name)
+
+	// Parse class JSON to get level_progression
+	classFilePath := fmt.Sprintf("data/classes/%s.json", strings.ToLower(class.Name))
+	data, err := os.ReadFile(classFilePath)
+	if err != nil {
+		debug.Log("GrantClassFeatures: Error reading class file: %v", err)
+		// Fallback to Level1Features if it exists
+		for _, featureDef := range class.Level1Features {
+			source := fmt.Sprintf("Class: %s", class.Name)
+			feature := featureDef.ToFeature(char, source)
+			char.Features.AddFeature(feature)
+		}
+		return
+	}
+
+	// Parse level_progression
+	var classWithProgression struct {
+		LevelProgression []struct {
+			Level    int                   `json:"level"`
+			Features []FeatureDefinition `json:"features"`
+		} `json:"level_progression"`
+	}
+
+	if err := json.Unmarshal(data, &classWithProgression); err != nil {
+		debug.Log("GrantClassFeatures: Error unmarshaling class data: %v", err)
+		return
+	}
+
+	// Find features for level 1
+	for _, levelData := range classWithProgression.LevelProgression {
+		if levelData.Level == 1 {
+			debug.Log("GrantClassFeatures: Found %d features for level 1", len(levelData.Features))
+			for _, featureDef := range levelData.Features {
+				// Skip subclass choice features - they don't grant actual abilities
+				if featureDef.Name == "Divine Domain" || featureDef.Name == "Sorcerous Origin" ||
+				   featureDef.Name == "Otherworldly Patron" || strings.Contains(strings.ToLower(featureDef.Description), "subclass") {
+					debug.Log("  Skipping subclass choice feature: %s", featureDef.Name)
+					continue
+				}
+
+				source := fmt.Sprintf("Class: %s", class.Name)
+				feature := featureDef.ToFeature(char, source)
+
+				// Log the feature being added
+				debug.Log("  Adding feature: %s (uses: %d/%d, rest: %s)",
+					feature.Name, feature.CurrentUses, feature.MaxUses, feature.RestType)
+
+				char.Features.AddFeature(feature)
+			}
+			break
+		}
 	}
 }
 
