@@ -341,6 +341,11 @@ func UpdateSpellcasting(char *Character, class *Class, classLevel int) {
 
 // RequiresSubclassAtLevel checks if a class requires subclass selection at a given level
 func RequiresSubclassAtLevel(class *Class, level int) bool {
+	// Check if class has subclasses defined
+	if len(class.Subclasses) == 0 {
+		return false
+	}
+
 	// Classes that get subclass at level 1
 	level1Subclasses := []string{"Cleric", "Sorcerer", "Warlock"}
 	for _, name := range level1Subclasses {

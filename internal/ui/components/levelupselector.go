@@ -24,24 +24,27 @@ const (
 
 // LevelUpSelector handles the level-up process
 type LevelUpSelector struct {
-	visible        bool
-	character      *models.Character
-	state          LevelUpState
-	selectedClass  string
-	availableClasses []models.Class
-	cursor         int
-	preview        *models.LevelUpResult
-	takeAverage    bool // For HP rolling
-	selectedSkills []models.SkillType
-	message        string
-	backup         *models.Character // For rollback
+	visible           bool
+	character         *models.Character
+	state             LevelUpState
+	selectedClass     string
+	availableClasses  []models.Class
+	cursor            int
+	preview           *models.LevelUpResult
+	takeAverage       bool // For HP rolling
+	selectedSkills    []models.SkillType
+	selectedSubclass  string
+	message           string
+	backup            *models.Character // For rollback
+	subclassSelector  *SubclassSelector
 }
 
 // NewLevelUpSelector creates a new level-up selector
 func NewLevelUpSelector(char *models.Character) *LevelUpSelector {
 	return &LevelUpSelector{
-		character:   char,
-		takeAverage: true, // Default to taking average HP
+		character:        char,
+		takeAverage:      true, // Default to taking average HP
+		subclassSelector: NewSubclassSelector(char),
 	}
 }
 
@@ -109,6 +112,38 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 		return *ls, nil
 	}
 
+	// If subclass selector is visible, delegate to it
+	if ls.subclassSelector.IsVisible() {
+		updated, cmd := ls.subclassSelector.Update(msg)
+		ls.subclassSelector = &updated
+
+		// Check if a subclass was selected
+		if !ls.subclassSelector.IsVisible() {
+			selectedSubclass := ls.subclassSelector.GetSelectedSubclass()
+			if selectedSubclass != nil {
+				ls.selectedSubclass = selectedSubclass.Name
+
+				// Apply the subclass to the character immediately
+				classLevelData := ls.character.GetClassLevelStruct(ls.selectedClass)
+				if classLevelData != nil {
+					classLevelData.Subclass = ls.selectedSubclass
+				}
+
+				// Continue with level-up process
+				if ls.preview != nil && ls.preview.RequiresSkills {
+					ls.state = LevelUpSelectSkills
+				} else {
+					ls.state = LevelUpComplete
+				}
+			} else {
+				// User pressed ESC, cancel the level-up
+				*ls.character = *ls.backup
+				ls.Hide()
+			}
+		}
+		return *ls, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch ls.state {
@@ -116,6 +151,8 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 			return ls.handleClassSelection(msg)
 		case LevelUpConfirm:
 			return ls.handleConfirmation(msg)
+		case LevelUpSelectSubclass:
+			return ls.handleSubclassSelection(msg)
 		case LevelUpSelectSkills:
 			return ls.handleSkillSelection(msg)
 		case LevelUpComplete:
@@ -177,7 +214,18 @@ func (ls *LevelUpSelector) handleConfirmation(msg tea.KeyMsg) (LevelUpSelector, 
 
 		ls.preview = result
 
-		// Check if additional selections are needed
+		// Check if subclass selection is needed
+		if result.RequiresSubclass {
+			// Determine which class level we're at
+			classLevelData := ls.character.GetClassLevelStruct(ls.selectedClass)
+			if classLevelData != nil {
+				ls.subclassSelector.Show(ls.selectedClass, classLevelData.Level)
+				ls.state = LevelUpSelectSubclass
+				return *ls, nil
+			}
+		}
+
+		// Check if skill selections are needed
 		if result.RequiresSkills {
 			ls.state = LevelUpSelectSkills
 			return *ls, nil
@@ -200,6 +248,25 @@ func (ls *LevelUpSelector) handleConfirmation(msg tea.KeyMsg) (LevelUpSelector, 
 		ls.state = LevelUpSelectClass
 		ls.selectedClass = ""
 		ls.preview = nil
+	}
+	return *ls, nil
+}
+
+// handleSubclassSelection handles subclass selection
+func (ls *LevelUpSelector) handleSubclassSelection(msg tea.KeyMsg) (LevelUpSelector, tea.Cmd) {
+	// This state shouldn't be reached directly; the subclass selector is handled above
+	// But if we're here, proceed to skills or complete
+	switch msg.String() {
+	case "enter":
+		if ls.preview.RequiresSkills {
+			ls.state = LevelUpSelectSkills
+		} else {
+			ls.state = LevelUpComplete
+		}
+	case "esc":
+		// Rollback
+		*ls.character = *ls.backup
+		ls.Hide()
 	}
 	return *ls, nil
 }
@@ -227,6 +294,11 @@ func (ls *LevelUpSelector) Rollback() {
 
 // View renders the level-up selector
 func (ls *LevelUpSelector) View() string {
+	// If subclass selector is visible, show it
+	if ls.subclassSelector.IsVisible() {
+		return ls.subclassSelector.View()
+	}
+
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("205")).
 		Bold(true).
@@ -326,6 +398,11 @@ func (ls *LevelUpSelector) View() string {
 
 		content += "\n" + dimStyle.Render("Y/Enter: Confirm • R: Toggle Roll/Average • N/Esc: Cancel")
 
+	case LevelUpSelectSubclass:
+		content += titleStyle.Render("LEVEL UP - SELECT SUBCLASS") + "\n\n"
+		content += normalStyle.Render("Subclass selection in progress...") + "\n\n"
+		content += dimStyle.Render("(Use subclass selector)")
+
 	case LevelUpSelectSkills:
 		content += titleStyle.Render("LEVEL UP - SELECT SKILLS") + "\n\n"
 		content += normalStyle.Render("Skill selection UI (to be implemented)") + "\n\n"
@@ -337,6 +414,11 @@ func (ls *LevelUpSelector) View() string {
 		if ls.preview != nil {
 			content += selectedStyle.Render(fmt.Sprintf("You are now a Level %d %s!",
 				ls.preview.NewTotalLevel, ls.character.GetClassDisplayString())) + "\n\n"
+
+			// Show subclass if one was selected
+			if ls.selectedSubclass != "" {
+				content += normalStyle.Render(fmt.Sprintf("Subclass: %s", ls.selectedSubclass)) + "\n\n"
+			}
 
 			content += normalStyle.Render("Summary:") + "\n"
 			content += dimStyle.Render(fmt.Sprintf("  HP: %d → %d (+%d)",

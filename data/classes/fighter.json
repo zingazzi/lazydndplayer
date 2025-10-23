@@ -362,5 +362,72 @@
       ],
       "ability_score_improvement": false
     }
+  ],
+  "subclasses": [
+    {
+      "name": "Battle Master",
+      "description": "Those who emulate the archetypal Battle Master employ martial techniques passed down through generations. To a Battle Master, combat is an academic field, sometimes including subjects beyond battle such as weaponsmithing and calligraphy. Not every fighter absorbs the lessons of history, theory, and artistry that are reflected in the Battle Master archetype, but those who do are well-rounded fighters of great skill and knowledge.",
+      "subclass_level": 3,
+      "features": [
+        {
+          "name": "Combat Superiority",
+          "description": "You learn maneuvers that are fueled by special dice called superiority dice. Maneuvers: You learn three maneuvers of your choice. You learn two additional maneuvers at 7th, 10th, and 15th level. Superiority Dice: You have four superiority dice, which are d8s. A superiority die is expended when you use it. You regain all of your expended superiority dice when you finish a short or long rest.",
+          "uses_formula": "4",
+          "rest_type": "Short Rest"
+        },
+        {
+          "name": "Student of War",
+          "description": "You gain proficiency with one type of artisan's tools of your choice.",
+          "uses_formula": "0",
+          "rest_type": "None"
+        }
+      ]
+    },
+    {
+      "name": "Champion",
+      "description": "The archetypal Champion focuses on the development of raw physical power honed to deadly perfection. Those who model themselves on this archetype combine rigorous training with physical excellence to deal devastating blows.",
+      "subclass_level": 3,
+      "features": [
+        {
+          "name": "Improved Critical",
+          "description": "Beginning when you choose this archetype at 3rd level, your weapon attacks score a critical hit on a roll of 19 or 20.",
+          "uses_formula": "0",
+          "rest_type": "None"
+        }
+      ]
+    },
+    {
+      "name": "Eldritch Knight",
+      "description": "The archetypal Eldritch Knight combines the martial mastery common to all fighters with a careful study of magic. Eldritch Knights use magical techniques similar to those practiced by wizards. They focus their study on two of the eight schools of magic: abjuration and evocation.",
+      "subclass_level": 3,
+      "features": [
+        {
+          "name": "Spellcasting",
+          "description": "You augment your martial prowess with the ability to cast spells. You learn two cantrips of your choice from the wizard spell list. You learn additional wizard cantrips at higher levels. You know three 1st-level wizard spells of your choice, two of which you must choose from the abjuration and evocation schools.",
+          "uses_formula": "0",
+          "rest_type": "None"
+        },
+        {
+          "name": "Weapon Bond",
+          "description": "You learn a ritual that creates a magical bond between yourself and one weapon. You perform the ritual over the course of 1 hour. The weapon must be within your reach throughout the ritual. You can have up to two bonded weapons, but can summon only one at a time with your bonus action.",
+          "uses_formula": "0",
+          "rest_type": "None"
+        }
+      ],
+      "expanded_spells": []
+    },
+    {
+      "name": "Psi Warrior",
+      "description": "Awake to the psionic power within, a Psi Warrior is a fighter who augments their physical might with psi-infused weapon strikes, telekinetic lashes, and barriers of mental force. Many githyanki train to become such warriors, as do some of the most disciplined high elves.",
+      "subclass_level": 3,
+      "features": [
+        {
+          "name": "Psionic Power",
+          "description": "You harbor a wellspring of psionic energy within yourself. This energy is represented by your Psionic Energy dice, which are each a d6. You have a number of these dice equal to twice your proficiency bonus. You can use these dice for Protective Field, Psionic Strike, and Telekinetic Movement.",
+          "uses_formula": "proficiency*2",
+          "rest_type": "Long Rest"
+        }
+      ]
+    }
   ]
 }

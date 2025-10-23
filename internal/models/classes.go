@@ -25,6 +25,16 @@ type Class struct {
 	StartingEquipment    []string            `json:"starting_equipment"`
 	Spellcasting         *SpellcastingInfo   `json:"spellcasting"`
 	Level1Features       []FeatureDefinition `json:"level_1_features"`
+	Subclasses           []Subclass          `json:"subclasses,omitempty"`
+}
+
+// Subclass represents a class specialization
+type Subclass struct {
+	Name           string              `json:"name"`
+	Description    string              `json:"description"`
+	SubclassLevel  int                 `json:"subclass_level,omitempty"` // Level when this subclass is chosen
+	Features       []FeatureDefinition `json:"features,omitempty"`
+	ExpandedSpells []string            `json:"expanded_spells,omitempty"` // For Cleric domains, Warlock patrons
 }
 
 // SkillChoiceInfo defines how many skills to choose and from which list
@@ -336,10 +346,21 @@ func InitializeSpellcasting(char *Character, class *Class) {
 
 	debug.Log("InitializeSpellcasting: Setting up spellcasting for %s", class.Name)
 
+	// Check if this class gets spells at level 1
+	// Ranger and Paladin don't get spells until level 2
+	currentClassLevel := char.GetClassLevel(class.Name)
+	if (class.Name == "Ranger" || class.Name == "Paladin") && currentClassLevel < 2 {
+		debug.Log("  %s does not get spells until level 2. Skipping spell initialization.", class.Name)
+		return
+	}
+
 	// Set spellcasting ability
 	char.SpellBook.SpellcastingMod = AbilityType(class.Spellcasting.Ability)
 
-	// Determine if this is a prepared caster (knows all spells but must prepare them)
+	// Determine caster type
+	// Prepared Casters: Cleric, Druid, Wizard (know all spells, prepare subset)
+	// Known Casters: Bard, Sorcerer, Warlock, Ranger (select specific spells)
+	// Pact Magic: Warlock (special short rest recovery - uses same slots for now)
 	isPreparedCaster := class.Spellcasting.SpellsKnownFormula == "all"
 	char.SpellBook.IsPreparedCaster = isPreparedCaster
 	debug.Log("  IsPreparedCaster: %v", isPreparedCaster)
@@ -352,13 +373,27 @@ func InitializeSpellcasting(char *Character, class *Class) {
 	if isPreparedCaster && class.Spellcasting.PreparationFormula != "" {
 		// Store the formula so it can be recalculated when stats change
 		char.SpellBook.PreparationFormula = class.Spellcasting.PreparationFormula
-		maxPrepared := CalculateMaxPreparedSpells(char, class.Spellcasting.PreparationFormula)
+		maxPrepared := char.CalculateMaxPreparedSpells(class.Spellcasting.PreparationFormula)
 		char.SpellBook.MaxPreparedSpells = maxPrepared
 		debug.Log("  MaxPreparedSpells: %d (formula: %s)", maxPrepared, class.Spellcasting.PreparationFormula)
 	}
 
+	// For known casters (Bard, Sorcerer, Warlock), calculate spells known from formula
+	if !isPreparedCaster && class.Spellcasting.SpellsKnownFormula != "" {
+		// Parse formula like "2" or "level+1" (simplified for now)
+		// TODO: Implement formula parsing for spells known
+		debug.Log("  Known caster: formula '%s'", class.Spellcasting.SpellsKnownFormula)
+	}
+
+	// Special handling for Wizard spellbook
+	if class.Name == "Wizard" {
+		debug.Log("  Wizard: Initialize spellbook with 6 level 1 spells")
+		// Wizards start with 6 level 1 spells in their spellbook
+		// TODO: Implement spellbook selection
+	}
+
 	// Load spell slots from class progression
-	LoadSpellSlotsForLevel(char, class, char.Level)
+	LoadSpellSlotsForLevel(char, class, currentClassLevel)
 
 	// Update spell save DC and attack bonus
 	char.UpdateDerivedStats()

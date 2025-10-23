@@ -23,8 +23,9 @@ const (
 
 // BenefitSource represents where a benefit came from
 type BenefitSource struct {
-	Type string `json:"type"` // "feat", "species", "class", "background"
-	Name string `json:"name"` // Name of the feat/species/etc
+	Type  string `json:"type"`  // "feat", "species", "class", "class_level", "background", "origin"
+	Name  string `json:"name"`  // Name of the feat/species/class/etc
+	Level int    `json:"level"` // For class_level tracking: which level granted this benefit
 }
 
 // GrantedBenefit tracks a single benefit and its source
@@ -79,6 +80,34 @@ func (bt *BenefitTracker) RemoveBenefitsBySource(sourceType, sourceName string) 
 
 	bt.Benefits = filtered
 	return removed
+}
+
+// RemoveBenefitsByClassLevel removes all benefits from a specific class at a specific level
+func (bt *BenefitTracker) RemoveBenefitsByClassLevel(className string, level int) []GrantedBenefit {
+	removed := []GrantedBenefit{}
+	filtered := []GrantedBenefit{}
+
+	for _, b := range bt.Benefits {
+		if b.Source.Type == "class_level" && b.Source.Name == className && b.Source.Level == level {
+			removed = append(removed, b)
+		} else {
+			filtered = append(filtered, b)
+		}
+	}
+
+	bt.Benefits = filtered
+	return removed
+}
+
+// GetBenefitsByClassLevel returns all benefits granted by a specific class at a specific level
+func (bt *BenefitTracker) GetBenefitsByClassLevel(className string, level int) []GrantedBenefit {
+	var benefits []GrantedBenefit
+	for _, b := range bt.Benefits {
+		if b.Source.Type == "class_level" && b.Source.Name == className && b.Source.Level == level {
+			benefits = append(benefits, b)
+		}
+	}
+	return benefits
 }
 
 // GetBenefitsByType returns all benefits of a specific type

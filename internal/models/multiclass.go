@@ -138,6 +138,16 @@ func (c *Character) GetClassLevel(className string) int {
 	return 0
 }
 
+// GetClassLevelStruct returns the ClassLevel struct for a given class name
+func (c *Character) GetClassLevelStruct(className string) *ClassLevel {
+	for i := range c.Classes {
+		if c.Classes[i].ClassName == className {
+			return &c.Classes[i]
+		}
+	}
+	return nil
+}
+
 // HasClass checks if character has any levels in a class
 func (c *Character) HasClass(className string) bool {
 	return c.GetClassLevel(className) > 0

@@ -6,43 +6,22 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
-
-// ClassInfo represents a D&D 5e class
-type ClassInfo struct {
-	Name          string
-	Description   string
-	HitDie        int
-	PrimaryAbility string
-}
 
 // ClassSelector is a component for selecting a class
 type ClassSelector struct {
-	classes       []ClassInfo
+	character     *models.Character
+	classes       []models.Class
 	selectedIndex int
 	visible       bool
+	isMulticlass  bool // Whether this is for multiclassing or first class
 }
 
 // NewClassSelector creates a new class selector
-func NewClassSelector() *ClassSelector {
-	// Hard-coded list of 2024 D&D classes
-	classes := []ClassInfo{
-		{Name: "Barbarian", Description: "A fierce warrior of primitive background who can enter a battle rage", HitDie: 12, PrimaryAbility: "Strength"},
-		{Name: "Bard", Description: "An inspiring magician whose power echoes the music of creation", HitDie: 8, PrimaryAbility: "Charisma"},
-		{Name: "Cleric", Description: "A priestly champion who wields divine magic in service of a higher power", HitDie: 8, PrimaryAbility: "Wisdom"},
-		{Name: "Druid", Description: "A priest of the Old Faith, wielding the powers of nature and adopting animal forms", HitDie: 8, PrimaryAbility: "Wisdom"},
-		{Name: "Fighter", Description: "A master of martial combat, skilled with a variety of weapons and armor", HitDie: 10, PrimaryAbility: "Str/Dex"},
-		{Name: "Monk", Description: "A master of martial arts, harnessing the power of the body", HitDie: 8, PrimaryAbility: "Dex/Wis"},
-		{Name: "Paladin", Description: "A holy warrior bound to a sacred oath", HitDie: 10, PrimaryAbility: "Str/Cha"},
-		{Name: "Ranger", Description: "A warrior who uses martial prowess and nature magic", HitDie: 10, PrimaryAbility: "Dex/Wis"},
-		{Name: "Rogue", Description: "A scoundrel who uses stealth and trickery to overcome obstacles", HitDie: 8, PrimaryAbility: "Dexterity"},
-		{Name: "Sorcerer", Description: "A spellcaster who draws on inherent magic from a gift or bloodline", HitDie: 6, PrimaryAbility: "Charisma"},
-		{Name: "Warlock", Description: "A wielder of magic derived from a bargain with an extraplanar entity", HitDie: 8, PrimaryAbility: "Charisma"},
-		{Name: "Wizard", Description: "A scholarly magic-user capable of manipulating the structures of reality", HitDie: 6, PrimaryAbility: "Intelligence"},
-	}
-
+func NewClassSelector(char *models.Character) *ClassSelector {
 	return &ClassSelector{
-		classes:       classes,
+		character:     char,
 		selectedIndex: 0,
 		visible:       false,
 	}
@@ -52,6 +31,18 @@ func NewClassSelector() *ClassSelector {
 func (c *ClassSelector) Show() {
 	c.visible = true
 	c.selectedIndex = 0
+
+	// Determine if this is for multiclassing
+	c.isMulticlass = c.character.TotalLevel > 0
+
+	// Load appropriate classes
+	if c.isMulticlass {
+		// Show only classes that meet prerequisites
+		c.classes = models.GetAvailableClasses(c.character)
+	} else {
+		// Show all classes for first class selection
+		c.classes = models.GetAllClasses()
+	}
 }
 
 // Hide closes the class selector
@@ -88,7 +79,7 @@ func (c *ClassSelector) GetSelectedClass() string {
 
 // View renders the class selector
 func (c *ClassSelector) View(width, height int) string {
-	if !c.visible {
+	if !c.visible || len(c.classes) == 0 {
 		return ""
 	}
 
@@ -96,76 +87,161 @@ func (c *ClassSelector) View(width, height int) string {
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("170")).
 		Bold(true).
-		Align(lipgloss.Center)
+		Padding(0, 1)
 
 	selectedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("170")).
-		Bold(true).
-		Background(lipgloss.Color("237"))
+		Bold(true)
 
 	normalStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("252"))
 
-	descStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Italic(true).
-		Width(70)
-
-	helpStyle := lipgloss.NewStyle().
+	dimStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240"))
 
-	hitDieStyle := lipgloss.NewStyle().
+	warningStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("214"))
 
-	abilityStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("86"))
-
 	// Build content
-	var content []string
-	content = append(content, titleStyle.Render("SELECT CLASS"))
-	content = append(content, "")
+	var content strings.Builder
 
-	// List all classes
+	if c.isMulticlass {
+		content.WriteString(titleStyle.Render("SELECT CLASS TO MULTICLASS INTO") + "\n")
+		content.WriteString(dimStyle.Render(fmt.Sprintf("Current: %s (Level %d)",
+			c.character.GetClassDisplayString(), c.character.TotalLevel)) + "\n\n")
+	} else {
+		content.WriteString(titleStyle.Render("SELECT YOUR CLASS") + "\n\n")
+	}
+
+	// Two-column layout: class list on left, details on right
+	var leftContent strings.Builder
+	var rightContent strings.Builder
+
+	// Build class list (left side)
 	for i, class := range c.classes {
-		className := fmt.Sprintf(" %s", class.Name)
+		cursor := "  "
+		style := normalStyle
 		if i == c.selectedIndex {
-			content = append(content, selectedStyle.Render(className))
+			cursor = "❯ "
+			style = selectedStyle
+		}
+
+		// Check if character already has this class
+		hasClass := c.character.HasClass(class.Name)
+		suffix := ""
+		if hasClass {
+			currentLevel := c.character.GetClassLevel(class.Name)
+			suffix = fmt.Sprintf(" (Level %d)", currentLevel)
+		}
+
+		leftContent.WriteString(style.Render(fmt.Sprintf("%s%s%s", cursor, class.Name, suffix)) + "\n")
+	}
+
+	// Build details (right side)
+	if c.selectedIndex >= 0 && c.selectedIndex < len(c.classes) {
+		currentClass := c.classes[c.selectedIndex]
+
+		// Class name and primary ability
+		rightContent.WriteString(selectedStyle.Render(currentClass.Name) + "\n")
+		rightContent.WriteString(dimStyle.Render(fmt.Sprintf("Hit Die: d%d • Primary: %s",
+			currentClass.HitDie, currentClass.PrimaryAbility)) + "\n\n")
+
+		// Description
+		rightContent.WriteString(normalStyle.Render(currentClass.Description) + "\n\n")
+
+		// Show prerequisites if multiclassing
+		if c.isMulticlass {
+			canMulticlass, reason := models.CanMulticlassInto(c.character, currentClass.Name)
+			if canMulticlass {
+				rightContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("✓ Prerequisites met") + "\n")
+			} else {
+				rightContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("✗ " + reason) + "\n")
+			}
+			rightContent.WriteString("\n")
+		}
+
+		// Show proficiencies that will be granted
+		rightContent.WriteString(titleStyle.Render("PROFICIENCIES GRANTED:") + "\n")
+
+		if c.isMulticlass && !c.character.HasClass(currentClass.Name) {
+			// Show limited multiclass proficiencies
+			multiclassProf := models.GetMulticlassProficiencies(currentClass.Name)
+			if len(multiclassProf) > 0 {
+				rightContent.WriteString(warningStyle.Render("Multiclass (Limited):") + "\n")
+				for _, prof := range multiclassProf {
+					rightContent.WriteString(dimStyle.Render("  • " + prof) + "\n")
+				}
+			} else {
+				rightContent.WriteString(dimStyle.Render("  • No additional proficiencies") + "\n")
+			}
+		} else if c.character.HasClass(currentClass.Name) {
+			// Already has this class
+			rightContent.WriteString(dimStyle.Render("  • Continuing existing class") + "\n")
 		} else {
-			content = append(content, normalStyle.Render(className))
+			// First class - full proficiencies
+			rightContent.WriteString(normalStyle.Render("Full Proficiencies:") + "\n")
+
+			// Armor
+			if len(currentClass.ArmorProficiencies) > 0 {
+				rightContent.WriteString(dimStyle.Render("  Armor: " + strings.Join(currentClass.ArmorProficiencies, ", ")) + "\n")
+			}
+
+			// Weapons
+			if len(currentClass.WeaponProficiencies) > 0 {
+				rightContent.WriteString(dimStyle.Render("  Weapons: " + strings.Join(currentClass.WeaponProficiencies, ", ")) + "\n")
+			}
+
+			// Saving throws
+			if len(currentClass.SavingThrows) > 0 {
+				rightContent.WriteString(dimStyle.Render("  Saves: " + strings.Join(currentClass.SavingThrows, ", ")) + "\n")
+			}
+
+			// Skills
+			if currentClass.SkillChoices != nil {
+				rightContent.WriteString(dimStyle.Render(fmt.Sprintf("  Skills: Choose %d", currentClass.SkillChoices.Choose)) + "\n")
+			}
+		}
+
+		// Show spellcasting info
+		if currentClass.Spellcasting != nil {
+			rightContent.WriteString("\n" + titleStyle.Render("SPELLCASTING:") + "\n")
+			rightContent.WriteString(dimStyle.Render(fmt.Sprintf("  Ability: %s", currentClass.Spellcasting.Ability)) + "\n")
+			if currentClass.Spellcasting.CantripsKnown > 0 {
+				rightContent.WriteString(dimStyle.Render(fmt.Sprintf("  Cantrips: %d", currentClass.Spellcasting.CantripsKnown)) + "\n")
+			}
 		}
 	}
 
-	content = append(content, "")
-	content = append(content, strings.Repeat("─", 70))
-	content = append(content, "")
+	// Join left and right in two columns
+	leftBox := lipgloss.NewStyle().
+		Width(25).
+		Height(20).
+		Padding(1).
+		Render(leftContent.String())
 
-	// Show details of selected class
-	if c.selectedIndex >= 0 && c.selectedIndex < len(c.classes) {
-		selectedClass := c.classes[c.selectedIndex]
-		content = append(content, lipgloss.NewStyle().Foreground(lipgloss.Color("170")).Bold(true).Render(selectedClass.Name))
-		content = append(content, "")
-		content = append(content, descStyle.Render(selectedClass.Description))
-		content = append(content, "")
-		content = append(content, hitDieStyle.Render(fmt.Sprintf("Hit Die: d%d", selectedClass.HitDie)))
-		content = append(content, abilityStyle.Render(fmt.Sprintf("Primary Ability: %s", selectedClass.PrimaryAbility)))
-	}
+	rightBox := lipgloss.NewStyle().
+		Width(65).
+		Height(20).
+		Padding(1).
+		Render(rightContent.String())
 
-	content = append(content, "")
-	content = append(content, helpStyle.Render("[↑/↓] Navigate • [Enter] Select • [Esc] Cancel"))
+	twoColumns := lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightBox)
+	content.WriteString(twoColumns)
 
-	// Wrap in a box
-	boxStyle := lipgloss.NewStyle().
+	content.WriteString("\n" + dimStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Cancel"))
+
+	// Popup style
+	popupStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("170")).
 		Padding(1, 2).
-		Width(76)
+		Width(95)
 
 	return lipgloss.Place(
 		width,
 		height,
 		lipgloss.Center,
 		lipgloss.Center,
-		boxStyle.Render(strings.Join(content, "\n")),
+		popupStyle.Render(content.String()),
 	)
 }
-

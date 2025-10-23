@@ -139,7 +139,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
 		itemSelector:           components.NewItemSelector(),
-		classSelector:          components.NewClassSelector(),
+		classSelector:          components.NewClassSelector(char),
 		classSkillSelector:     components.NewClassSkillSelector(),
 		fightingStyleSelector:  components.NewFightingStyleSelector(),
 		cantripSelector:        components.NewCantripSelector(char),
