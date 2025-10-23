@@ -309,21 +309,50 @@ func UpdateSpellcasting(char *Character, class *Class, classLevel int) {
 		return
 	}
 
-	// Update cantrips known
-	if cantrips, exists := casterInfo.CantripsKnownByLevel[classLevel]; exists {
-		char.SpellBook.CantripsKnown = cantrips
-		debug.Log("Cantrips known updated to: %d", cantrips)
+	// Update cantrips known from ALL spellcasting classes (multiclass totals)
+	totalCantrips := GetMaxCantripsKnown(char.Classes)
+	if totalCantrips > 0 {
+		char.SpellBook.CantripsKnown = totalCantrips
+		debug.Log("Total cantrips known (multiclass): %d", totalCantrips)
 	}
 
-	// Update spell slots based on multiclass calculation
+	// Update spell slots based on MULTICLASS calculation
+	// This automatically handles:
+	// - Full casters: level 1:1 (Bard, Cleric, Druid, Sorcerer, Wizard)
+	// - Half casters: level/2 (Paladin, Ranger)
+	// - Third casters: level/3 (Eldritch Knight, Arcane Trickster)
+	// - Excludes Warlock Pact Magic
 	char.SpellBook.Slots = CalculateMulticlassSpellSlots(char.Classes)
+	debug.Log("Multiclass spell slots calculated for total level %d", char.TotalLevel)
 
-	// For Warlock, handle Pact Magic separately
-	if class.Name == "Warlock" {
-		warlockLevel := char.GetClassLevel("Warlock")
-		slots, slotLevel := GetWarlockPactSlots(warlockLevel)
-		debug.Log("Warlock Pact Magic: %d slots of level %d", slots, slotLevel)
-		// Store this information (would need to extend SpellBook structure)
+	// Warlock Pact Magic handled separately - doesn't combine!
+	warlockLevel := char.GetClassLevel("Warlock")
+	if warlockLevel > 0 {
+		warlockSlots, warlockSlotLevel := GetWarlockPactSlots(warlockLevel)
+		debug.Log("Warlock Pact Magic: %d slots of level %d", warlockSlots, warlockSlotLevel)
+
+		// If character is ONLY a Warlock, use Pact Magic slots
+		if len(char.Classes) == 1 && char.HasClass("Warlock") {
+			// Pure Warlock: overwrite with pact slots
+			char.SpellBook.Slots = SpellSlots{}
+			switch warlockSlotLevel {
+			case 1:
+				char.SpellBook.Slots.Level1 = SpellSlot{Maximum: warlockSlots, Current: warlockSlots}
+			case 2:
+				char.SpellBook.Slots.Level2 = SpellSlot{Maximum: warlockSlots, Current: warlockSlots}
+			case 3:
+				char.SpellBook.Slots.Level3 = SpellSlot{Maximum: warlockSlots, Current: warlockSlots}
+			case 4:
+				char.SpellBook.Slots.Level4 = SpellSlot{Maximum: warlockSlots, Current: warlockSlots}
+			case 5:
+				char.SpellBook.Slots.Level5 = SpellSlot{Maximum: warlockSlots, Current: warlockSlots}
+			}
+			debug.Log("Pure Warlock: using Pact Magic slots only")
+		} else if len(char.Classes) > 1 {
+			// Multiclass with Warlock: Pact slots are SEPARATE from standard slots
+			// TODO: Add PactMagicSlots field to SpellBook to track both
+			debug.Log("Warlock multiclass: Pact Magic tracked separately (not yet fully implemented)")
+		}
 	}
 
 	// Update spellcasting ability if not set
