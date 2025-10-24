@@ -19,6 +19,9 @@ const (
 	LevelUpSelectSkills
 	LevelUpSelectSubclass
 	LevelUpSelectFightingStyle
+	LevelUpSelectASI          // Choose ASI or Feat
+	LevelUpSelectAbilities    // Choose which abilities to boost
+	LevelUpSelectFeat         // Choose feat
 	LevelUpComplete
 )
 
@@ -37,6 +40,12 @@ type LevelUpSelector struct {
 	message           string
 	backup            *models.Character // For rollback
 	subclassSelector  *SubclassSelector
+	// ASI-related fields
+	requiresASI       bool
+	selectedASIType   string // "ability" or "feat"
+	abilityBoosts     []models.AbilityBoost
+	selectedFeat      string
+	availableFeats    []models.Feat
 }
 
 // NewLevelUpSelector creates a new level-up selector
@@ -163,6 +172,12 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 			return ls.handleSubclassSelection(msg)
 		case LevelUpSelectSkills:
 			return ls.handleSkillSelection(msg)
+		case LevelUpSelectASI:
+			return ls.handleASISelection(msg)
+		case LevelUpSelectAbilities:
+			return ls.handleAbilitySelection(msg)
+		case LevelUpSelectFeat:
+			return ls.handleFeatSelection(msg)
 		case LevelUpComplete:
 			if msg.String() == "enter" || msg.String() == "esc" {
 				ls.Hide()
@@ -236,6 +251,15 @@ func (ls *LevelUpSelector) handleConfirmation(msg tea.KeyMsg) (LevelUpSelector, 
 		// Check if skill selections are needed
 		if result.RequiresSkills {
 			ls.state = LevelUpSelectSkills
+			return *ls, nil
+		}
+
+		// Check if ASI is available at this level
+		classLevelData := ls.character.GetClassLevelStruct(ls.selectedClass)
+		if classLevelData != nil && models.CheckASIAvailable(ls.selectedClass, classLevelData.Level) {
+			ls.requiresASI = true
+			ls.state = LevelUpSelectASI
+			ls.cursor = 0
 			return *ls, nil
 		}
 
@@ -416,6 +440,98 @@ func (ls *LevelUpSelector) View() string {
 		content += normalStyle.Render("Skill selection UI (to be implemented)") + "\n\n"
 		content += dimStyle.Render("Enter: Continue • Esc: Cancel")
 
+	case LevelUpSelectASI:
+		content += titleStyle.Render("ABILITY SCORE IMPROVEMENT") + "\n\n"
+		content += normalStyle.Render("Choose one:") + "\n\n"
+
+		options := []string{"Increase Ability Scores (+2 total)", "Take a Feat"}
+		for i, option := range options {
+			cursor := "  "
+			style := normalStyle
+			if i == ls.cursor {
+				cursor = "❯ "
+				style = selectedStyle
+			}
+			content += style.Render(cursor+option) + "\n"
+		}
+
+		content += "\n" + dimStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Cancel")
+
+	case LevelUpSelectAbilities:
+		content += titleStyle.Render("ABILITY SCORE IMPROVEMENT") + "\n\n"
+		content += normalStyle.Render("Choose how to distribute +2 points:") + "\n\n"
+
+		abilities := []string{"Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"}
+		for i, ability := range abilities {
+			currentScore := ls.character.GetAbilityScore(ability)
+			cursor := "  "
+			style := normalStyle
+			if i == ls.cursor {
+				cursor = "❯ "
+				style = selectedStyle
+			}
+
+			// Show how many points allocated to this ability
+			allocated := 0
+			for _, boost := range ls.abilityBoosts {
+				if boost.Ability == ability {
+					allocated = boost.Amount
+				}
+			}
+
+			allocStr := ""
+			if allocated > 0 {
+				allocStr = fmt.Sprintf(" [+%d]", allocated)
+			}
+
+			content += style.Render(fmt.Sprintf("%s%s: %d%s", cursor, ability, currentScore, allocStr)) + "\n"
+		}
+
+		totalAllocated := 0
+		for _, boost := range ls.abilityBoosts {
+			totalAllocated += boost.Amount
+		}
+
+		content += "\n" + normalStyle.Render(fmt.Sprintf("Points allocated: %d/2", totalAllocated)) + "\n"
+		content += "\n" + dimStyle.Render("↑/↓: Navigate • +/-: Add/Remove point • Enter: Confirm • Esc: Back")
+
+	case LevelUpSelectFeat:
+		content += titleStyle.Render("SELECT FEAT") + "\n\n"
+
+		if len(ls.availableFeats) == 0 {
+			// Load available feats if not already loaded
+			ls.availableFeats = models.GetAvailableFeatsForASI(ls.character)
+		}
+
+		if len(ls.availableFeats) == 0 {
+			content += dimStyle.Render("No feats available") + "\n"
+		} else {
+			// Show feats in a scrollable list
+			for i, feat := range ls.availableFeats {
+				if i >= 10 { // Limit display
+					content += dimStyle.Render(fmt.Sprintf("... and %d more", len(ls.availableFeats)-10)) + "\n"
+					break
+				}
+
+				cursor := "  "
+				style := normalStyle
+				if i == ls.cursor {
+					cursor = "❯ "
+					style = selectedStyle
+				}
+
+				prereq := feat.Prerequisite
+				if prereq == "None" || prereq == "" {
+					prereq = "No prerequisite"
+				}
+
+				content += style.Render(fmt.Sprintf("%s%s", cursor, feat.Name)) + "\n"
+				content += dimStyle.Render(fmt.Sprintf("    %s", prereq)) + "\n"
+			}
+		}
+
+		content += "\n" + dimStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Back")
+
 	case LevelUpComplete:
 		content += titleStyle.Render("LEVEL UP COMPLETE!") + "\n\n"
 
@@ -460,4 +576,171 @@ func (ls *LevelUpSelector) View() string {
 		lipgloss.Center,
 		popupStyle.Render(content),
 	)
+}
+
+// handleASISelection handles ASI type selection (ability scores or feat)
+func (ls *LevelUpSelector) handleASISelection(msg tea.KeyMsg) (LevelUpSelector, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if ls.cursor > 0 {
+			ls.cursor--
+		}
+	case "down", "j":
+		if ls.cursor < 1 { // Only 2 options
+			ls.cursor++
+		}
+	case "enter":
+		if ls.cursor == 0 {
+			// Ability score improvement
+			ls.selectedASIType = "ability"
+			ls.abilityBoosts = []models.AbilityBoost{}
+			ls.state = LevelUpSelectAbilities
+			ls.cursor = 0
+		} else {
+			// Feat
+			ls.selectedASIType = "feat"
+			ls.availableFeats = models.GetAvailableFeatsForASI(ls.character)
+			ls.state = LevelUpSelectFeat
+			ls.cursor = 0
+		}
+	case "esc":
+		// Cancel level-up
+		*ls.character = *ls.backup
+		ls.Hide()
+	}
+	return *ls, nil
+}
+
+// handleAbilitySelection handles ability boost selection
+func (ls *LevelUpSelector) handleAbilitySelection(msg tea.KeyMsg) (LevelUpSelector, tea.Cmd) {
+	abilities := []string{"Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"}
+
+	switch msg.String() {
+	case "up", "k":
+		if ls.cursor > 0 {
+			ls.cursor--
+		}
+	case "down", "j":
+		if ls.cursor < len(abilities)-1 {
+			ls.cursor++
+		}
+	case "+", "=":
+		// Add point to selected ability
+		if ls.cursor < len(abilities) {
+			selectedAbility := abilities[ls.cursor]
+
+			// Calculate total allocated
+			totalAllocated := 0
+			for _, boost := range ls.abilityBoosts {
+				totalAllocated += boost.Amount
+			}
+
+			// Check if we can add more
+			if totalAllocated < 2 {
+				// Check if this ability already has a boost
+				found := false
+				for i := range ls.abilityBoosts {
+					if ls.abilityBoosts[i].Ability == selectedAbility {
+						if ls.abilityBoosts[i].Amount < 2 { // Max +2 per ability
+							ls.abilityBoosts[i].Amount++
+							found = true
+						}
+						break
+					}
+				}
+
+				if !found {
+					ls.abilityBoosts = append(ls.abilityBoosts, models.AbilityBoost{
+						Ability: selectedAbility,
+						Amount:  1,
+					})
+				}
+			}
+		}
+	case "-", "_":
+		// Remove point from selected ability
+		if ls.cursor < len(abilities) {
+			selectedAbility := abilities[ls.cursor]
+
+			// Find and decrement
+			for i := range ls.abilityBoosts {
+				if ls.abilityBoosts[i].Ability == selectedAbility {
+					ls.abilityBoosts[i].Amount--
+					if ls.abilityBoosts[i].Amount <= 0 {
+						// Remove this boost
+						ls.abilityBoosts = append(ls.abilityBoosts[:i], ls.abilityBoosts[i+1:]...)
+					}
+					break
+				}
+			}
+		}
+	case "enter":
+		// Validate and apply
+		if err := models.ValidateAbilityBoosts(ls.character, ls.abilityBoosts); err != nil {
+			ls.message = err.Error()
+			return *ls, nil
+		}
+
+		// Apply ASI choice
+		classLevelData := ls.character.GetClassLevelStruct(ls.selectedClass)
+		if classLevelData != nil {
+			choice := models.ASIChoice{
+				Type:          "ability",
+				AbilityBoosts: ls.abilityBoosts,
+			}
+
+			if err := models.ApplyASIChoice(ls.character, ls.selectedClass, classLevelData.Level, choice); err != nil {
+				ls.message = fmt.Sprintf("Error applying ASI: %s", err.Error())
+				return *ls, nil
+			}
+
+			ls.state = LevelUpComplete
+		}
+	case "esc":
+		// Go back to ASI selection
+		ls.state = LevelUpSelectASI
+		ls.cursor = 0
+		ls.abilityBoosts = []models.AbilityBoost{}
+	}
+	return *ls, nil
+}
+
+// handleFeatSelection handles feat selection
+func (ls *LevelUpSelector) handleFeatSelection(msg tea.KeyMsg) (LevelUpSelector, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if ls.cursor > 0 {
+			ls.cursor--
+		}
+	case "down", "j":
+		if ls.cursor < len(ls.availableFeats)-1 {
+			ls.cursor++
+		}
+	case "enter":
+		if ls.cursor < len(ls.availableFeats) {
+			selectedFeat := ls.availableFeats[ls.cursor]
+
+			// Apply ASI choice
+			classLevelData := ls.character.GetClassLevelStruct(ls.selectedClass)
+			if classLevelData != nil {
+				choice := models.ASIChoice{
+					Type:     "feat",
+					FeatName: selectedFeat.Name,
+				}
+
+				if err := models.ApplyASIChoice(ls.character, ls.selectedClass, classLevelData.Level, choice); err != nil {
+					ls.message = fmt.Sprintf("Error applying feat: %s", err.Error())
+					return *ls, nil
+				}
+
+				ls.selectedFeat = selectedFeat.Name
+				ls.state = LevelUpComplete
+			}
+		}
+	case "esc":
+		// Go back to ASI selection
+		ls.state = LevelUpSelectASI
+		ls.cursor = 0
+	}
+	return *ls, nil
 }

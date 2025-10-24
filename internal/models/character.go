@@ -332,6 +332,11 @@ func (c *Character) IsMonk() bool {
 	return false
 }
 
+// GetMonkLevel returns the Monk level, or 0 if not a Monk
+func (c *Character) GetMonkLevel() int {
+	return c.GetClassLevel("Monk")
+}
+
 // GetMonkMechanics returns Monk-specific mechanics handler
 func (c *Character) GetMonkMechanics() *MonkMechanics {
 	return NewMonkMechanics(c)

@@ -921,6 +921,14 @@ func DeLevel(char *Character, className string) (*DeLevelResult, error) {
 		}
 	}
 
+	// Remove ASI choice if this level had one
+	if CheckASIAvailable(className, oldClassLevel) {
+		debug.Log("DeLevel: Removing ASI from level %d", oldClassLevel)
+		if err := RemoveASIChoice(char, className, oldClassLevel); err != nil {
+			debug.Log("DeLevel: Error removing ASI: %v", err)
+		}
+	}
+
 	// Reduce HP (average for the class)
 	conMod := char.AbilityScores.GetModifier("Constitution")
 	avgHP := (classData.HitDie / 2) + 1 + conMod

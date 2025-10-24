@@ -5,10 +5,24 @@ import "fmt"
 
 // ClassLevel represents a single class and its level for multiclassing
 type ClassLevel struct {
-	ClassName     string `json:"class_name"`
-	Level         int    `json:"level"`
-	Subclass      string `json:"subclass,omitempty"`       // Domain/Patron/Origin/etc
-	FightingStyle string `json:"fighting_style,omitempty"` // For Fighter, Paladin, Ranger
+	ClassName     string                `json:"class_name"`
+	Level         int                   `json:"level"`
+	Subclass      string                `json:"subclass,omitempty"`       // Domain/Patron/Origin/etc
+	FightingStyle string                `json:"fighting_style,omitempty"` // For Fighter, Paladin, Ranger
+	ASIChoices    map[int]ASIChoice     `json:"asi_choices,omitempty"`    // Maps level -> choice (4, 8, 12, 16)
+}
+
+// ASIChoice represents a character's choice at an ASI level
+type ASIChoice struct {
+	Type          string         `json:"type"`                      // "ability" or "feat"
+	AbilityBoosts []AbilityBoost `json:"ability_boosts,omitempty"` // For ability score increases
+	FeatName      string         `json:"feat_name,omitempty"`      // For feat selection
+}
+
+// AbilityBoost represents an increase to a single ability score
+type AbilityBoost struct {
+	Ability string `json:"ability"` // "Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"
+	Amount  int    `json:"amount"`  // +1 or +2
 }
 
 // MulticlassPrerequisites defines ability score requirements for multiclassing

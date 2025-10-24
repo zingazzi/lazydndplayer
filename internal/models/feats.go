@@ -38,6 +38,13 @@ type FeatsData struct {
 
 var cachedFeats *FeatsData
 
+// ConflictingFeats defines feats that cannot be taken together
+var ConflictingFeats = map[string][]string{
+	"Lightly Armored":    {"Moderately Armored", "Heavily Armored"},
+	"Moderately Armored": {"Heavily Armored"},
+	// Add more as needed
+}
+
 // LoadFeatsFromJSON loads all feats from the JSON file
 func LoadFeatsFromJSON() (*FeatsData, error) {
 	if cachedFeats != nil {
@@ -169,6 +176,21 @@ func HasFeat(char *Character, featName string) bool {
 	return false
 }
 
+// HasConflictingFeat checks if character has a feat that conflicts with the given feat
+func HasConflictingFeat(char *Character, featName string) bool {
+	conflicts, exists := ConflictingFeats[featName]
+	if !exists {
+		return false
+	}
+
+	for _, conflict := range conflicts {
+		if HasFeat(char, conflict) {
+			return true
+		}
+	}
+	return false
+}
+
 // AddFeatToCharacter adds a feat to the character's feat list
 func AddFeatToCharacter(char *Character, featName string) error {
 	feat := GetFeatByName(featName)
@@ -203,6 +225,69 @@ func GetAbilityChoices(feat Feat) []string {
 		return feat.AbilityIncreases.Choices
 	}
 	return []string{}
+}
+
+// ApplyFeat applies feat benefits using a custom benefit source
+// This is used when feats are granted via ASI or other sources
+func ApplyFeat(char *Character, feat Feat, source BenefitSource) error {
+	applier := NewBenefitApplier(char)
+
+	// Apply ability increases
+	if feat.AbilityIncreases != nil {
+		// For ASI feats, we don't use chosenAbility since the feat defines it
+		if feat.AbilityIncreases.Ability != "" {
+			applier.AddAbilityScore(source, feat.AbilityIncreases.Ability, feat.AbilityIncreases.Amount)
+		}
+		// Note: If feat has choices, those should be handled before calling ApplyFeat
+	}
+
+	// Apply skill proficiencies
+	for _, skill := range feat.SkillProficiencies {
+		applier.AddSkillProficiency(source, skill)
+	}
+
+	// Apply languages
+	for _, lang := range feat.Languages {
+		applier.AddLanguage(source, lang)
+	}
+
+	// Apply features (limited-use abilities)
+	for _, featureDef := range feat.Features {
+		applier.AddFeature(source, featureDef)
+	}
+
+	// Apply special benefits
+	featNameLower := strings.ToLower(feat.Name)
+
+	// Tough feat: +2 HP per level
+	if featNameLower == "tough" {
+		applier.AddHP(source, char.Level*2)
+	}
+
+	// Mobile feat: +10 speed
+	if featNameLower == "mobile" {
+		applier.AddSpeed(source, 10)
+	}
+
+	// Alert feat: +5 initiative
+	if featNameLower == "alert" {
+		applier.AddInitiative(source, 5)
+	}
+
+	// Dual Wielder feat: +1 AC (when wielding two weapons)
+	if featNameLower == "dual wielder" {
+		applier.AddACBonus(source, 1)
+	}
+
+	// Observant feat: +5 passive Perception and Investigation
+	if featNameLower == "observant" {
+		applier.AddPassiveBonus(source, "Perception", 5)
+		applier.AddPassiveBonus(source, "Investigation", 5)
+	}
+
+	// Update derived stats after applying benefits
+	char.UpdateDerivedStats()
+	return nil
 }
 
 // ApplyFeatBenefits applies the mechanical benefits of a feat to a character

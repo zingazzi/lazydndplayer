@@ -122,6 +122,16 @@ func (p *ActionsPanel) View(width, height int) string {
 				Trigger:     "When hit by ranged weapon attack",
 			})
 		}
+		if char.HasFeature("Slow Fall") {
+			monkLevel := char.GetMonkLevel()
+			damageReduction := monkLevel * 5
+			p.monkReactions = append(p.monkReactions, MonkReaction{
+				Name:        "Slow Fall",
+				Description: fmt.Sprintf("Reduce fall damage by %d", damageReduction),
+				FPCost:      0,
+				Trigger:     "When you fall",
+			})
+		}
 	}
 
 	titleStyle := lipgloss.NewStyle().
