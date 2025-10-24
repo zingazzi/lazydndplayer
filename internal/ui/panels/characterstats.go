@@ -19,6 +19,7 @@ const (
 	CharStatsEditName
 	CharStatsEditRace
 	CharStatsEditHP
+	CharStatsEditXP
 )
 
 // CharacterStatsPanel displays key character statistics
@@ -28,6 +29,7 @@ type CharacterStatsPanel struct {
 	nameInput textinput.Model
 	raceInput textinput.Model
 	hpInput   textinput.Model
+	xpInput   textinput.Model
 }
 
 // NewCharacterStatsPanel creates a new character stats panel
@@ -47,12 +49,18 @@ func NewCharacterStatsPanel(char *models.Character) *CharacterStatsPanel {
 	hpInput.CharLimit = 5
 	hpInput.Width = 15
 
+	xpInput := textinput.New()
+	xpInput.Placeholder = "+100 or -50"
+	xpInput.CharLimit = 8
+	xpInput.Width = 20
+
 	return &CharacterStatsPanel{
 		character: char,
 		editMode:  CharStatsNormal,
 		nameInput: nameInput,
 		raceInput: raceInput,
 		hpInput:   hpInput,
+		xpInput:   xpInput,
 	}
 }
 
@@ -171,7 +179,24 @@ func (p *CharacterStatsPanel) View(width, height int) string {
 	// XP information
 	xpToNext := getLevelXP(char.TotalLevel+1) - char.Experience
 	xpInfo := fmt.Sprintf("%d XP (next: %d)", char.Experience, xpToNext)
-	lines = append(lines, labelStyle.Render("Experience:")+" "+valueStyle.Render(xpInfo))
+
+	// Add level-up indicator if enough XP, or warning if too low
+	levelUpIndicator := ""
+	requiredXP := getLevelXP(char.TotalLevel)
+	if char.Experience >= getLevelXP(char.TotalLevel+1) {
+		// Ready to level up
+		levelUpIndicator = " " + lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true).Render("↑ LEVEL UP!")
+	} else if char.Experience < requiredXP && char.TotalLevel > 1 {
+		// XP too low for current level
+		deficit := requiredXP - char.Experience
+		levelUpIndicator = " " + lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true).Render(fmt.Sprintf("⚠ LOW XP (need %d)", deficit))
+	}
+
+	if p.editMode == CharStatsNormal {
+		lines = append(lines, labelStyle.Render("Experience:")+" "+valueStyle.Render(xpInfo)+levelUpIndicator+" "+lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("([/]: adjust)"))
+	} else {
+		lines = append(lines, labelStyle.Render("Experience:")+" "+valueStyle.Render(xpInfo)+levelUpIndicator)
+	}
 	lines = append(lines, "")
 
 	// Stat boxes in 2 rows
@@ -249,6 +274,13 @@ func (p *CharacterStatsPanel) EditHP() {
 	p.hpInput.Focus()
 }
 
+// EditXP starts editing XP with a popup
+func (p *CharacterStatsPanel) EditXP() {
+	p.editMode = CharStatsEditXP
+	p.xpInput.SetValue("")
+	p.xpInput.Focus()
+}
+
 // SaveName saves the edited name
 func (p *CharacterStatsPanel) SaveName() {
 	p.character.Name = p.nameInput.Value()
@@ -291,12 +323,38 @@ func (p *CharacterStatsPanel) SaveHP() (int, error) {
 	return amount, nil
 }
 
+// SaveXP applies XP change from input
+func (p *CharacterStatsPanel) SaveXP() (int, error) {
+	value := p.xpInput.Value()
+	if value == "" {
+		return 0, fmt.Errorf("no value entered")
+	}
+
+	// Parse the value (supports +100, -50, or just 500)
+	var amount int
+	_, err := fmt.Sscanf(value, "%d", &amount)
+	if err != nil {
+		return 0, err
+	}
+
+	// Apply XP change
+	p.character.Experience += amount
+	if p.character.Experience < 0 {
+		p.character.Experience = 0
+	}
+
+	p.editMode = CharStatsNormal
+	p.xpInput.Blur()
+	return amount, nil
+}
+
 // CancelEdit cancels editing
 func (p *CharacterStatsPanel) CancelEdit() {
 	p.editMode = CharStatsNormal
 	p.nameInput.Blur()
 	p.raceInput.Blur()
 	p.hpInput.Blur()
+	p.xpInput.Blur()
 }
 
 // AddHP adds HP to the character
@@ -334,6 +392,8 @@ func (p *CharacterStatsPanel) HandleInput(msg tea.Msg) tea.Cmd {
 		p.raceInput, cmd = p.raceInput.Update(msg)
 	} else if p.editMode == CharStatsEditHP {
 		p.hpInput, cmd = p.hpInput.Update(msg)
+	} else if p.editMode == CharStatsEditXP {
+		p.xpInput, cmd = p.xpInput.Update(msg)
 	}
 	return cmd
 }
@@ -364,6 +424,65 @@ func (p *CharacterStatsPanel) RenderHPPopup(screenWidth, screenHeight int) strin
 		"",
 		"Enter amount (e.g., +5 or -3):",
 		p.hpInput.View(),
+		"",
+		helpStyle.Render("[Enter] Apply • [Esc] Cancel"),
+	)
+
+	popup := popupStyle.Render(content)
+
+	// Center the popup on screen using Place
+	return lipgloss.Place(screenWidth, screenHeight, lipgloss.Center, lipgloss.Center, popup)
+}
+
+// RenderXPPopup renders the XP input popup overlay
+func (p *CharacterStatsPanel) RenderXPPopup(screenWidth, screenHeight int) string {
+	if p.editMode != CharStatsEditXP {
+		return ""
+	}
+
+	// Create popup content
+	popupStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("42")).
+		Padding(1, 2).
+		Background(lipgloss.Color("235"))
+
+	titleStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("42")).
+		Bold(true)
+
+	infoStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	labelStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240"))
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("42")).
+		Bold(true)
+
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240"))
+
+	// Calculate current and next level XP
+	currentXP := p.character.Experience
+	nextLevelXP := getLevelXP(p.character.TotalLevel + 1)
+	xpToNext := nextLevelXP - currentXP
+
+	// Build status line
+	xpStatus := labelStyle.Render("Current: ") + valueStyle.Render(fmt.Sprintf("%d XP", currentXP))
+	xpNext := labelStyle.Render("Next Level: ") + infoStyle.Render(fmt.Sprintf("%d XP", nextLevelXP)) +
+		labelStyle.Render(fmt.Sprintf(" (need %d more)", xpToNext))
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStyle.Render("Adjust Experience Points"),
+		"",
+		xpStatus,
+		xpNext,
+		"",
+		infoStyle.Render("Enter amount (e.g., +100 or -50):"),
+		p.xpInput.View(),
 		"",
 		helpStyle.Render("[Enter] Apply • [Esc] Cancel"),
 	)

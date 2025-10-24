@@ -41,12 +41,12 @@ func GenerateAttacks(char *Character) AttackList {
 	unarmedDamage := "1"      // Default: 1 + STR mod
 	attackMod := strMod       // Default: use STR
 	damageBonus := strMod     // Default: use STR
-	
+
 	// Check for Monk Martial Arts
 	if char.IsMonk() && char.HasFeature("Martial Arts") {
 		monk := char.GetMonkMechanics()
 		unarmedDamage = monk.GetMartialArtsDie() // 1d6->1d8->1d10->1d12
-		
+
 		// Monks can use Dex or Str (use whichever is higher)
 		if dexMod > strMod {
 			attackMod = dexMod

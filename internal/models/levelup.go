@@ -25,6 +25,17 @@ type LevelUpResult struct {
 	RequiresSpells   bool
 }
 
+// DeLevelResult contains information about what was removed when de-leveling
+type DeLevelResult struct {
+	ClassName       string
+	OldClassLevel   int
+	NewClassLevel   int
+	NewTotalLevel   int
+	HPLost          int
+	FeaturesRemoved []string
+	ClassRemoved    bool // True if the class was completely removed
+}
+
 // LevelUpOptions contains options for leveling up
 type LevelUpOptions struct {
 	ClassName      string
@@ -249,6 +260,15 @@ func checkSubclassRequirement(classData *Class, classLevel int, selectedSubclass
 func finalizeLevelUp(char *Character, newTotalLevel int) {
 	char.Level = newTotalLevel
 	char.TotalLevel = newTotalLevel
+
+	// Ensure character has minimum XP for this level
+	requiredXP := GetLevelXP(newTotalLevel)
+	if char.Experience < requiredXP {
+		debug.Log("finalizeLevelUp: Adjusting XP from %d to %d (required for level %d)",
+			char.Experience, requiredXP, newTotalLevel)
+		char.Experience = requiredXP
+	}
+
 	char.UpdateDerivedStats()
 }
 
@@ -681,4 +701,212 @@ func GetLevelUpPreview(char *Character, className string) (*LevelUpResult, error
 	}
 
 	return preview, nil
+}
+
+// DeLevel removes one level from the specified class
+func DeLevel(char *Character, className string) (*DeLevelResult, error) {
+	debug.Log("DeLevel: Removing level from %s", className)
+
+	// Find the class
+	classIndex := -1
+	var classLevel *ClassLevel
+	for i := range char.Classes {
+		if char.Classes[i].ClassName == className {
+			classIndex = i
+			classLevel = &char.Classes[i]
+			break
+		}
+	}
+
+	if classIndex == -1 {
+		return nil, fmt.Errorf("character does not have %s class", className)
+	}
+
+	if classLevel.Level < 1 {
+		return nil, fmt.Errorf("class %s is already at level 0", className)
+	}
+
+	oldClassLevel := classLevel.Level
+	oldTotalLevel := char.TotalLevel
+
+	// Load class data
+	classData := GetClassByName(className)
+	if classData == nil {
+		return nil, fmt.Errorf("failed to load class data for %s", className)
+	}
+
+	result := &DeLevelResult{
+		ClassName:       className,
+		OldClassLevel:   oldClassLevel,
+		FeaturesRemoved: []string{},
+	}
+
+	// Remove features from this level
+	featuresRemoved := removeFeaturesForLevel(char, classData, oldClassLevel)
+	result.FeaturesRemoved = featuresRemoved
+
+	// Remove subclass features if this was the subclass level
+	if classLevel.Subclass != "" {
+		subclassLevel := getSubclassLevelForClass(classData)
+		if oldClassLevel == subclassLevel {
+			subclassFeatures := removeSubclassFeaturesForLevel(char, className, classLevel.Subclass, oldClassLevel)
+			result.FeaturesRemoved = append(result.FeaturesRemoved, subclassFeatures...)
+			classLevel.Subclass = ""
+		}
+	}
+
+	// Reduce HP (average for the class)
+	conMod := char.AbilityScores.GetModifier("Constitution")
+	avgHP := (classData.HitDie / 2) + 1 + conMod
+	if avgHP < 1 {
+		avgHP = 1
+	}
+	char.MaxHP -= avgHP
+	if char.CurrentHP > char.MaxHP {
+		char.CurrentHP = char.MaxHP
+	}
+	result.HPLost = avgHP
+
+	// Decrease class level
+	classLevel.Level--
+	result.NewClassLevel = classLevel.Level
+
+	// If class level is now 0, remove the class entirely
+	if classLevel.Level == 0 {
+		char.Classes = append(char.Classes[:classIndex], char.Classes[classIndex+1:]...)
+		result.ClassRemoved = true
+		debug.Log("DeLevel: Removed %s class entirely", className)
+	}
+
+	// Update total level
+	char.TotalLevel = char.CalculateTotalLevel()
+	char.Level = char.TotalLevel
+	result.NewTotalLevel = char.TotalLevel
+
+	// Update proficiency bonus
+	char.ProficiencyBonus = CalculateProficiencyBonus(char.TotalLevel)
+
+	// Ensure XP matches new level
+	requiredXP := GetLevelXP(char.TotalLevel)
+	if char.Experience > requiredXP {
+		// Keep current XP if higher (they might be ready to level up again)
+		debug.Log("DeLevel: Keeping current XP %d (required: %d)", char.Experience, requiredXP)
+	}
+
+	// Update derived stats
+	char.UpdateDerivedStats()
+
+	debug.Log("DeLevel complete: %s %d→%d, total level %d→%d",
+		className, oldClassLevel, result.NewClassLevel, oldTotalLevel, result.NewTotalLevel)
+
+	return result, nil
+}
+
+// removeFeaturesForLevel removes all features granted at a specific class level
+func removeFeaturesForLevel(char *Character, class *Class, level int) []string {
+	removed := []string{}
+
+	// Read class JSON to get features for this level
+	classFilePath := fmt.Sprintf("data/classes/%s.json", strings.ToLower(class.Name))
+	data, err := os.ReadFile(classFilePath)
+	if err != nil {
+		debug.Log("removeFeaturesForLevel: Error reading class file: %v", err)
+		return removed
+	}
+
+	var classWithProgression struct {
+		LevelProgression []struct {
+			Level    int                   `json:"level"`
+			Features []FeatureDefinition `json:"features"`
+		} `json:"level_progression"`
+	}
+
+	if err := json.Unmarshal(data, &classWithProgression); err != nil {
+		debug.Log("removeFeaturesForLevel: Error unmarshaling: %v", err)
+		return removed
+	}
+
+	// Find features for this level
+	var featuresToRemove []string
+	for _, levelData := range classWithProgression.LevelProgression {
+		if levelData.Level == level {
+			for _, featureDef := range levelData.Features {
+				// Skip improvement features
+				if featureDef.Name == "Ki Improvement" || featureDef.Name == "Focus Point Improvement" {
+					continue
+				}
+				featuresToRemove = append(featuresToRemove, featureDef.Name)
+			}
+			break
+		}
+	}
+
+	// Remove features from character
+	for _, featureName := range featuresToRemove {
+		for i := len(char.Features.Features) - 1; i >= 0; i-- {
+			if char.Features.Features[i].Name == featureName {
+				debug.Log("removeFeaturesForLevel: Removing feature %s", featureName)
+				char.Features.Features = append(char.Features.Features[:i], char.Features.Features[i+1:]...)
+				removed = append(removed, featureName)
+				break // Remove only one instance
+			}
+		}
+	}
+
+	return removed
+}
+
+// removeSubclassFeaturesForLevel removes subclass features for a specific level
+func removeSubclassFeaturesForLevel(char *Character, className, subclassName string, level int) []string {
+	removed := []string{}
+
+	classFilePath := fmt.Sprintf("data/classes/%s.json", strings.ToLower(className))
+	data, err := os.ReadFile(classFilePath)
+	if err != nil {
+		debug.Log("removeSubclassFeaturesForLevel: Error reading class file: %v", err)
+		return removed
+	}
+
+	var classWithSubclasses struct {
+		Subclasses []struct {
+			Name             string                              `json:"name"`
+			FeaturesByLevel  map[string][]FeatureDefinition `json:"features_by_level"`
+		} `json:"subclasses"`
+	}
+
+	if err := json.Unmarshal(data, &classWithSubclasses); err != nil {
+		debug.Log("removeSubclassFeaturesForLevel: Error unmarshaling: %v", err)
+		return removed
+	}
+
+	// Find the subclass
+	for _, subclass := range classWithSubclasses.Subclasses {
+		if subclass.Name == subclassName {
+			levelKey := fmt.Sprintf("%d", level)
+			if features, ok := subclass.FeaturesByLevel[levelKey]; ok {
+				for _, featureDef := range features {
+					// Remove this feature
+					for i := len(char.Features.Features) - 1; i >= 0; i-- {
+						if char.Features.Features[i].Name == featureDef.Name {
+							debug.Log("removeSubclassFeaturesForLevel: Removing subclass feature %s", featureDef.Name)
+							char.Features.Features = append(char.Features.Features[:i], char.Features.Features[i+1:]...)
+							removed = append(removed, featureDef.Name)
+							break
+						}
+					}
+				}
+			}
+			break
+		}
+	}
+
+	return removed
+}
+
+// getSubclassLevelForClass returns the level at which a class gets its subclass
+func getSubclassLevelForClass(class *Class) int {
+	if len(class.Subclasses) > 0 {
+		return class.Subclasses[0].SubclassLevel
+	}
+	return 3 // Default to 3 for most classes
 }

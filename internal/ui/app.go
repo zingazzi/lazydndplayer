@@ -93,6 +93,7 @@ type Model struct {
 	attackMenu            *components.AttackMenu
 	weaponMasterySelector *components.WeaponMasterySelector
 	levelUpSelector       *components.LevelUpSelector
+	deLevelSelector       *components.DeLevelSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -154,6 +155,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		attackMenu:            components.NewAttackMenu(),
 		weaponMasterySelector: components.NewWeaponMasterySelector(char),
 		levelUpSelector:       components.NewLevelUpSelector(char),
+		deLevelSelector:       components.NewDeLevelSelector(char),
 		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:           panels.NewSkillsPanel(char),
 		inventoryPanel:        panels.NewInventoryPanel(char),
@@ -338,6 +340,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if level-up selector is active
 		if m.levelUpSelector.IsVisible() {
 			return m.handleLevelUpSelectorKeys(msg)
+		}
+
+		// Check if de-level selector is active
+		if m.deLevelSelector.IsVisible() {
+			return m.handleDeLevelSelectorKeys(msg)
 		}
 
 		// Check if item selector is active
@@ -1259,6 +1266,36 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// getLevelXP returns the XP required to reach a given level
+func getLevelXP(level int) int {
+	xpTable := map[int]int{
+		1:  0,
+		2:  300,
+		3:  900,
+		4:  2700,
+		5:  6500,
+		6:  14000,
+		7:  23000,
+		8:  34000,
+		9:  48000,
+		10: 64000,
+		11: 85000,
+		12: 100000,
+		13: 120000,
+		14: 140000,
+		15: 165000,
+		16: 195000,
+		17: 225000,
+		18: 265000,
+		19: 305000,
+		20: 355000,
+	}
+	if xp, ok := xpTable[level]; ok {
+		return xp
+	}
+	return 355000 // Max level XP
+}
+
 // handleCharStatsPanelKeys handles character stats panel specific keys
 func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	editMode := m.characterStatsPanel.GetEditMode()
@@ -1279,6 +1316,18 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.message = fmt.Sprintf("Invalid HP value: %v", err)
 				} else {
 					m.message = fmt.Sprintf("HP adjusted by %+d. Current: %d/%d", amount, m.character.CurrentHP, m.character.MaxHP)
+				}
+			} else if editMode == panels.CharStatsEditXP {
+				amount, err := m.characterStatsPanel.SaveXP()
+				if err != nil {
+					m.message = fmt.Sprintf("Invalid XP value: %v", err)
+				} else {
+					nextLevelXP := getLevelXP(m.character.TotalLevel + 1)
+					if m.character.Experience >= nextLevelXP {
+						m.message = fmt.Sprintf("XP adjusted by %+d. Current: %d (LEVEL UP AVAILABLE!)", amount, m.character.Experience)
+					} else {
+						m.message = fmt.Sprintf("XP adjusted by %+d. Current: %d (next: %d)", amount, m.character.Experience, nextLevelXP)
+					}
 				}
 			}
 			return m, nil
@@ -1301,10 +1350,19 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.classSelector.Show()
 		m.message = "Select a class..."
 		return m, nil
-	case "L":
-		// Open level-up selector
+	case "l":
+		// Open level-up selector (lowercase l)
 		m.levelUpSelector.Show()
 		m.message = "Level up your character..."
+		return m, nil
+	case "L":
+		// Open de-level selector (Shift+L / uppercase L)
+		if m.character.TotalLevel > 1 && len(m.character.Classes) > 0 {
+			m.deLevelSelector.Show()
+			m.message = "Select class to remove a level from..."
+		} else {
+			m.message = "Cannot de-level: Character is already at minimum level"
+		}
 		return m, nil
 	case "+", "=":
 		// Add Focus Point (Monk only)
@@ -1331,6 +1389,26 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.message = "Only Monks can use Focus Points"
 		}
 		return m, nil
+	case "]", "}":
+		// Add 100 XP
+		m.character.Experience += 100
+		nextLevelXP := getLevelXP(m.character.TotalLevel + 1)
+		if m.character.Experience >= nextLevelXP {
+			m.message = fmt.Sprintf("XP: %d (LEVEL UP AVAILABLE!)", m.character.Experience)
+		} else {
+			m.message = fmt.Sprintf("XP: %d (next level: %d)", m.character.Experience, nextLevelXP)
+		}
+		return m, nil
+	case "[", "{":
+		// Remove 100 XP (minimum 0)
+		if m.character.Experience >= 100 {
+			m.character.Experience -= 100
+		} else {
+			m.character.Experience = 0
+		}
+		nextLevelXP := getLevelXP(m.character.TotalLevel + 1)
+		m.message = fmt.Sprintf("XP: %d (next level: %d)", m.character.Experience, nextLevelXP)
+		return m, nil
 	}
 
 	// Normal mode - handle actions
@@ -1344,6 +1422,9 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "h":
 		m.characterStatsPanel.EditHP()
 		m.message = "Enter HP change (+/- amount)..."
+	case "x":
+		m.characterStatsPanel.EditXP()
+		m.message = "Enter XP change (+/- amount)..."
 	case "+", "=":
 		m.characterStatsPanel.AddHP(1)
 		m.message = fmt.Sprintf("HP: %d/%d", m.character.CurrentHP, m.character.MaxHP)
@@ -1816,6 +1897,64 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+// handleDeLevelSelectorKeys handles de-level selector keys
+func (m *Model) handleDeLevelSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleDeLevelSelectorKeys: key=%s, showConfirm=%v", msg.String(), m.deLevelSelector.IsShowingConfirmation())
+
+	switch msg.String() {
+	case "up", "k":
+		if !m.deLevelSelector.IsShowingConfirmation() {
+			m.deLevelSelector.Prev()
+		}
+	case "down", "j":
+		if !m.deLevelSelector.IsShowingConfirmation() {
+			m.deLevelSelector.Next()
+		}
+	case "enter":
+		if m.deLevelSelector.IsShowingConfirmation() {
+			// Second enter - execute de-level (already done in ShowConfirmation)
+			m.deLevelSelector.ConfirmDeLevel()
+			m.storage.Save(m.character)
+			m.character.UpdateDerivedStats()
+
+			// Show result message
+			previewResult := m.deLevelSelector.GetPreviewResult()
+			if previewResult != nil {
+				if previewResult.ClassRemoved {
+					m.message = fmt.Sprintf("%s class removed entirely (was level %d). Total level: %d",
+						previewResult.ClassName, previewResult.OldClassLevel, previewResult.NewTotalLevel)
+				} else {
+					m.message = fmt.Sprintf("%s level reduced from %d to %d. Total level: %d",
+						previewResult.ClassName, previewResult.OldClassLevel, previewResult.NewClassLevel, previewResult.NewTotalLevel)
+				}
+			} else {
+				m.message = "De-level complete!"
+			}
+		} else {
+			// First enter - show confirmation
+			err := m.deLevelSelector.ShowConfirmation()
+			if err != nil {
+				m.message = fmt.Sprintf("Error: %v", err)
+				m.deLevelSelector.Hide()
+			} else {
+				m.message = "Confirm de-level (Enter) or cancel (Esc)"
+			}
+		}
+	case "esc":
+		if m.deLevelSelector.IsShowingConfirmation() {
+			// Cancel confirmation, go back to class list
+			m.deLevelSelector.CancelConfirmation()
+			m.message = "De-level cancelled"
+		} else {
+			// Cancel entire de-level process
+			m.deLevelSelector.Hide()
+			m.message = "De-level cancelled"
+		}
+	}
+
+	return m, nil
 }
 
 // handleItemSelectorKeys handles item selector specific keys
@@ -2945,6 +3084,11 @@ func (m *Model) View() string {
 		return m.levelUpSelector.View()
 	}
 
+	// De-level selector takes priority after level-up (Medium)
+	if m.deLevelSelector.IsVisible() {
+		return m.deLevelSelector.View(m.width, m.height)
+	}
+
 	// Item selector takes seventh priority (Large)
 	if m.itemSelector.IsVisible() {
 		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
@@ -2994,6 +3138,12 @@ func (m *Model) View() string {
 	hpPopup := m.characterStatsPanel.RenderHPPopup(popupSmallWidth, popupSmallHeight)
 	if hpPopup != "" {
 		return hpPopup
+	}
+
+	// XP popup overlay if active (Small)
+	xpPopup := m.characterStatsPanel.RenderXPPopup(popupSmallWidth, popupSmallHeight)
+	if xpPopup != "" {
+		return xpPopup
 	}
 
 	// Attack menu takes priority (shows as centered overlay)

@@ -126,7 +126,7 @@ func (c *ClassSelector) Update(msg tea.Msg) (ClassSelector, tea.Cmd) {
 // getFeaturesToGain returns the names of features that will be gained at the specified level
 func (c *ClassSelector) getFeaturesToGain(className string, level int) []string {
 	featureNames := []string{}
-	
+
 	// Read class JSON file
 	classFilePath := fmt.Sprintf("data/classes/%s.json", strings.ToLower(className))
 	data, err := os.ReadFile(classFilePath)
@@ -134,7 +134,7 @@ func (c *ClassSelector) getFeaturesToGain(className string, level int) []string 
 		debug.Log("getFeaturesToGain: Error reading class file: %v", err)
 		return featureNames
 	}
-	
+
 	// Parse level_progression
 	var classData struct {
 		LevelProgression []struct {
@@ -144,12 +144,12 @@ func (c *ClassSelector) getFeaturesToGain(className string, level int) []string 
 			} `json:"features"`
 		} `json:"level_progression"`
 	}
-	
+
 	if err := json.Unmarshal(data, &classData); err != nil {
 		debug.Log("getFeaturesToGain: Error unmarshaling class data: %v", err)
 		return featureNames
 	}
-	
+
 	// Find features for the specified level
 	for _, levelData := range classData.LevelProgression {
 		if levelData.Level == level {
@@ -165,7 +165,7 @@ func (c *ClassSelector) getFeaturesToGain(className string, level int) []string 
 			break
 		}
 	}
-	
+
 	return featureNames
 }
 
@@ -299,7 +299,7 @@ func (c *ClassSelector) View(width, height int) string {
 		if c.character.HasClass(currentClass.Name) {
 			nextLevel = c.character.GetClassLevel(currentClass.Name) + 1
 		}
-		
+
 		features := c.getFeaturesToGain(currentClass.Name, nextLevel)
 		if len(features) > 0 {
 			rightContent.WriteString("\n" + titleStyle.Render(fmt.Sprintf("FEATURES AT LEVEL %d:", nextLevel)) + "\n")
