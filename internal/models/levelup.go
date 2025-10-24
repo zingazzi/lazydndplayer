@@ -440,6 +440,9 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 						feature.Name, feature.CurrentUses, feature.MaxUses, feature.RestType)
 					char.Features.AddFeature(feature)
 					grantedFeatures = append(grantedFeatures, feature.Name)
+
+					// Apply special benefits for certain subclass features
+					applySubclassFeatureBenefits(char, feature.Name, subclassName)
 				}
 			} else {
 				debug.Log("GrantSubclassFeatures: No features found for level %d", level)
@@ -450,6 +453,72 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 
 	debug.Log("GrantSubclassFeatures: Granted %d subclass features", len(grantedFeatures))
 	return grantedFeatures
+}
+
+// applySubclassFeatureBenefits applies special benefits for specific subclass features
+func applySubclassFeatureBenefits(char *Character, featureName string, subclassName string) {
+	source := BenefitSource{
+		Type: "Subclass",
+		Name: subclassName,
+	}
+	applier := NewBenefitApplier(char)
+
+	debug.Log("applySubclassFeatureBenefits: Checking feature '%s' for subclass '%s'", featureName, subclassName)
+
+	switch featureName {
+	case "Implements of Mercy":
+		// Warrior of Mercy: Grant Medicine, Insight proficiency, and Herbalism Kit
+		debug.Log("  Applying Implements of Mercy benefits")
+
+		// Add Medicine skill proficiency
+		if err := applier.AddSkillProficiency(source, "Medicine"); err != nil {
+			debug.Log("  Error adding Medicine proficiency: %v", err)
+		} else {
+			debug.Log("  Granted Medicine proficiency")
+		}
+
+		// Add Insight skill proficiency
+		if err := applier.AddSkillProficiency(source, "Insight"); err != nil {
+			debug.Log("  Error adding Insight proficiency: %v", err)
+		} else {
+			debug.Log("  Granted Insight proficiency")
+		}
+
+		// Add Herbalism Kit tool proficiency
+		if err := applier.AddToolProficiency(source, "Herbalism Kit"); err != nil {
+			debug.Log("  Error adding Herbalism Kit proficiency: %v", err)
+		} else {
+			debug.Log("  Granted Herbalism Kit proficiency")
+		}
+
+	case "Shadow Arts":
+		// Warrior of Shadow: Grant Darkvision (60ft or +60ft)
+		debug.Log("  Applying Shadow Arts benefits")
+
+		if char.Darkvision == 0 {
+			// No darkvision, grant 60ft
+			char.Darkvision = 60
+			debug.Log("  Granted Darkvision 60ft")
+		} else {
+			// Already has darkvision, increase by 60ft
+			oldDarkvision := char.Darkvision
+			char.Darkvision += 60
+			debug.Log("  Increased Darkvision from %dft to %dft", oldDarkvision, char.Darkvision)
+		}
+
+		// Track darkvision benefit
+		char.BenefitTracker.AddBenefit(GrantedBenefit{
+			Source:      source,
+			Type:        "Darkvision",
+			Target:      "Darkvision",
+			Value:       60,
+			Description: "Darkvision 60ft (or +60ft)",
+		})
+
+		// TODO: Add "Darkness" spell to always-prepared spells (requires spell system enhancement)
+		// TODO: Add "Minor Illusion" cantrip (requires spell system enhancement)
+		debug.Log("  Note: Darkness and Minor Illusion spell grants not yet implemented")
+	}
 }
 
 // ApplySkillChoices applies selected skill proficiencies

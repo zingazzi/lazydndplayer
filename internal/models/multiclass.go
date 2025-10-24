@@ -176,6 +176,10 @@ func (c *Character) GetClassDisplayString() string {
 
 	if len(c.Classes) == 1 {
 		cl := c.Classes[0]
+		// For Monks with subclass at level 3+, show subclass name instead of "Monk"
+		if cl.ClassName == "Monk" && cl.Subclass != "" && cl.Level >= 3 {
+			return fmt.Sprintf("%s %d", cl.Subclass, cl.Level)
+		}
 		if cl.Subclass != "" {
 			return fmt.Sprintf("%s (%s) %d", cl.ClassName, cl.Subclass, cl.Level)
 		}
@@ -188,7 +192,12 @@ func (c *Character) GetClassDisplayString() string {
 		if i > 0 {
 			result += " / "
 		}
-		result += fmt.Sprintf("%s %d", cl.ClassName, cl.Level)
+		// For Monks with subclass at level 3+, show subclass name instead of "Monk"
+		if cl.ClassName == "Monk" && cl.Subclass != "" && cl.Level >= 3 {
+			result += fmt.Sprintf("%s %d", cl.Subclass, cl.Level)
+		} else {
+			result += fmt.Sprintf("%s %d", cl.ClassName, cl.Level)
+		}
 	}
 	return result
 }

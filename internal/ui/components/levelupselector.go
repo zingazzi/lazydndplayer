@@ -127,6 +127,14 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 				classLevelData := ls.character.GetClassLevelStruct(ls.selectedClass)
 				if classLevelData != nil {
 					classLevelData.Subclass = ls.selectedSubclass
+
+					// Grant subclass features for the current level
+					subclassFeatures := models.GrantSubclassFeatures(ls.character, ls.selectedClass, ls.selectedSubclass, classLevelData.Level)
+
+					// Add subclass features to the preview result
+					if ls.preview != nil {
+						ls.preview.FeaturesGained = append(ls.preview.FeaturesGained, subclassFeatures...)
+					}
 				}
 
 				// Continue with level-up process

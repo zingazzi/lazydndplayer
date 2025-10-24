@@ -17,6 +17,14 @@ type MonkBonusAction struct {
 	FPCost      int
 }
 
+// MonkReaction represents a Monk-specific reaction
+type MonkReaction struct {
+	Name        string
+	Description string
+	FPCost      int
+	Trigger     string
+}
+
 // ActionsPanel displays character actions
 type ActionsPanel struct {
 	character       *models.Character
@@ -28,6 +36,7 @@ type ActionsPanel struct {
 	bonusSpells     []models.Spell   // Spells that are bonus actions
 	reactionSpells  []models.Spell   // Spells that are reactions
 	monkBonusActions []MonkBonusAction // Monk bonus actions
+	monkReactions   []MonkReaction    // Monk reactions
 	totalItemCount  int              // Total number of items (attacks + spells + actions)
 }
 
@@ -98,6 +107,19 @@ func (p *ActionsPanel) View(width, height int) string {
 				Name:        "Step of the Wind",
 				Description: "Disengage or Dash, jump doubles",
 				FPCost:      1,
+			})
+		}
+	}
+
+	// Build Monk reactions
+	p.monkReactions = []MonkReaction{}
+	if char.IsMonk() {
+		if char.HasFeature("Deflect Missiles") {
+			p.monkReactions = append(p.monkReactions, MonkReaction{
+				Name:        "Deflect Missiles",
+				Description: "Reduce damage by 1d10 + Dex mod. If reduced to 0, spend 1 FP to deflect back",
+				FPCost:      0, // Base cost is 0, 1 FP to deflect back
+				Trigger:     "When hit by ranged weapon attack",
 			})
 		}
 	}
@@ -238,6 +260,43 @@ func (p *ActionsPanel) View(width, height int) string {
 	lines = append(lines, sectionStyle.Render("🛡️  Reactions"))
 	lines = append(lines, "")
 
+	// Monk reactions
+	if len(p.monkReactions) > 0 {
+		for _, reaction := range p.monkReactions {
+			// Get current FP
+			monk := char.GetMonkMechanics()
+			currentFP, _ := monk.GetFocusPoints()
+
+			// Format the reaction line
+			var line string
+			if reaction.FPCost > 0 {
+				fpCostStr := lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Render(fmt.Sprintf(" [%d FP]", reaction.FPCost))
+				line = fmt.Sprintf("%-20s%s", reaction.Name, fpCostStr)
+			} else {
+				line = fmt.Sprintf("%-20s", reaction.Name)
+			}
+
+			// Add trigger info
+			triggerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+			fullLine := line + " " + triggerStyle.Render("("+reaction.Trigger+")")
+
+			// Check if enough FP (for deflecting back)
+			if reaction.FPCost > 0 && currentFP < reaction.FPCost {
+				lines = append(lines, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render("  "+fullLine+" (Not enough FP)"))
+			} else {
+				if idx == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render("▶ "+fullLine))
+				} else {
+					lines = append(lines, monkActionStyle.Render("  "+fullLine))
+				}
+			}
+			idx++
+		}
+	}
+
+	// Reaction spells
 	if len(p.reactionSpells) > 0 {
 		for _, spell := range p.reactionSpells {
 			slot := char.SpellBook.GetSlotByLevel(spell.Level)
@@ -254,7 +313,10 @@ func (p *ActionsPanel) View(width, height int) string {
 			}
 			idx++
 		}
-	} else {
+	}
+
+	// Show "no reactions" only if there are none
+	if len(p.monkReactions) == 0 && len(p.reactionSpells) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true).
