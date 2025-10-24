@@ -75,6 +75,7 @@ type Model struct {
 	featSelector          *components.FeatSelector
 	featDetailPopup       *components.FeatDetailPopup
 	itemDetailPopup       *components.ItemDetailPopup
+	masteryDetailPopup    *components.MasteryDetailPopup
 	spellDetailPopup      *components.SpellDetailPopup
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
@@ -137,6 +138,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		featSelector:          components.NewFeatSelector(),
 		featDetailPopup:       components.NewFeatDetailPopup(),
 		itemDetailPopup:       components.NewItemDetailPopup(),
+		masteryDetailPopup:    components.NewMasteryDetailPopup(),
 		spellDetailPopup:      components.NewSpellDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
@@ -283,6 +285,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if feat detail popup is active
 		if m.featDetailPopup.IsVisible() {
 			return m.handleFeatDetailPopupKeys(msg)
+		}
+
+		// Check if mastery detail popup is active
+		if m.masteryDetailPopup.IsVisible() {
+			return m.handleMasteryDetailPopupKeys(msg)
 		}
 
 		// Check if item detail popup is active
@@ -1219,6 +1226,14 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if featName != "" {
 				m.featDetailPopup.Show(featName, m.character)
 				m.message = "Viewing feat details..."
+			}
+		}
+		// Show mastery detail popup if on a weapon mastery
+		if m.traitsPanel.IsOnMastery() {
+			weaponName, masteryType := m.traitsPanel.GetSelectedMastery()
+			if weaponName != "" && masteryType != "" {
+				m.masteryDetailPopup.Show(weaponName, masteryType)
+				m.message = "Viewing weapon mastery details..."
 			}
 		}
 	case "l":
@@ -2612,6 +2627,15 @@ func (m *Model) handleFeatDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) handleMasteryDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.masteryDetailPopup.Hide()
+		m.message = "Closed weapon mastery details"
+	}
+	return m, nil
+}
+
 func (m *Model) handleItemDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "enter":
@@ -3085,6 +3109,11 @@ func (m *Model) View() string {
 	// Feat detail popup (Medium)
 	if m.featDetailPopup.IsVisible() {
 		return m.featDetailPopup.View(popupMediumWidth, popupMediumHeight)
+	}
+
+	// Mastery detail popup (Medium)
+	if m.masteryDetailPopup.IsVisible() {
+		return m.masteryDetailPopup.View(m.width, m.height)
 	}
 
 	// Item detail popup (Medium)
