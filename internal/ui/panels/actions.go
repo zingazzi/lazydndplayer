@@ -25,19 +25,29 @@ type MonkReaction struct {
 	Trigger     string
 }
 
+// FighterBonusAction represents a Fighter-specific bonus action
+type FighterBonusAction struct {
+	Name         string
+	Description  string
+	UsesFeature  string // Name of the feature that tracks uses (e.g., "Second Wind")
+	CurrentUses  int
+	MaxUses      int
+}
+
 // ActionsPanel displays character actions
 type ActionsPanel struct {
-	character       *models.Character
-	selectedIndex   int
-	viewport        viewport.Model
-	ready           bool
-	attacks         []models.Attack  // Cached attacks list
-	actionSpells    []models.Spell   // Spells that are actions
-	bonusSpells     []models.Spell   // Spells that are bonus actions
-	reactionSpells  []models.Spell   // Spells that are reactions
-	monkBonusActions []MonkBonusAction // Monk bonus actions
-	monkReactions   []MonkReaction    // Monk reactions
-	totalItemCount  int              // Total number of items (attacks + spells + actions)
+	character          *models.Character
+	selectedIndex      int
+	viewport           viewport.Model
+	ready              bool
+	attacks            []models.Attack       // Cached attacks list
+	actionSpells       []models.Spell        // Spells that are actions
+	bonusSpells        []models.Spell        // Spells that are bonus actions
+	reactionSpells     []models.Spell        // Spells that are reactions
+	monkBonusActions   []MonkBonusAction     // Monk bonus actions
+	monkReactions      []MonkReaction        // Monk reactions
+	fighterBonusActions []FighterBonusAction // Fighter bonus actions
+	totalItemCount     int                   // Total number of items (attacks + spells + actions)
 }
 
 // NewActionsPanel creates a new actions panel
@@ -108,6 +118,28 @@ func (p *ActionsPanel) View(width, height int) string {
 				Description: "Disengage or Dash, jump doubles",
 				FPCost:      1,
 			})
+		}
+	}
+
+	// Build Fighter bonus actions
+	p.fighterBonusActions = []FighterBonusAction{}
+	if char.HasClass("Fighter") {
+		// Second Wind
+		if char.HasFeature("Second Wind") {
+			// Find the Second Wind feature to get current/max uses
+			for _, feature := range char.Features.Features {
+				if feature.Name == "Second Wind" {
+					fighterLevel := char.GetClassLevel("Fighter")
+					p.fighterBonusActions = append(p.fighterBonusActions, FighterBonusAction{
+						Name:         "Second Wind",
+						Description:  fmt.Sprintf("Regain 1d10+%d HP", fighterLevel),
+						UsesFeature:  "Second Wind",
+						CurrentUses:  feature.CurrentUses,
+						MaxUses:      feature.MaxUses,
+					})
+					break
+				}
+			}
 		}
 	}
 
@@ -206,6 +238,34 @@ func (p *ActionsPanel) View(width, height int) string {
 	lines = append(lines, sectionStyle.Render("⚡ Bonus Actions"))
 	lines = append(lines, "")
 
+	// Fighter bonus actions
+	fighterActionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("214")) // Orange for Fighter actions
+
+	if len(p.fighterBonusActions) > 0 {
+		for _, action := range p.fighterBonusActions {
+			// Show uses
+			usesStr := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(fmt.Sprintf(" [%d/%d uses]", action.CurrentUses, action.MaxUses))
+
+			// Gray out if no uses left
+			var line string
+			if action.CurrentUses == 0 {
+				line = fmt.Sprintf("%-20s%s", action.Name, usesStr)
+				lines = append(lines, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render("  "+line+" (No uses left)"))
+			} else {
+				line = fmt.Sprintf("%-20s%s", action.Name, usesStr)
+				if idx == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render("▶ "+line))
+				} else {
+					lines = append(lines, fighterActionStyle.Render("  "+line))
+				}
+			}
+			idx++
+		}
+	}
+
 	// Monk bonus actions
 	monkActionStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("99")) // Purple for Monk actions, matching FP color
@@ -257,8 +317,8 @@ func (p *ActionsPanel) View(width, height int) string {
 		}
 	}
 
-	// Show "no bonus actions" only if there are no monk actions and no spells
-	if len(p.monkBonusActions) == 0 && len(p.bonusSpells) == 0 {
+	// Show "no bonus actions" only if there are no class actions and no spells
+	if len(p.fighterBonusActions) == 0 && len(p.monkBonusActions) == 0 && len(p.bonusSpells) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true).

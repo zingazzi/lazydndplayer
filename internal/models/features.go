@@ -13,12 +13,13 @@ const (
 
 // Feature represents a limited-use ability (class features, racial abilities, etc.)
 type Feature struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	MaxUses     int      `json:"max_uses"`      // Maximum uses per rest
-	CurrentUses int      `json:"current_uses"`  // Current available uses
-	RestType    RestType `json:"rest_type"`     // When it recharges
-	Source      string   `json:"source"`        // e.g., "Class: Barbarian", "Species: Dragonborn"
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	MaxUses     int                    `json:"max_uses"`      // Maximum uses per rest
+	CurrentUses int                    `json:"current_uses"`  // Current available uses
+	RestType    RestType               `json:"rest_type"`     // When it recharges
+	Source      string                 `json:"source"`        // e.g., "Class: Barbarian", "Species: Dragonborn"
+	Mechanics   map[string]interface{} `json:"mechanics"`     // Additional mechanics data (e.g., weapons_mastered, ki_points)
 }
 
 // FeatureList manages character features

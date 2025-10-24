@@ -206,15 +206,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.Toggle()
 			return m, nil
 
-		case "s":
-			err := m.storage.Save(m.character)
-			if err != nil {
-				m.message = fmt.Sprintf("Error saving: %s", err.Error())
-			} else {
-				m.message = "Character saved!"
-			}
-			return m, nil
-
+		// Note: 's' key is now handled in panel-specific handlers (e.g., Traits panel for Fighting Style, Spells panel for slot restore)
+		// Removed global 's' handler (was for manual save) to avoid conflicts - auto-save happens on most actions
 		// Note: 'l' and 'L' keys are now handled in Traits panel for language management
 		// Removed global 'l' handler (was for level up) to avoid conflicts
 		// Note: 'f' and 'F' keys are now handled in Traits panel for feat management
@@ -393,6 +386,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Handle input based on current focus
+		debug.Log("Update: Handling key in focusArea=%d (0=Main,1=CharStats,2=Actions,3=Dice)", m.focusArea)
 		switch m.focusArea {
 		case FocusMain:
 			return m.handleMainPanelKeys(msg)
@@ -418,6 +412,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleMainPanelKeys handles keys when main panel has focus
 func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleMainPanelKeys: key=%s, currentPanel=%d (0=Stats,1=Skills,2=Inv,3=Spells,4=Features,5=Traits,6=Origin)", msg.String(), m.currentPanel)
 	switch m.currentPanel {
 	case StatsPanel:
 		return m.handleStatsPanel(msg)
@@ -1197,23 +1192,26 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleTraitsPanel handles traits panel specific keys
 func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleTraitsPanel: key=%s", msg.String())
 	switch msg.String() {
 	case "up", "k":
-		m.traitsPanel.Prev()
+		// Scroll viewport up freely
+		m.traitsPanel.ScrollUp()
 	case "down", "j":
-		m.traitsPanel.Next()
+		// Scroll viewport down freely
+		m.traitsPanel.ScrollDown()
 	case "ctrl+u", "pgup":
 		// Page up
 		m.traitsPanel.PageUp()
 	case "ctrl+d", "pgdown":
 		// Page down
 		m.traitsPanel.PageDown()
-	case "ctrl+y":
-		// Scroll up without changing selection
-		m.traitsPanel.ScrollUp()
-	case "ctrl+e":
-		// Scroll down without changing selection
-		m.traitsPanel.ScrollDown()
+	case "g":
+		// Go to top
+		m.traitsPanel.GotoTop()
+	case "G":
+		// Go to bottom (Shift+G)
+		m.traitsPanel.GotoBottom()
 	case "enter":
 		// Show feat detail popup if on a feat
 		if m.traitsPanel.IsOnFeat() {
@@ -1248,14 +1246,27 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.featSelector.ShowForDeletion(m.character)
 			m.message = "Select a feat to remove..."
 		}
+	case "s":
+		// Change fighting style
+		if m.character.FightingStyle != "" {
+			// Character already has a fighting style, allow changing it
+			m.fightingStyleSelector.Show(m.character.Class)
+			m.message = "Select a new fighting style..."
+		} else {
+			m.message = "You don't have a Fighting Style to change"
+		}
 	case "m":
 		// Manage weapon mastery
+		debug.Log("handleTraitsPanel: 'm' key pressed - checking weapon mastery")
 		// Check if character has weapon mastery feature
 		masteryCount := m.getWeaponMasteryCount()
+		debug.Log("handleTraitsPanel: masteryCount=%d", masteryCount)
 		if masteryCount > 0 {
+			debug.Log("handleTraitsPanel: Showing weapon mastery selector")
 			m.weaponMasterySelector.Show(masteryCount)
 			m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
 		} else {
+			debug.Log("handleTraitsPanel: No weapon mastery feature found")
 			m.message = "You don't have the Weapon Mastery feature"
 		}
 	case "d", "x":
@@ -1870,8 +1881,14 @@ func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 		if m.weaponMasterySelector.CanConfirm() {
 			m.character.MasteredWeapons = m.weaponMasterySelector.GetSelectedWeapons()
 			m.weaponMasterySelector.Hide()
+
+			// Clear pending changes and complete class setup
+			m.pendingChanges.Clear()
 			m.storage.Save(m.character)
-			m.message = fmt.Sprintf("Mastered %d weapons", len(m.character.MasteredWeapons))
+
+			debug.Log("Weapon mastery selection complete: %v", m.character.MasteredWeapons)
+			m.message = fmt.Sprintf("Weapon mastery complete! Mastered %d weapons. Class setup complete. (HP: %d/%d)",
+				len(m.character.MasteredWeapons), m.character.CurrentHP, m.character.MaxHP)
 		} else {
 			m.message = "Please select at least one weapon"
 		}
@@ -2194,11 +2211,22 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 					m.cantripSelector.Show(selectedClassName, classData.Spellcasting.CantripsKnown)
 					m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, selectedClassName)
 				} else {
-					// No fighting style, cantrips, or subclass needed, complete class selection
-					debug.Log("Saving character and completing class selection")
-					m.pendingChanges.Clear() // Clear backup on successful completion
-					m.storage.Save(m.character)
-					m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+					// Check for weapon mastery
+					masteryCount := m.getWeaponMasteryCount()
+					debug.Log("Class %s needs weapon mastery: count=%d", selectedClassName, masteryCount)
+
+					if masteryCount > 0 {
+						// Show weapon mastery selector
+						debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+						m.weaponMasterySelector.Show(masteryCount)
+						m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+					} else {
+						// No fighting style, cantrips, weapon mastery, or subclass needed, complete class selection
+						debug.Log("Saving character and completing class selection")
+						m.pendingChanges.Clear() // Clear backup on successful completion
+						m.storage.Save(m.character)
+						m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+					}
 				}
 			}
 		} else {
@@ -2238,11 +2266,22 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 			m.cantripSelector.Hide()
 
-			// Complete class selection
-			debug.Log("Saving character and completing class selection")
-			m.pendingChanges.Clear() // Clear backup on successful completion
-			m.storage.Save(m.character)
-			m.message = fmt.Sprintf("Class selection complete! Selected %d cantrips", len(selectedCantrips))
+			// Check for weapon mastery
+			masteryCount := m.getWeaponMasteryCount()
+			debug.Log("After cantrips, checking weapon mastery: count=%d", masteryCount)
+
+			if masteryCount > 0 {
+				// Show weapon mastery selector
+				debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+				m.weaponMasterySelector.Show(masteryCount)
+				m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+			} else {
+				// Complete class selection
+				debug.Log("Saving character and completing class selection")
+				m.pendingChanges.Clear() // Clear backup on successful completion
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Class selection complete! Selected %d cantrips", len(selectedCantrips))
+			}
 		} else {
 			needed := m.cantripSelector.GetMaxCantrips() - m.cantripSelector.GetSelectedCount()
 			m.message = fmt.Sprintf("Please select %d more cantrip(s)", needed)
@@ -2323,11 +2362,25 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 				debug.Log("Fighting style '%s' applied successfully", selectedStyle)
 				// Update the choice record with fighting style
 				m.character.Choices.Class.FightingStyle = selectedStyle
-				m.pendingChanges.Clear() // Clear backup on successful completion
-				m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
+
+				// Check if character also needs weapon mastery selection
+				masteryCount := m.getWeaponMasteryCount()
+				debug.Log("After fighting style, checking weapon mastery: count=%d", masteryCount)
+
+				if masteryCount > 0 {
+					// Show weapon mastery selector
+					debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+					m.weaponMasterySelector.Show(masteryCount)
+					m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+					m.fightingStyleSelector.Hide()
+				} else {
+					// No weapon mastery needed, class setup complete
+					m.pendingChanges.Clear() // Clear backup on successful completion
+					m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
+					m.fightingStyleSelector.Hide()
+				}
 			}
 			m.storage.Save(m.character)
-			m.fightingStyleSelector.Hide()
 		}
 	case "esc":
 		debug.Log("Fighting style selector: cancelled - restoring previous state")
@@ -3157,20 +3210,29 @@ func (m *Model) View() string {
 
 // getWeaponMasteryCount returns the number of weapons the character can master
 func (m *Model) getWeaponMasteryCount() int {
-	for _, feature := range m.character.Features.Features {
+	debug.Log("getWeaponMasteryCount: Checking for Weapon Mastery feature")
+	debug.Log("getWeaponMasteryCount: Character class=%s, total features=%d", m.character.Class, len(m.character.Features.Features))
+
+	for i, feature := range m.character.Features.Features {
+		debug.Log("getWeaponMasteryCount: Feature[%d]='%s'", i, feature.Name)
 		if feature.Name == "Weapon Mastery" {
-			// Try to get the count from feature definition
-			// For now, check the class
-			switch m.character.Class {
-			case "Fighter":
-				return 3
-			case "Barbarian", "Paladin":
-				return 2
-			default:
-				return 0
+			debug.Log("getWeaponMasteryCount: Found Weapon Mastery feature!")
+
+			// Read weapons_mastered from feature mechanics
+			if feature.Mechanics != nil {
+				if weaponsMastered, ok := feature.Mechanics["weapons_mastered"].(float64); ok {
+					count := int(weaponsMastered)
+					debug.Log("getWeaponMasteryCount: Returning %d from feature mechanics", count)
+					return count
+				}
 			}
+
+			// Fallback: if no mechanics data, return 0
+			debug.Log("getWeaponMasteryCount: No mechanics data found, returning 0")
+			return 0
 		}
 	}
+	debug.Log("getWeaponMasteryCount: Weapon Mastery feature not found, returning 0")
 	return 0
 }
 

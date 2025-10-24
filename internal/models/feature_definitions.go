@@ -8,12 +8,13 @@ import (
 
 // FeatureDefinition defines a limited-use feature that can be granted by feats or species
 type FeatureDefinition struct {
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	MaxUses       string   `json:"max_uses"`       // Can be number or formula like "proficiency", "level"
-	RestType      RestType `json:"rest_type"`
-	UsesFormula   string   `json:"uses_formula"`   // Formula for max uses (e.g., "proficiency", "level", "1")
-	EffectFormula string   `json:"effect_formula"` // Formula for effect (e.g., "2d6", "level")
+	Name          string                 `json:"name"`
+	Description   string                 `json:"description"`
+	MaxUses       string                 `json:"max_uses"`       // Can be number or formula like "proficiency", "level"
+	RestType      RestType               `json:"rest_type"`
+	UsesFormula   string                 `json:"uses_formula"`   // Formula for max uses (e.g., "proficiency", "level", "1")
+	EffectFormula string                 `json:"effect_formula"` // Formula for effect (e.g., "2d6", "level")
+	Mechanics     map[string]interface{} `json:"mechanics"`      // Additional mechanics data (e.g., weapons_mastered, ki_points)
 }
 
 // CalculateMaxUses calculates the maximum uses based on character level and proficiency
@@ -95,5 +96,6 @@ func (fd *FeatureDefinition) ToFeature(char *Character, source string) Feature {
 		CurrentUses: currentUses,
 		RestType:    fd.RestType,
 		Source:      source,
+		Mechanics:   fd.Mechanics,
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
@@ -16,7 +17,7 @@ type TraitsPanel struct {
 	viewport       viewport.Model
 	ready          bool
 	selectedIndex  int
-	selectedType   string // "language", "feat", "resistance", or "trait"
+	selectedType   string // "language", "feat", "resistance", "trait", or "mastery"
 }
 
 func NewTraitsPanel(char *models.Character) *TraitsPanel {
@@ -90,6 +91,111 @@ func (p *TraitsPanel) View(width, height int) string {
 	// Build right column
 	var rightCol []string
 
+	// Weapon Mastery Section (MOVED TO TOP for better visibility)
+	rightCol = append(rightCol, titleStyle.Render("⚔️  WEAPON MASTERY"))
+	rightCol = append(rightCol, "")
+
+	if p.hasWeaponMasteryFeature(p.character) {
+		// Get mastery count
+		masteryCount := p.getWeaponMasteryCount(p.character)
+		masteryInfo := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render(fmt.Sprintf("  Can master %d weapons", masteryCount))
+		rightCol = append(rightCol, masteryInfo)
+		rightCol = append(rightCol, "")
+
+		// Debug: Check MasteredWeapons array
+		debug.Log("TraitsPanel.View: MasteredWeapons count=%d, weapons=%v", len(p.character.MasteredWeapons), p.character.MasteredWeapons)
+
+		// Show currently mastered weapons with descriptions
+		if len(p.character.MasteredWeapons) > 0 {
+			masteredStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("86")).
+				Bold(true)
+			rightCol = append(rightCol, masteredStyle.Render(fmt.Sprintf("  Mastered: (%d weapons)", len(p.character.MasteredWeapons))))
+			rightCol = append(rightCol, "")
+
+			masteryNameStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("170")).
+				Bold(true)
+			descStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Italic(true)
+
+			for i, weapon := range p.character.MasteredWeapons {
+				debug.Log("TraitsPanel.View: Processing weapon[%d]='%s'", i, weapon)
+				itemDef := models.GetItemDefinitionByName(weapon)
+				debug.Log("TraitsPanel.View: itemDef=%v, mastery='%s'", itemDef != nil, func() string {
+					if itemDef != nil {
+						return itemDef.Mastery
+					}
+					return "N/A"
+				}())
+
+				isSelected := p.selectedType == "mastery" && i == p.selectedIndex
+
+				if itemDef != nil && itemDef.Mastery != "" {
+					// Show weapon name with mastery type (selectable)
+					weaponLine := fmt.Sprintf("    ✓ %s", weapon)
+					if isSelected {
+						rightCol = append(rightCol, selectedStyle.Render("  → "+weaponLine[4:]))
+					} else {
+						rightCol = append(rightCol, normalStyle.Render(weaponLine))
+					}
+					rightCol = append(rightCol, masteryNameStyle.Render(fmt.Sprintf("      %s", itemDef.Mastery)))
+
+					// Show mastery description
+					masteryDesc := models.GetMasteryDescription(itemDef.Mastery)
+					debug.Log("TraitsPanel.View: masteryDesc length=%d", len(masteryDesc))
+					if masteryDesc != "" {
+						// Wrap description to fit in the column (adjusted for indent)
+						wrapped := wrapText(masteryDesc, width/2-10)
+						for _, line := range wrapped {
+							rightCol = append(rightCol, descStyle.Render(fmt.Sprintf("        %s", line)))
+						}
+					}
+					rightCol = append(rightCol, "")
+				} else {
+					// Weapon without mastery property (or not found)
+					debug.Log("TraitsPanel.View: Weapon '%s' not found or no mastery", weapon)
+					weaponLine := fmt.Sprintf("    ✓ %s", weapon)
+					if isSelected {
+						rightCol = append(rightCol, selectedStyle.Render("  → "+weaponLine[4:]))
+					} else {
+						rightCol = append(rightCol, normalStyle.Render(weaponLine))
+					}
+					if itemDef == nil {
+						rightCol = append(rightCol, lipgloss.NewStyle().
+							Foreground(lipgloss.Color("196")).
+							Render("      (weapon data not found)"))
+					} else {
+						rightCol = append(rightCol, lipgloss.NewStyle().
+							Foreground(lipgloss.Color("240")).
+							Render("      (no mastery property)"))
+					}
+					rightCol = append(rightCol, "")
+				}
+			}
+		} else {
+			// No mastered weapons yet
+			rightCol = append(rightCol, lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Italic(true).
+				Render("  No weapons mastered yet"))
+			rightCol = append(rightCol, "")
+		}
+
+		rightCol = append(rightCol, lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render("  Press 'm' to manage"))
+	} else {
+		debug.Log("TraitsPanel.View: No weapon mastery feature found")
+		rightCol = append(rightCol, emptyStyle.Render("  No weapon mastery feature"))
+	}
+
+	rightCol = append(rightCol, "")
+	rightCol = append(rightCol, "")
+
 	// Resistances Section
 	rightCol = append(rightCol, titleStyle.Render("🛡  RESISTANCES"))
 	rightCol = append(rightCol, "")
@@ -162,6 +268,10 @@ func (p *TraitsPanel) View(width, height int) string {
 		}
 
 		rightCol = append(rightCol, "")
+		// Add hint to change fighting style
+		rightCol = append(rightCol, lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render("  Press 's' to change"))
 		rightCol = append(rightCol, "")
 	}
 
@@ -179,77 +289,6 @@ func (p *TraitsPanel) View(width, height int) string {
 				rightCol = append(rightCol, normalStyle.Render(fmt.Sprintf("    %s", feat)))
 			}
 		}
-	}
-
-	rightCol = append(rightCol, "")
-	rightCol = append(rightCol, "")
-
-	// Weapon Mastery Section
-	rightCol = append(rightCol, titleStyle.Render("⚔️  WEAPON MASTERY"))
-	rightCol = append(rightCol, "")
-
-	if p.hasWeaponMasteryFeature(p.character) {
-		// Get mastery count
-		masteryCount := p.getWeaponMasteryCount(p.character)
-		masteryInfo := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render(fmt.Sprintf("  Can master %d weapons", masteryCount))
-		rightCol = append(rightCol, masteryInfo)
-		rightCol = append(rightCol, "")
-
-		// Show currently mastered weapons
-		if len(p.character.MasteredWeapons) > 0 {
-			masteredStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("86")).
-				Bold(true)
-			rightCol = append(rightCol, masteredStyle.Render("  Mastered:"))
-			for _, weapon := range p.character.MasteredWeapons {
-				itemDef := models.GetItemDefinitionByName(weapon)
-				masteryText := weapon
-				if itemDef != nil && itemDef.Mastery != "" {
-					masteryText = fmt.Sprintf("%s (%s)", weapon, itemDef.Mastery)
-				}
-				rightCol = append(rightCol, normalStyle.Render(fmt.Sprintf("    ✓ %s", masteryText)))
-			}
-			rightCol = append(rightCol, "")
-		}
-
-		// Show available weapons to master
-		availableWeapons := p.getAvailableWeaponsToMaster(p.character)
-		if len(availableWeapons) > 0 {
-			availableStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("240")).
-				Italic(true)
-			rightCol = append(rightCol, availableStyle.Render("  Available:"))
-			// Limit to first 5 to avoid clutter
-			displayCount := len(availableWeapons)
-			if displayCount > 5 {
-				displayCount = 5
-			}
-			for i := 0; i < displayCount; i++ {
-				weapon := availableWeapons[i]
-				itemDef := models.GetItemDefinitionByName(weapon)
-				masteryText := weapon
-				if itemDef != nil && itemDef.Mastery != "" {
-					masteryText = fmt.Sprintf("%s (%s)", weapon, itemDef.Mastery)
-				}
-				rightCol = append(rightCol, lipgloss.NewStyle().
-					Foreground(lipgloss.Color("240")).
-					Render(fmt.Sprintf("    • %s", masteryText)))
-			}
-			if len(availableWeapons) > 5 {
-				rightCol = append(rightCol, lipgloss.NewStyle().
-					Foreground(lipgloss.Color("240")).
-					Render(fmt.Sprintf("    ... and %d more", len(availableWeapons)-5)))
-			}
-			rightCol = append(rightCol, "")
-		}
-
-		rightCol = append(rightCol, lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render("  Press 'm' to manage"))
-	} else {
-		rightCol = append(rightCol, emptyStyle.Render("  No weapon mastery feature"))
 	}
 
 	// Build traits section (full width, below columns)
@@ -347,6 +386,28 @@ func (p *TraitsPanel) Next() {
 		if p.selectedIndex < len(p.character.Languages)-1 {
 			p.selectedIndex++
 			p.viewport.LineDown(3)
+		} else if len(p.character.MasteredWeapons) > 0 {
+			// Move to weapon mastery section
+			p.selectedType = "mastery"
+			p.selectedIndex = 0
+			p.viewport.LineDown(3)
+		} else if len(p.character.Resistances) > 0 {
+			// Move to resistances section
+			p.selectedType = "resistance"
+			p.selectedIndex = 0
+		} else if len(p.character.Feats) > 0 {
+			// Move to feats section
+			p.selectedType = "feat"
+			p.selectedIndex = 0
+		} else if len(p.character.SpeciesTraits) > 0 {
+			// Move to traits section
+			p.selectedType = "trait"
+			p.selectedIndex = 0
+		}
+	} else if p.selectedType == "mastery" {
+		if p.selectedIndex < len(p.character.MasteredWeapons)-1 {
+			p.selectedIndex++
+			p.viewport.LineDown(5) // More space because of descriptions
 		} else if len(p.character.Resistances) > 0 {
 			// Move to resistances section
 			p.selectedType = "resistance"
@@ -391,14 +452,14 @@ func (p *TraitsPanel) Next() {
 	}
 }
 
-// ScrollDown scrolls the viewport down without changing selection
+// ScrollDown scrolls the viewport down by one line
 func (p *TraitsPanel) ScrollDown() {
-	p.viewport.LineDown(3)
+	p.viewport.LineDown(1)
 }
 
-// ScrollUp scrolls the viewport up without changing selection
+// ScrollUp scrolls the viewport up by one line
 func (p *TraitsPanel) ScrollUp() {
-	p.viewport.LineUp(3)
+	p.viewport.LineUp(1)
 }
 
 // PageDown scrolls down by half a page
@@ -409,6 +470,16 @@ func (p *TraitsPanel) PageDown() {
 // PageUp scrolls up by half a page
 func (p *TraitsPanel) PageUp() {
 	p.viewport.HalfViewUp()
+}
+
+// GotoTop scrolls to the top of the content
+func (p *TraitsPanel) GotoTop() {
+	p.viewport.GotoTop()
+}
+
+// GotoBottom scrolls to the bottom of the content
+func (p *TraitsPanel) GotoBottom() {
+	p.viewport.GotoBottom()
 }
 
 func (p *TraitsPanel) Prev() {
@@ -425,6 +496,11 @@ func (p *TraitsPanel) Prev() {
 			// Move to resistances section
 			p.selectedType = "resistance"
 			p.selectedIndex = len(p.character.Resistances) - 1
+		} else if len(p.character.MasteredWeapons) > 0 {
+			// Move to weapon mastery section
+			p.selectedType = "mastery"
+			p.selectedIndex = len(p.character.MasteredWeapons) - 1
+			p.viewport.LineUp(3)
 		} else if len(p.character.Languages) > 0 {
 			// Move to languages section
 			p.selectedType = "language"
@@ -438,6 +514,11 @@ func (p *TraitsPanel) Prev() {
 			// Move to resistances section
 			p.selectedType = "resistance"
 			p.selectedIndex = len(p.character.Resistances) - 1
+		} else if len(p.character.MasteredWeapons) > 0 {
+			// Move to weapon mastery section
+			p.selectedType = "mastery"
+			p.selectedIndex = len(p.character.MasteredWeapons) - 1
+			p.viewport.LineUp(3)
 		} else if len(p.character.Languages) > 0 {
 			// Move to languages section
 			p.selectedType = "language"
@@ -447,6 +528,20 @@ func (p *TraitsPanel) Prev() {
 		if p.selectedIndex > 0 {
 			p.selectedIndex--
 			p.viewport.LineUp(3)
+		} else if len(p.character.MasteredWeapons) > 0 {
+			// Move to weapon mastery section
+			p.selectedType = "mastery"
+			p.selectedIndex = len(p.character.MasteredWeapons) - 1
+			p.viewport.LineUp(3)
+		} else if len(p.character.Languages) > 0 {
+			// Move to languages section
+			p.selectedType = "language"
+			p.selectedIndex = len(p.character.Languages) - 1
+		}
+	} else if p.selectedType == "mastery" {
+		if p.selectedIndex > 0 {
+			p.selectedIndex--
+			p.viewport.LineUp(5) // More space because of descriptions
 		} else if len(p.character.Languages) > 0 {
 			// Move to languages section
 			p.selectedType = "language"
@@ -514,6 +609,19 @@ func (p *TraitsPanel) IsOnFeat() bool {
 	return p.selectedType == "feat" && len(p.character.Feats) > 0
 }
 
+// GetSelectedMastery returns the currently selected weapon mastery (if any)
+func (p *TraitsPanel) GetSelectedMastery() string {
+	if p.selectedType == "mastery" && p.selectedIndex >= 0 && p.selectedIndex < len(p.character.MasteredWeapons) {
+		return p.character.MasteredWeapons[p.selectedIndex]
+	}
+	return ""
+}
+
+// IsOnMastery returns true if currently on a weapon mastery
+func (p *TraitsPanel) IsOnMastery() bool {
+	return p.selectedType == "mastery" && len(p.character.MasteredWeapons) > 0
+}
+
 // hasWeaponMasteryFeature checks if the character has a weapon mastery feature
 func (p *TraitsPanel) hasWeaponMasteryFeature(char *models.Character) bool {
 	for _, feature := range char.Features.Features {
@@ -526,14 +634,15 @@ func (p *TraitsPanel) hasWeaponMasteryFeature(char *models.Character) bool {
 
 // getWeaponMasteryCount returns the number of weapons the character can master
 func (p *TraitsPanel) getWeaponMasteryCount(char *models.Character) int {
-	switch char.Class {
-	case "Fighter":
-		return 3
-	case "Barbarian", "Paladin":
-		return 2
-	default:
-		return 0
+	// Read weapons_mastered from feature mechanics (generic approach)
+	for _, feature := range char.Features.Features {
+		if feature.Name == "Weapon Mastery" && feature.Mechanics != nil {
+			if weaponsMastered, ok := feature.Mechanics["weapons_mastered"].(float64); ok {
+				return int(weaponsMastered)
+			}
+		}
 	}
+	return 0
 }
 
 // getAvailableWeaponsToMaster returns weapons the character has proficiency with but hasn't mastered

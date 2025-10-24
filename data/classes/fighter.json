@@ -31,15 +31,18 @@
         },
         {
           "name": "Second Wind",
-          "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level. Once you use this feature, you must finish a short or long rest before you can use it again.",
-          "uses_formula": "1",
+          "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. As a bonus action, you can regain hit points equal to 1d10 + your fighter level.\n\nYou have multiple uses of this feature (2 uses at levels 1-2, 3 uses at levels 3-9, 4 uses at levels 10-20). You regain one expended use after a short rest, and all expended uses after a long rest.",
+          "uses_formula": "second_wind_scaling",
           "rest_type": "Short Rest"
         },
         {
           "name": "Weapon Mastery",
           "description": "Your training with weapons allows you to use the mastery properties of three kinds of weapons of your choice with which you have proficiency.",
           "uses_formula": "0",
-          "rest_type": "None"
+          "rest_type": "None",
+          "mechanics": {
+            "weapons_mastered": 3
+          }
         }
       ],
       "ability_score_improvement": false
@@ -56,7 +59,7 @@
         },
         {
           "name": "Tactical Mind",
-          "description": "At 2nd level, you gain the ability to analyze battlefield tactics. You can give yourself a bonus to your initiative rolls equal to your Intelligence modifier.",
+          "description": "Starting at 2nd level, if you fail an ability check, you can expend a use of your Second Wind to add 1d10 to the check, potentially turning a failure into a success.",
           "uses_formula": "0",
           "rest_type": "None"
         }

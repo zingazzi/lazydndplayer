@@ -176,7 +176,7 @@ func (s *WeaponMasterySelector) Update(msg tea.Msg) (WeaponMasterySelector, tea.
 	return *s, nil
 }
 
-// View renders the selector
+// View renders the selector with description on the right
 func (s *WeaponMasterySelector) View() string {
 	if !s.visible {
 		return ""
@@ -200,16 +200,16 @@ func (s *WeaponMasterySelector) View() string {
 
 	masteryStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("170")).
-		Italic(true)
+		Bold(true)
 
-	var lines []string
-
+	// Left side - weapon list
+	var leftLines []string
 	title := fmt.Sprintf("Select Weapon Masteries (%d/%d selected)", len(s.selectedWeapons), s.maxMasteries)
-	lines = append(lines, titleStyle.Render(title))
-	lines = append(lines, "")
+	leftLines = append(leftLines, titleStyle.Render(title))
+	leftLines = append(leftLines, "")
 
 	if len(s.availableWeapons) == 0 {
-		lines = append(lines, normalStyle.Render("  No weapons available (no weapon proficiencies)"))
+		leftLines = append(leftLines, normalStyle.Render("  No weapons available (no weapon proficiencies)"))
 	} else {
 		for i, weapon := range s.availableWeapons {
 			checkbox := "[ ]"
@@ -225,30 +225,103 @@ func (s *WeaponMasterySelector) View() string {
 			line := fmt.Sprintf("%s %s%s", checkbox, weapon.name, masteryText)
 
 			if i == s.selectedIndex {
-				lines = append(lines, selectedStyle.Render("▶ "+line))
+				leftLines = append(leftLines, selectedStyle.Render("▶ "+line))
 			} else {
-				lines = append(lines, normalStyle.Render("  "+line))
+				leftLines = append(leftLines, normalStyle.Render("  "+line))
 			}
 		}
 	}
 
-	lines = append(lines, "")
+	leftLines = append(leftLines, "")
 
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	if s.CanConfirm() {
-		lines = append(lines, helpStyle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Esc: Cancel"))
+		leftLines = append(leftLines, helpStyle.Render("↑/↓: Navigate • Space: Toggle"))
+		leftLines = append(leftLines, helpStyle.Render("Enter: Confirm • Esc: Cancel"))
 	} else {
-		lines = append(lines, helpStyle.Render("↑/↓: Navigate • Space: Toggle • Esc: Cancel"))
+		leftLines = append(leftLines, helpStyle.Render("↑/↓: Navigate • Space: Toggle"))
+		leftLines = append(leftLines, helpStyle.Render("Esc: Cancel"))
 	}
 
-	content := strings.Join(lines, "\n")
+	leftContent := strings.Join(leftLines, "\n")
 
-	// Create popup with medium size (60 chars width)
-	popupStyle := lipgloss.NewStyle().
+	// Right side - mastery description
+	var rightLines []string
+	rightLines = append(rightLines, titleStyle.Render("MASTERY DESCRIPTION"))
+	rightLines = append(rightLines, "")
+
+	if len(s.availableWeapons) > 0 && s.selectedIndex >= 0 && s.selectedIndex < len(s.availableWeapons) {
+		currentWeapon := s.availableWeapons[s.selectedIndex]
+		if currentWeapon.mastery != "" {
+			rightLines = append(rightLines, masteryStyle.Render(currentWeapon.mastery))
+			rightLines = append(rightLines, "")
+
+			// Get mastery description
+			description := models.GetMasteryDescription(currentWeapon.mastery)
+			if description != "" {
+				// Wrap description to fit in the box (45 chars width)
+				wrapped := wrapMasteryText(description, 43)
+				rightLines = append(rightLines, normalStyle.Render(wrapped))
+			}
+		} else {
+			rightLines = append(rightLines, normalStyle.Render("No mastery property"))
+		}
+	} else {
+		rightLines = append(rightLines, normalStyle.Render("Select a weapon to view its mastery"))
+	}
+
+	rightContent := strings.Join(rightLines, "\n")
+
+	// Create two boxes side by side
+	leftBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("205")).
 		Padding(1, 2).
-		Width(60)
+		Width(50).
+		Height(25)
 
-	return popupStyle.Render(content)
+	rightBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("99")).
+		Padding(1, 2).
+		Width(50).
+		Height(25)
+
+	// Join boxes horizontally
+	combined := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		leftBox.Render(leftContent),
+		rightBox.Render(rightContent),
+	)
+
+	return combined
+}
+
+// wrapMasteryText wraps text to the specified width
+func wrapMasteryText(text string, width int) string {
+	if len(text) <= width {
+		return text
+	}
+
+	var result strings.Builder
+	words := strings.Fields(text)
+	currentLine := ""
+
+	for _, word := range words {
+		if currentLine == "" {
+			currentLine = word
+		} else if len(currentLine)+1+len(word) <= width {
+			currentLine += " " + word
+		} else {
+			result.WriteString(currentLine)
+			result.WriteString("\n")
+			currentLine = word
+		}
+	}
+
+	if currentLine != "" {
+		result.WriteString(currentLine)
+	}
+
+	return result.String()
 }
