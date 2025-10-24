@@ -42,6 +42,22 @@ func LoadSpellsFromJSON(filepath string) ([]Spell, error) {
 	return spells, nil
 }
 
+// GetSpellByName finds and returns a spell by name from the spell database
+func GetSpellByName(spellName string) *Spell {
+	spells, err := LoadSpellsFromJSON("data/spells.json")
+	if err != nil {
+		return nil
+	}
+
+	for _, spell := range spells {
+		if strings.EqualFold(spell.Name, spellName) {
+			return &spell
+		}
+	}
+
+	return nil
+}
+
 // capitalizeFirst capitalizes the first letter of a string
 func capitalizeFirst(s string) string {
 	if len(s) == 0 {

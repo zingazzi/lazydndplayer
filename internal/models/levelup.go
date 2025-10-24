@@ -515,9 +515,106 @@ func applySubclassFeatureBenefits(char *Character, featureName string, subclassN
 			Description: "Darkvision 60ft (or +60ft)",
 		})
 
-		// TODO: Add "Darkness" spell to always-prepared spells (requires spell system enhancement)
-		// TODO: Add "Minor Illusion" cantrip (requires spell system enhancement)
-		debug.Log("  Note: Darkness and Minor Illusion spell grants not yet implemented")
+		// Add "Darkness" spell
+		darknessSpell := GetSpellByName("Darkness")
+		if darknessSpell != nil {
+			darknessSpell.Prepared = true
+			char.SpellBook.AddSpell(*darknessSpell)
+			debug.Log("  Granted Darkness spell")
+		} else {
+			debug.Log("  Warning: Darkness spell not found")
+		}
+
+		// Add "Minor Illusion" cantrip
+		minorIllusion := GetSpellByName("Minor Illusion")
+		if minorIllusion != nil && minorIllusion.Level == 0 {
+			char.SpellBook.Cantrips = append(char.SpellBook.Cantrips, minorIllusion.Name)
+			char.SpellBook.CantripsKnown++
+			debug.Log("  Granted Minor Illusion cantrip")
+		} else {
+			debug.Log("  Warning: Minor Illusion cantrip not found")
+		}
+
+	case "Elemental Attunement":
+		// Warrior of Elements: Grant Elementalism spell
+		debug.Log("  Applying Elemental Attunement benefits")
+
+		elementalismSpell := GetSpellByName("Elementalism")
+		if elementalismSpell != nil && elementalismSpell.Level == 0 {
+			char.SpellBook.Cantrips = append(char.SpellBook.Cantrips, elementalismSpell.Name)
+			char.SpellBook.CantripsKnown++
+			debug.Log("  Granted Elementalism cantrip")
+		} else {
+			debug.Log("  Warning: Elementalism cantrip not found")
+		}
+	}
+}
+
+// removeSubclassFeatureBenefits removes special benefits for specific subclass features
+func removeSubclassFeatureBenefits(char *Character, featureName string, subclassName string) {
+	source := BenefitSource{
+		Type: "Subclass",
+		Name: subclassName,
+	}
+	remover := NewBenefitRemover(char)
+
+	debug.Log("removeSubclassFeatureBenefits: Removing benefits for '%s' from subclass '%s'", featureName, subclassName)
+
+	switch featureName {
+	case "Implements of Mercy":
+		// Remove Medicine, Insight proficiency, and Herbalism Kit
+		debug.Log("  Removing Implements of Mercy benefits")
+		remover.RemoveAllBenefits(source.Type, source.Name)
+
+	case "Shadow Arts":
+		// Remove Darkvision increase
+		debug.Log("  Removing Shadow Arts benefits")
+
+		// Reduce darkvision by 60ft
+		if char.Darkvision >= 60 {
+			oldDarkvision := char.Darkvision
+			char.Darkvision -= 60
+			debug.Log("  Reduced Darkvision from %dft to %dft", oldDarkvision, char.Darkvision)
+		}
+
+		// Remove Darkness spell
+		for i, spell := range char.SpellBook.Spells {
+			if spell.Name == "Darkness" {
+				char.SpellBook.Spells = append(char.SpellBook.Spells[:i], char.SpellBook.Spells[i+1:]...)
+				debug.Log("  Removed Darkness spell")
+				break
+			}
+		}
+
+		// Remove Minor Illusion cantrip
+		for i, cantripName := range char.SpellBook.Cantrips {
+			if cantripName == "Minor Illusion" {
+				char.SpellBook.Cantrips = append(char.SpellBook.Cantrips[:i], char.SpellBook.Cantrips[i+1:]...)
+				if char.SpellBook.CantripsKnown > 0 {
+					char.SpellBook.CantripsKnown--
+				}
+				debug.Log("  Removed Minor Illusion cantrip")
+				break
+			}
+		}
+
+		// Remove benefits from tracker
+		remover.RemoveAllBenefits(source.Type, source.Name)
+
+	case "Elemental Attunement":
+		// Remove Elementalism cantrip
+		debug.Log("  Removing Elemental Attunement benefits")
+
+		for i, cantripName := range char.SpellBook.Cantrips {
+			if cantripName == "Elementalism" {
+				char.SpellBook.Cantrips = append(char.SpellBook.Cantrips[:i], char.SpellBook.Cantrips[i+1:]...)
+				if char.SpellBook.CantripsKnown > 0 {
+					char.SpellBook.CantripsKnown--
+				}
+				debug.Log("  Removed Elementalism cantrip")
+				break
+			}
+		}
 	}
 }
 
@@ -954,6 +1051,9 @@ func removeSubclassFeaturesForLevel(char *Character, className, subclassName str
 			levelKey := fmt.Sprintf("%d", level)
 			if features, ok := subclass.FeaturesByLevel[levelKey]; ok {
 				for _, featureDef := range features {
+					// Remove benefits associated with this feature BEFORE removing the feature
+					removeSubclassFeatureBenefits(char, featureDef.Name, subclassName)
+
 					// Remove this feature
 					for i := len(char.Features.Features) - 1; i >= 0; i-- {
 						if char.Features.Features[i].Name == featureDef.Name {

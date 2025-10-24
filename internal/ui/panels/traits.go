@@ -127,6 +127,11 @@ func (p *TraitsPanel) View(width, height int) string {
 		rightCol = append(rightCol, emptyStyle.Render("  No weapon proficiencies"))
 	}
 
+	// Tool proficiencies
+	if len(p.character.ToolProficiencies) > 0 {
+		rightCol = append(rightCol, normalStyle.Render("  Tools: "+strings.Join(p.character.ToolProficiencies, ", ")))
+	}
+
 	// Saving throw proficiencies
 	if len(p.character.SavingThrowProficiencies) > 0 {
 		rightCol = append(rightCol, normalStyle.Render("  Saves: "+strings.Join(p.character.SavingThrowProficiencies, ", ")))
