@@ -276,6 +276,60 @@ func (p *TraitsPanel) View(width, height int) string {
 		rightCol = append(rightCol, emptyStyle.Render("  No weapon mastery feature"))
 	}
 
+	// Battle Master Maneuvers Section
+	if p.character.IsBattleMaster() {
+		rightCol = append(rightCol, "")
+		rightCol = append(rightCol, "")
+		rightCol = append(rightCol, titleStyle.Render("⚔️  BATTLE MASTER MANEUVERS"))
+		rightCol = append(rightCol, "")
+
+		// Get maneuver count
+		maneuverCount := 3 // Default for level 3
+		if feature := p.character.GetFeature("Combat Superiority"); feature != nil && feature.Mechanics != nil {
+			if count, ok := feature.Mechanics["maneuvers_known"].(float64); ok {
+				maneuverCount = int(count)
+			}
+		}
+
+		maneuverInfo := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render(fmt.Sprintf("  Can know %d maneuvers", maneuverCount))
+		rightCol = append(rightCol, maneuverInfo)
+		rightCol = append(rightCol, "")
+
+		if len(p.character.Maneuvers) > 0 {
+			knownStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("208")).
+				Bold(true)
+			rightCol = append(rightCol, knownStyle.Render(fmt.Sprintf("  Known: (%d maneuvers)", len(p.character.Maneuvers))))
+			rightCol = append(rightCol, "")
+
+			for i, maneuverName := range p.character.Maneuvers {
+				isSelected := p.selectedType == "maneuver" && i == p.selectedIndex
+				maneuverLine := fmt.Sprintf("✓ %s", maneuverName)
+
+				if isSelected {
+					rightCol = append(rightCol, selectedStyle.Render("  → "+maneuverLine))
+				} else {
+					rightCol = append(rightCol, normalStyle.Render("    "+maneuverLine))
+				}
+			}
+			rightCol = append(rightCol, "")
+			rightCol = append(rightCol, lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Render("  Press Enter to view details"))
+		} else {
+			rightCol = append(rightCol, lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Italic(true).
+				Render("  No maneuvers known yet"))
+			rightCol = append(rightCol, "")
+		}
+
+		rightCol = append(rightCol, lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render("  Press 'n' to manage"))
+	}
 
 	// Combine columns
 	colWidth := width / 2
@@ -577,6 +631,19 @@ func (p *TraitsPanel) GetSelectedMastery() (string, string) {
 // IsOnMastery returns true if currently on a weapon mastery
 func (p *TraitsPanel) IsOnMastery() bool {
 	return p.selectedType == "mastery" && len(p.character.MasteredWeapons) > 0
+}
+
+// IsOnManeuver returns true if currently on a maneuver
+func (p *TraitsPanel) IsOnManeuver() bool {
+	return p.selectedType == "maneuver" && len(p.character.Maneuvers) > 0
+}
+
+// GetSelectedManeuver returns the currently selected maneuver name
+func (p *TraitsPanel) GetSelectedManeuver() string {
+	if p.selectedType == "maneuver" && p.selectedIndex >= 0 && p.selectedIndex < len(p.character.Maneuvers) {
+		return p.character.Maneuvers[p.selectedIndex]
+	}
+	return ""
 }
 
 // hasWeaponMasteryFeature checks if the character has a weapon mastery feature

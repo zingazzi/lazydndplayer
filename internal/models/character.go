@@ -57,6 +57,19 @@ type Character struct {
 	Actions          ActionList  `json:"actions"`
 	Features         FeatureList `json:"features"`
 
+	// Fighter Subclass Resources
+	PsiDice struct {
+		Current int    `json:"current"`
+		Max     int    `json:"max"`
+		Size    string `json:"size"` // "d6", "d8", etc.
+	} `json:"psi_dice,omitempty"`
+	SuperiorityDice struct {
+		Current int    `json:"current"`
+		Max     int    `json:"max"`
+		Size    string `json:"size"` // "d8", "d10", "d12"
+	} `json:"superiority_dice,omitempty"`
+	Maneuvers []string `json:"maneuvers,omitempty"` // List of known Battle Master maneuvers
+
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
 
@@ -350,6 +363,83 @@ func (c *Character) HasFeature(featureName string) bool {
 		}
 	}
 	return false
+}
+
+// GetFeature returns a feature by name, or nil if not found
+func (c *Character) GetFeature(featureName string) *Feature {
+	for i := range c.Features.Features {
+		if c.Features.Features[i].Name == featureName {
+			return &c.Features.Features[i]
+		}
+	}
+	return nil
+}
+
+// IsFighter checks if character has Fighter levels
+func (c *Character) IsFighter() bool {
+	for _, classLevel := range c.Classes {
+		if classLevel.ClassName == "Fighter" {
+			return true
+		}
+	}
+	return false
+}
+
+// GetFighterLevel returns the Fighter level, or 0 if not a Fighter
+func (c *Character) GetFighterLevel() int {
+	return c.GetClassLevel("Fighter")
+}
+
+// GetFighterSubclass returns the Fighter subclass name, or empty string if none
+func (c *Character) GetFighterSubclass() string {
+	for _, classLevel := range c.Classes {
+		if classLevel.ClassName == "Fighter" {
+			return classLevel.Subclass
+		}
+	}
+	return ""
+}
+
+// IsChampion checks if character is a Champion Fighter
+func (c *Character) IsChampion() bool {
+	return c.GetFighterSubclass() == "Champion"
+}
+
+// IsEldritchKnight checks if character is an Eldritch Knight Fighter
+func (c *Character) IsEldritchKnight() bool {
+	return c.GetFighterSubclass() == "Eldritch Knight"
+}
+
+// IsPsiWarrior checks if character is a Psi Warrior Fighter
+func (c *Character) IsPsiWarrior() bool {
+	return c.GetFighterSubclass() == "Psi Warrior"
+}
+
+// IsBattleMaster checks if character is a Battle Master Fighter
+func (c *Character) IsBattleMaster() bool {
+	return c.GetFighterSubclass() == "Battle Master"
+}
+
+// HasImprovedCritical checks if character has Improved Critical feature (Champion)
+func (c *Character) HasImprovedCritical() bool {
+	if !c.IsChampion() {
+		return false
+	}
+	return c.HasFeature("Improved Critical")
+}
+
+// GetCriticalRange returns the critical hit range (19 or 20, default 20)
+func (c *Character) GetCriticalRange() int {
+	if c.HasImprovedCritical() {
+		feature := c.GetFeature("Improved Critical")
+		if feature != nil && feature.Mechanics != nil {
+			if critRange, ok := feature.Mechanics["critical_range"].(float64); ok {
+				return int(critRange)
+			}
+		}
+		return 19 // Default for Champion
+	}
+	return 20 // Normal critical range
 }
 
 // GetLevelXP returns the XP required to reach a given level

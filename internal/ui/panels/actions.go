@@ -34,6 +34,14 @@ type FighterBonusAction struct {
 	MaxUses      int
 }
 
+// FighterReaction represents a Fighter-specific reaction
+type FighterReaction struct {
+	Name        string
+	Description string
+	Trigger     string
+	Cost        string // e.g., "1 Psi Die", "1 Superiority Die"
+}
+
 // ActionsPanel displays character actions
 type ActionsPanel struct {
 	character          *models.Character
@@ -47,6 +55,7 @@ type ActionsPanel struct {
 	monkBonusActions   []MonkBonusAction     // Monk bonus actions
 	monkReactions      []MonkReaction        // Monk reactions
 	fighterBonusActions []FighterBonusAction // Fighter bonus actions
+	fighterReactions   []FighterReaction     // Fighter reactions
 	totalItemCount     int                   // Total number of items (attacks + spells + actions)
 }
 
@@ -162,6 +171,20 @@ func (p *ActionsPanel) View(width, height int) string {
 				Description: fmt.Sprintf("Reduce fall damage by %d", damageReduction),
 				FPCost:      0,
 				Trigger:     "When you fall",
+			})
+		}
+	}
+
+	// Build Fighter reactions
+	p.fighterReactions = []FighterReaction{}
+	if char.IsPsiWarrior() {
+		if char.HasFeature("Psionic Power") {
+			intMod := char.AbilityScores.GetModifier(models.Intelligence)
+			p.fighterReactions = append(p.fighterReactions, FighterReaction{
+				Name:        "Protective Field",
+				Description: fmt.Sprintf("Reduce damage by %s + %d to you or an ally within 30 ft", char.PsiDice.Size, intMod),
+				Trigger:     "When you or ally within 30 ft takes damage",
+				Cost:        "1 Psi Die",
 			})
 		}
 	}
@@ -366,6 +389,41 @@ func (p *ActionsPanel) View(width, height int) string {
 		}
 	}
 
+	// Fighter reactions
+	if len(p.fighterReactions) > 0 {
+		fighterReactionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
+		for _, reaction := range p.fighterReactions {
+			// Format cost
+			costStr := lipgloss.NewStyle().Foreground(lipgloss.Color("135")).Render(fmt.Sprintf(" [%s]", reaction.Cost))
+			line := fmt.Sprintf("%-20s%s", reaction.Name, costStr)
+
+			// Add trigger info
+			triggerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+			fullLine := line + " " + triggerStyle.Render("("+reaction.Trigger+")")
+
+			// Check if enough resource (Psi Die or Superiority Die)
+			hasResource := false
+			if char.IsPsiWarrior() && char.PsiDice.Current > 0 {
+				hasResource = true
+			} else if char.IsBattleMaster() && char.SuperiorityDice.Current > 0 {
+				hasResource = true
+			}
+
+			if !hasResource {
+				lines = append(lines, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render("  "+fullLine+" (Not enough dice)"))
+			} else {
+				if idx == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render("▶ "+fullLine))
+				} else {
+					lines = append(lines, fighterReactionStyle.Render("  "+fullLine))
+				}
+			}
+			idx++
+		}
+	}
+
 	// Reaction spells
 	if len(p.reactionSpells) > 0 {
 		for _, spell := range p.reactionSpells {
@@ -386,7 +444,7 @@ func (p *ActionsPanel) View(width, height int) string {
 	}
 
 	// Show "no reactions" only if there are none
-	if len(p.monkReactions) == 0 && len(p.reactionSpells) == 0 {
+	if len(p.monkReactions) == 0 && len(p.fighterReactions) == 0 && len(p.reactionSpells) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true).

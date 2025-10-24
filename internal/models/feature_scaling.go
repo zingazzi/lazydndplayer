@@ -31,6 +31,25 @@ var FeatureScaling = map[string]map[string]map[int]int{
 			17: 3, 18: 3, 19: 3, 20: 3,
 		},
 	},
+	"Psi Warrior": {
+		"Psionic Power": {
+			3: 4, 4: 4, // 4 dice (d6)
+			5: 6, 6: 6, 7: 6, 8: 6, // 6 dice (d8)
+			9: 8, 10: 8, // 8 dice (d8)
+			11: 8, 12: 8, // 8 dice (d10)
+			13: 10, 14: 10, 15: 10, 16: 10, // 10 dice (d10)
+			17: 12, 18: 12, 19: 12, 20: 12, // 12 dice (d12)
+		},
+	},
+	"Battle Master": {
+		"Combat Superiority": {
+			3: 4, 4: 4, 5: 4, 6: 4, // 4 dice (d8)
+			7: 5, 8: 5, 9: 5, // 5 dice (d8)
+			10: 5, 11: 5, 12: 5, 13: 5, 14: 5, // 5 dice (d10)
+			15: 6, 16: 6, 17: 6, // 6 dice (d10)
+			18: 6, 19: 6, 20: 6, // 6 dice (d12)
+		},
+	},
 	"Monk": {
 		"Ki": {
 			2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10,
@@ -118,4 +137,30 @@ func GetRestTypeForFeature(className string, featureName string, level int) Rest
 
 	// Default - will be overridden by JSON definition
 	return None
+}
+
+// GetPsiDiceSize returns the die size for Psi Warrior at a given Fighter level
+func GetPsiDiceSize(fighterLevel int) string {
+	switch {
+	case fighterLevel >= 17:
+		return "d12"
+	case fighterLevel >= 11:
+		return "d10"
+	case fighterLevel >= 5:
+		return "d8"
+	default:
+		return "d6"
+	}
+}
+
+// GetSuperiorityDiceSize returns the die size for Battle Master at a given Fighter level
+func GetSuperiorityDiceSize(fighterLevel int) string {
+	switch {
+	case fighterLevel >= 18:
+		return "d12"
+	case fighterLevel >= 10:
+		return "d10"
+	default:
+		return "d8"
+	}
 }

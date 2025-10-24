@@ -46,6 +46,9 @@ type LevelUpSelector struct {
 	abilityBoosts     []models.AbilityBoost
 	selectedFeat      string
 	availableFeats    []models.Feat
+	// Fighter subclass flags
+	NeedsManeuverSelection bool // Battle Master needs maneuvers
+	NeedsCantripSelection  bool // Eldritch Knight needs cantrips
 }
 
 // NewLevelUpSelector creates a new level-up selector
@@ -143,6 +146,21 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 					// Add subclass features to the preview result
 					if ls.preview != nil {
 						ls.preview.FeaturesGained = append(ls.preview.FeaturesGained, subclassFeatures...)
+					}
+
+					// Check if Fighter subclass needs special handling for Battle Master/Eldritch Knight
+					if ls.selectedClass == "Fighter" {
+						if ls.selectedSubclass == "Battle Master" {
+							// Battle Master needs maneuver selection - set flag for app.go to handle
+							ls.NeedsManeuverSelection = true
+							ls.state = LevelUpComplete
+							return *ls, cmd
+						} else if ls.selectedSubclass == "Eldritch Knight" {
+							// Eldritch Knight needs cantrip/spell selection - set flag for app.go to handle
+							ls.NeedsCantripSelection = true
+							ls.state = LevelUpComplete
+							return *ls, cmd
+						}
 					}
 				}
 

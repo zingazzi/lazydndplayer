@@ -76,6 +76,7 @@ type Model struct {
 	featDetailPopup       *components.FeatDetailPopup
 	itemDetailPopup       *components.ItemDetailPopup
 	masteryDetailPopup    *components.MasteryDetailPopup
+	maneuverDetailPopup   *components.ManeuverDetailPopup
 	spellDetailPopup      *components.SpellDetailPopup
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
@@ -93,6 +94,7 @@ type Model struct {
 	attackRoller          *components.AttackRoller
 	attackMenu            *components.AttackMenu
 	weaponMasterySelector *components.WeaponMasterySelector
+	maneuverSelector      *components.ManeuverSelector
 	levelUpSelector       *components.LevelUpSelector
 	deLevelSelector       *components.DeLevelSelector
 
@@ -121,6 +123,9 @@ type Model struct {
 	pendingFeat        *models.Feat   // Temporarily store feat while choosing ability
 	pendingOrigin      *models.Origin // Temporarily store origin while choosing ability
 	pendingChanges     *models.PendingChanges // Transaction system for rollback support
+	eldritchKnightSpellsSelected int   // Counter for Eldritch Knight spell selection (0-3)
+	eldritchKnightSpells []models.Spell // Temporarily store selected spells
+	studentOfWarToolSelected bool // Flag for Student of War tool selection flow
 }
 
 // NewModel creates a new application model
@@ -139,6 +144,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		featDetailPopup:       components.NewFeatDetailPopup(),
 		itemDetailPopup:       components.NewItemDetailPopup(),
 		masteryDetailPopup:    components.NewMasteryDetailPopup(),
+		maneuverDetailPopup:   components.NewManeuverDetailPopup(),
 		spellDetailPopup:      components.NewSpellDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
@@ -156,6 +162,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		attackRoller:          components.NewAttackRoller(),
 		attackMenu:            components.NewAttackMenu(),
 		weaponMasterySelector: components.NewWeaponMasterySelector(char),
+		maneuverSelector:      components.NewManeuverSelector(),
 		levelUpSelector:       components.NewLevelUpSelector(char),
 		deLevelSelector:       components.NewDeLevelSelector(char),
 		statsPanel:            panels.NewStatsPanel(char),
@@ -292,6 +299,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleMasteryDetailPopupKeys(msg)
 		}
 
+		// Check if maneuver detail popup is active
+		if m.maneuverDetailPopup.IsVisible() {
+			return m.handleManeuverDetailPopupKeys(msg)
+		}
+
 		// Check if item detail popup is active
 		if m.itemDetailPopup.IsVisible() {
 			return m.handleItemDetailPopupKeys(msg)
@@ -335,6 +347,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if weapon mastery selector is active
 		if m.weaponMasterySelector.IsVisible() {
 			return m.handleWeaponMasterySelectorKeys(msg)
+		}
+
+		// Check if maneuver selector is active
+		if m.maneuverSelector.IsVisible() {
+			return m.handleManeuverSelectorKeys(msg)
 		}
 
 		// Check if level-up selector is active
@@ -709,6 +726,18 @@ func (m *Model) rollAttackDirect(attack *models.Attack, rollType string) string 
 	}
 
 	total := roll + attack.AttackBonus
+
+	// Check for critical hit based on character's critical range
+	critRange := m.character.GetCriticalRange()
+	if roll >= critRange {
+		critText := "CRITICAL HIT!"
+		if critRange < 20 {
+			critText = fmt.Sprintf("CRITICAL HIT! (19-20 range)")
+		}
+		return fmt.Sprintf("%s: %s [%d] + %d = %d %s",
+			attack.Name, critText, roll, attack.AttackBonus, total, advantageStr)
+	}
+
 	return attack.FormatAttackRoll(roll, total, advantageStr)
 }
 
@@ -1236,6 +1265,14 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.message = "Viewing weapon mastery details..."
 			}
 		}
+		// Show maneuver detail popup if on a maneuver
+		if m.traitsPanel.IsOnManeuver() {
+			maneuverName := m.traitsPanel.GetSelectedManeuver()
+			if maneuverName != "" {
+				m.maneuverDetailPopup.Show(maneuverName)
+				m.message = "Viewing maneuver details..."
+			}
+		}
 	case "l":
 		// Add language
 		m.languageSelector.SetExcludeLanguages(m.character.Languages)
@@ -1283,6 +1320,27 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			debug.Log("handleTraitsPanel: No weapon mastery feature found")
 			m.message = "You don't have the Weapon Mastery feature"
+		}
+	case "n":
+		// Manage Battle Master maneuvers (edit only, no Student of War benefits)
+		debug.Log("handleTraitsPanel: 'n' key pressed - checking Battle Master maneuvers")
+		// Check if character is a Battle Master
+		if m.character.IsBattleMaster() {
+			// Get maneuver count from Combat Superiority feature
+			maneuverCount := 3 // Default for level 3
+			if feature := m.character.GetFeature("Combat Superiority"); feature != nil && feature.Mechanics != nil {
+				if count, ok := feature.Mechanics["maneuvers_known"].(float64); ok {
+					maneuverCount = int(count)
+				}
+			}
+			debug.Log("handleTraitsPanel: Showing maneuver selector for %d maneuvers", maneuverCount)
+			// Clear Student of War flag to prevent prompting for tool/skill
+			m.studentOfWarToolSelected = false
+			m.maneuverSelector.Show(maneuverCount)
+			m.message = fmt.Sprintf("Select up to %d maneuvers...", maneuverCount)
+		} else {
+			debug.Log("handleTraitsPanel: Not a Battle Master")
+			m.message = "Only Battle Masters can learn maneuvers"
 		}
 	case "d", "x":
 		m.traitsPanel.RemoveSelected()
@@ -1413,6 +1471,58 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		} else {
 			m.message = "Only Monks can use Focus Points"
+		}
+		return m, nil
+	case "y":
+		// Spend Psi Die (Psi Warrior only)
+		if m.character.IsPsiWarrior() {
+			if m.character.PsiDice.Current > 0 {
+				m.character.PsiDice.Current--
+				m.message = fmt.Sprintf("Psi Die spent. Current: %d/%d", m.character.PsiDice.Current, m.character.PsiDice.Max)
+			} else {
+				m.message = "No Psi Dice remaining"
+			}
+		} else {
+			m.message = "Only Psi Warriors can use Psi Dice"
+		}
+		return m, nil
+	case "Y":
+		// Restore Psi Die (Psi Warrior only)
+		if m.character.IsPsiWarrior() {
+			if m.character.PsiDice.Current < m.character.PsiDice.Max {
+				m.character.PsiDice.Current++
+				m.message = fmt.Sprintf("Psi Die restored. Current: %d/%d", m.character.PsiDice.Current, m.character.PsiDice.Max)
+			} else {
+				m.message = "Psi Dice already at maximum"
+			}
+		} else {
+			m.message = "Only Psi Warriors can use Psi Dice"
+		}
+		return m, nil
+	case "u":
+		// Spend Superiority Die (Battle Master only)
+		if m.character.IsBattleMaster() {
+			if m.character.SuperiorityDice.Current > 0 {
+				m.character.SuperiorityDice.Current--
+				m.message = fmt.Sprintf("Superiority Die spent. Current: %d/%d", m.character.SuperiorityDice.Current, m.character.SuperiorityDice.Max)
+			} else {
+				m.message = "No Superiority Dice remaining"
+			}
+		} else {
+			m.message = "Only Battle Masters can use Superiority Dice"
+		}
+		return m, nil
+	case "U":
+		// Restore Superiority Die (Battle Master only)
+		if m.character.IsBattleMaster() {
+			if m.character.SuperiorityDice.Current < m.character.SuperiorityDice.Max {
+				m.character.SuperiorityDice.Current++
+				m.message = fmt.Sprintf("Superiority Die restored. Current: %d/%d", m.character.SuperiorityDice.Current, m.character.SuperiorityDice.Max)
+			} else {
+				m.message = "Superiority Dice already at maximum"
+			}
+		} else {
+			m.message = "Only Battle Masters can use Superiority Dice"
 		}
 		return m, nil
 	case "]", "}":
@@ -1858,14 +1968,32 @@ func (m *Model) handleToolSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.toolSelector.Hide()
 			} else {
 				// Add mode: Add tool proficiency directly (not from origin)
-				// We'll add it as a "manual" benefit
-				source := models.BenefitSource{Type: "manual", Name: "Tool Proficiency"}
+				// We'll add it as a "manual" benefit (or Student of War)
+				sourceType := "manual"
+				sourceName := "Tool Proficiency"
+				if !m.studentOfWarToolSelected && m.character.HasFeature("Student of War") {
+					sourceType = "subclass_feature"
+					sourceName = "Student of War"
+				}
+
+				source := models.BenefitSource{Type: sourceType, Name: sourceName}
 				applier := models.NewBenefitApplier(m.character)
 				applier.AddToolProficiency(source, selectedTool)
 
+				m.toolSelector.Hide()
+
+				// Check if we need to prompt for Fighter skill (Student of War)
+				if !m.studentOfWarToolSelected && m.character.HasFeature("Student of War") {
+					m.studentOfWarToolSelected = true
+
+					// Prompt for Fighter skill selection (use standard skill selector)
+					m.skillSelector.Show()
+					m.message = "Select a skill from the Fighter skill list for Student of War..."
+					return m, nil
+				}
+
 				m.message = fmt.Sprintf("Tool proficiency learned: %s!", selectedTool)
 				m.storage.Save(m.character)
-				m.toolSelector.Hide()
 			}
 		}
 	case "esc":
@@ -1916,6 +2044,55 @@ func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 	return m, cmd
 }
 
+// handleManeuverSelectorKeys handles maneuver selector specific keys
+func (m *Model) handleManeuverSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Delegate navigation and selection to the component's Update method
+	var cmd tea.Cmd
+	*m.maneuverSelector, cmd = m.maneuverSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter":
+		// Confirm selection
+		if m.maneuverSelector.CanConfirm() {
+			// Check if this is initial selection (maneuvers array was empty)
+			isInitialSelection := len(m.character.Maneuvers) == 0
+
+			m.character.Maneuvers = m.maneuverSelector.GetSelectedManeuvers()
+			m.maneuverSelector.Hide()
+
+			debug.Log("Maneuver selection complete: %v", m.character.Maneuvers)
+
+			// Only trigger Student of War flow on initial selection, not when editing
+			if isInitialSelection && m.character.HasFeature("Student of War") && !m.studentOfWarToolSelected {
+				// Set flag for Student of War flow
+				m.studentOfWarToolSelected = false
+
+				// Prompt for artisan tool selection (use standard tool selector)
+				m.toolSelector.Show()
+				m.message = "Select an artisan tool for Student of War..."
+				return m, cmd
+			}
+
+			m.message = fmt.Sprintf("Battle Master maneuvers learned: %v", m.character.Maneuvers)
+			m.storage.Save(m.character)
+		} else {
+			maneuversNeeded := 3 // Default for level 3
+			if feature := m.character.GetFeature("Combat Superiority"); feature != nil && feature.Mechanics != nil {
+				if count, ok := feature.Mechanics["maneuvers_known"].(float64); ok {
+					maneuversNeeded = int(count)
+				}
+			}
+			m.message = fmt.Sprintf("Please select %d maneuvers", maneuversNeeded)
+		}
+	case "esc":
+		// Cancel
+		m.maneuverSelector.Hide()
+		m.message = "Maneuver selection cancelled"
+	}
+
+	return m, cmd
+}
+
 // handleLevelUpSelectorKeys handles level-up selector keys
 func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	updated, cmd := m.levelUpSelector.Update(msg)
@@ -1925,6 +2102,25 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if !m.levelUpSelector.IsVisible() {
 		m.storage.Save(m.character)
 		m.character.UpdateDerivedStats()
+
+		// Check if Battle Master needs maneuver selection
+		if m.levelUpSelector.NeedsManeuverSelection {
+			debug.Log("Battle Master detected - prompting for maneuver selection")
+			m.levelUpSelector.NeedsManeuverSelection = false // Clear flag
+			m.maneuverSelector.Show(3) // Battle Master starts with 3 maneuvers
+			m.message = "Select 3 maneuvers for Battle Master..."
+			return m, cmd
+		}
+
+		// Check if Eldritch Knight needs cantrip selection
+		if m.levelUpSelector.NeedsCantripSelection {
+			debug.Log("Eldritch Knight detected - prompting for cantrip selection")
+			m.levelUpSelector.NeedsCantripSelection = false // Clear flag
+			m.cantripSelector.Show("Wizard", 2) // Eldritch Knight starts with 2 cantrips
+			m.message = "Select 2 cantrips from the Wizard spell list..."
+			return m, cmd
+		}
+
 		m.message = "Character updated!"
 	}
 
@@ -2100,26 +2296,51 @@ func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 				classLevel := m.character.Classes[len(m.character.Classes)-1].Level
 				subclassFeatures := models.GrantSubclassFeatures(m.character, className, selectedSubclass.Name, classLevel)
 				debug.Log("Granted %d subclass features: %v", len(subclassFeatures), subclassFeatures)
-			}
 
-			m.subclassSelector.Hide()
+				m.subclassSelector.Hide()
 
-			// Check if we need cantrip selection next
-			classData := models.GetClassByName(m.character.Class)
-			needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
-			debug.Log("Class %s needs cantrips: %v", m.character.Class, needsCantrips)
+				// Handle Fighter subclass-specific prompts
+				debug.Log("Checking for Fighter subclass prompts: className='%s', subclass='%s'", className, selectedSubclass.Name)
 
-			if needsCantrips {
-				// Show cantrip selector
-				debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
-				m.cantripSelector.Show(m.character.Class, classData.Spellcasting.CantripsKnown)
-				m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, m.character.Class)
-			} else {
-				// Complete class selection
-				debug.Log("Saving character and completing class selection")
-				m.pendingChanges.Clear()
-				m.storage.Save(m.character)
-				m.message = fmt.Sprintf("Class setup complete! %s - %s (HP: %d/%d)", m.character.Class, selectedSubclass.Name, m.character.CurrentHP, m.character.MaxHP)
+				if className == "Fighter" {
+					debug.Log("Fighter detected, checking subclass type")
+					switch selectedSubclass.Name {
+					case "Eldritch Knight":
+						// Eldritch Knight: Prompt for 2 cantrips from Wizard list
+						debug.Log("Eldritch Knight selected - prompting for cantrips")
+						m.cantripSelector.Show("Wizard", 2)
+						m.message = "Select 2 cantrips from the Wizard spell list..."
+						return m, cmd
+					case "Battle Master":
+						// Battle Master: Prompt for 3 maneuvers
+						debug.Log("Battle Master selected - prompting for maneuvers")
+						m.maneuverSelector.Show(3)
+						m.message = "Select 3 maneuvers for Battle Master..."
+						return m, cmd
+					default:
+						debug.Log("Fighter subclass '%s' doesn't require special prompts", selectedSubclass.Name)
+					}
+				} else {
+					debug.Log("Not a Fighter, className='%s'", className)
+				}
+
+				// Check if we need cantrip selection next (for other spellcasters)
+				classData := models.GetClassByName(m.character.Class)
+				needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
+				debug.Log("Class %s needs cantrips: %v", m.character.Class, needsCantrips)
+
+				if needsCantrips {
+					// Show cantrip selector
+					debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
+					m.cantripSelector.Show(m.character.Class, classData.Spellcasting.CantripsKnown)
+					m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, m.character.Class)
+				} else {
+					// Complete class selection
+					debug.Log("Saving character and completing class selection")
+					m.pendingChanges.Clear()
+					m.storage.Save(m.character)
+					m.message = fmt.Sprintf("Class setup complete! %s - %s (HP: %d/%d)", m.character.Class, selectedSubclass.Name, m.character.CurrentHP, m.character.MaxHP)
+				}
 			}
 		}
 	case "esc":
@@ -2280,6 +2501,40 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.character.SpellBook.CantripsKnown = len(selectedCantrips)
 
 			m.cantripSelector.Hide()
+
+			// Check if Eldritch Knight needs spell selection
+			if m.character.IsEldritchKnight() {
+				debug.Log("Eldritch Knight - prompting for spell selection (3 spells total)")
+				// Initialize spell selection state
+				m.eldritchKnightSpellsSelected = 0
+				m.eldritchKnightSpells = []models.Spell{}
+
+				// Load all Wizard level 1 spells
+				allSpells, err := models.LoadSpellsFromJSON("data/spells.json")
+				if err != nil {
+					debug.Log("Error loading spells: %v", err)
+					m.message = "Error loading spells"
+					return m, cmd
+				}
+
+				// Filter to Wizard, level 1 spells
+				wizardSpells := []models.Spell{}
+				for _, spell := range allSpells {
+					if spell.Level == 1 {
+						for _, class := range spell.Classes {
+							if class == "Wizard" {
+								wizardSpells = append(wizardSpells, spell)
+								break
+							}
+						}
+					}
+				}
+
+				m.spellSelector.SetSpells(wizardSpells, "SELECT SPELL 1/3 (Wizard Level 1)")
+				m.spellSelector.Show()
+				m.message = "Select 3 Wizard spells (2 must be Abjuration or Evocation)..."
+				return m, cmd
+			}
 
 			// Check for weapon mastery
 			masteryCount := m.getWeaponMasteryCount()
@@ -2464,22 +2719,30 @@ func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Use the helper function to add and track the species skill
 			models.AddSpeciesSkillChoice(m.character, skillType)
 
-			// After skill selection, check if we need spell or feat selection
-			species := models.GetSpeciesByName(m.character.Race)
-			if species != nil && models.HasSpellChoice(species) {
-				// Show wizard cantrip selector for High Elf
-				cantrips := models.GetWizardCantrips()
-				m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
-				m.spellSelector.Show()
-				m.message = "Select your wizard cantrip..."
-			} else if species != nil && models.HasFeatChoice(species) {
-				// Show feat selector for origin feat
-				m.featSelector.Show(m.character, true)
-				m.message = "Select your origin feat..."
-			} else {
-				m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
-				// Save when selection is complete (no more selections needed)
+			// Check if this is Student of War skill selection
+			if m.studentOfWarToolSelected {
+				m.message = "Battle Master Student of War setup complete!"
+				m.studentOfWarToolSelected = false
+				m.pendingChanges.Clear()
 				m.storage.Save(m.character)
+			} else {
+				// After skill selection, check if we need spell or feat selection
+				species := models.GetSpeciesByName(m.character.Race)
+				if species != nil && models.HasSpellChoice(species) {
+					// Show wizard cantrip selector for High Elf
+					cantrips := models.GetWizardCantrips()
+					m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+					m.spellSelector.Show()
+					m.message = "Select your wizard cantrip..."
+				} else if species != nil && models.HasFeatChoice(species) {
+					// Show feat selector for origin feat
+					m.featSelector.Show(m.character, true)
+					m.message = "Select your origin feat..."
+				} else {
+					m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
+					// Save when selection is complete (no more selections needed)
+					m.storage.Save(m.character)
+				}
 			}
 		}
 		m.skillSelector.Hide()
@@ -2500,6 +2763,105 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		selectedSpell := m.spellSelector.GetSelectedSpell()
 		if selectedSpell.Name != "" {
+			// Check if we're in Eldritch Knight spell selection mode
+			if m.character.IsEldritchKnight() && m.eldritchKnightSpellsSelected < 3 {
+				// Check if spell is already selected
+				alreadySelected := false
+				for _, spell := range m.eldritchKnightSpells {
+					if spell.Name == selectedSpell.Name {
+						alreadySelected = true
+						break
+					}
+				}
+
+				if !alreadySelected {
+					m.eldritchKnightSpells = append(m.eldritchKnightSpells, selectedSpell)
+					m.eldritchKnightSpellsSelected++
+					debug.Log("Eldritch Knight spell %d/3 selected: %s (School: %s)", m.eldritchKnightSpellsSelected, selectedSpell.Name, selectedSpell.School)
+
+					if m.eldritchKnightSpellsSelected < 3 {
+						// Continue selecting more spells
+						m.spellSelector.Hide()
+
+						// Load all Wizard level 1 spells again
+						allSpells, err := models.LoadSpellsFromJSON("data/spells.json")
+						if err != nil {
+							debug.Log("Error loading spells: %v", err)
+							m.message = "Error loading spells"
+							return m, nil
+						}
+
+						// Filter to Wizard, level 1 spells
+						wizardSpells := []models.Spell{}
+						for _, spell := range allSpells {
+							if spell.Level == 1 {
+								for _, class := range spell.Classes {
+									if class == "Wizard" {
+										wizardSpells = append(wizardSpells, spell)
+										break
+									}
+								}
+							}
+						}
+
+						m.spellSelector.SetSpells(wizardSpells, fmt.Sprintf("SELECT SPELL %d/3 (Wizard Level 1)", m.eldritchKnightSpellsSelected+1))
+						m.spellSelector.Show()
+						m.message = fmt.Sprintf("Spell %d/3 selected: %s", m.eldritchKnightSpellsSelected, selectedSpell.Name)
+						return m, nil
+					} else {
+						// All 3 spells selected, validate and add
+						m.spellSelector.Hide()
+
+						// Count Abjuration/Evocation spells
+						abjEvocCount := 0
+						for _, spell := range m.eldritchKnightSpells {
+							if spell.School == "Abjuration" || spell.School == "Evocation" {
+								abjEvocCount++
+							}
+						}
+
+						if abjEvocCount < 2 {
+							m.message = fmt.Sprintf("ERROR: Need at least 2 Abjuration/Evocation spells (found %d). Please restart.", abjEvocCount)
+							m.eldritchKnightSpells = []models.Spell{}
+							m.eldritchKnightSpellsSelected = 0
+							return m, nil
+						}
+
+						// Add all spells to spellbook
+						for _, spell := range m.eldritchKnightSpells {
+							m.character.SpellBook.AddSpell(spell)
+							debug.Log("Added Eldritch Knight spell: %s", spell.Name)
+						}
+
+						// Clear temporary state
+						m.eldritchKnightSpells = []models.Spell{}
+						m.eldritchKnightSpellsSelected = 0
+
+						// Check for weapon mastery
+						masteryCount := m.getWeaponMasteryCount()
+						debug.Log("After EK spells, checking weapon mastery: count=%d", masteryCount)
+
+						if masteryCount > 0 {
+							// Show weapon mastery selector
+							debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+							m.weaponMasterySelector.Show(masteryCount)
+							m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+						} else {
+							// Complete class selection
+							debug.Log("Saving character and completing class selection")
+							m.pendingChanges.Clear() // Clear backup on successful completion
+							m.storage.Save(m.character)
+							m.message = "Eldritch Knight setup complete! 3 spells learned."
+						}
+						return m, nil
+					}
+				} else {
+					m.message = fmt.Sprintf("You already selected %s", selectedSpell.Name)
+					return m, nil
+				}
+			}
+
+			// Normal spell selection (for species/origin)
 			// Check if character already has this spell
 			hasSpell := false
 			for _, existing := range m.character.SpellBook.Spells {
@@ -2533,8 +2895,19 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.spellSelector.Hide()
 	case "esc":
-		m.spellSelector.Hide()
-		m.message = "Spell selection cancelled"
+		// Check if we're cancelling Eldritch Knight spell selection
+		if m.character.IsEldritchKnight() && m.eldritchKnightSpellsSelected > 0 {
+			debug.Log("Eldritch Knight spell selection cancelled, rolling back changes")
+			m.eldritchKnightSpells = []models.Spell{}
+			m.eldritchKnightSpellsSelected = 0
+			m.spellSelector.Hide()
+			m.pendingChanges.RestoreClass(m.character)
+			m.storage.Save(m.character)
+			m.message = "Eldritch Knight selection cancelled - restored previous state"
+		} else {
+			m.spellSelector.Hide()
+			m.message = "Spell selection cancelled"
+		}
 	}
 	return m, nil
 }
@@ -2632,6 +3005,15 @@ func (m *Model) handleMasteryDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 	case "esc", "enter":
 		m.masteryDetailPopup.Hide()
 		m.message = "Closed weapon mastery details"
+	}
+	return m, nil
+}
+
+func (m *Model) handleManeuverDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.maneuverDetailPopup.Hide()
+		m.message = "Closed maneuver details"
 	}
 	return m, nil
 }
@@ -3116,6 +3498,11 @@ func (m *Model) View() string {
 		return m.masteryDetailPopup.View(m.width, m.height)
 	}
 
+	// Maneuver detail popup (Medium)
+	if m.maneuverDetailPopup.IsVisible() {
+		return m.maneuverDetailPopup.View(m.width, m.height)
+	}
+
 	// Item detail popup (Medium)
 	if m.itemDetailPopup.IsVisible() {
 		return m.itemDetailPopup.View(m.width, m.height)
@@ -3159,6 +3546,11 @@ func (m *Model) View() string {
 	// Weapon mastery selector takes fifth priority (Medium)
 	if m.weaponMasterySelector.IsVisible() {
 		return m.weaponMasterySelector.View()
+	}
+
+	// Maneuver selector (Medium)
+	if m.maneuverSelector.IsVisible() {
+		return m.maneuverSelector.View()
 	}
 
 	// Level-up selector takes sixth priority (Medium/Large)

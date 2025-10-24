@@ -547,6 +547,61 @@ func applySubclassFeatureBenefits(char *Character, featureName string, subclassN
 		} else {
 			debug.Log("  Warning: Elementalism cantrip not found")
 		}
+
+	case "Psionic Power":
+		// Psi Warrior: Initialize Psi Dice
+		debug.Log("  Applying Psionic Power benefits - Initializing Psi Dice")
+		fighterLevel := char.GetFighterLevel()
+
+		// Get psi dice count and size from scaling tables
+		psiDiceCount := GetFeatureScaling("Psi Warrior", "Psionic Power", fighterLevel)
+		psiDiceSize := GetPsiDiceSize(fighterLevel)
+
+		char.PsiDice.Max = psiDiceCount
+		char.PsiDice.Current = psiDiceCount // Start fully charged
+		char.PsiDice.Size = psiDiceSize
+
+		debug.Log("  Initialized Psi Dice: %d%s (%d/%d)", psiDiceCount, psiDiceSize, char.PsiDice.Current, char.PsiDice.Max)
+
+	case "Combat Superiority":
+		// Battle Master: Initialize Superiority Dice
+		debug.Log("  Applying Combat Superiority benefits - Initializing Superiority Dice")
+		fighterLevel := char.GetFighterLevel()
+
+		// Get superiority dice count and size from scaling tables
+		supDiceCount := GetFeatureScaling("Battle Master", "Combat Superiority", fighterLevel)
+		supDiceSize := GetSuperiorityDiceSize(fighterLevel)
+
+		char.SuperiorityDice.Max = supDiceCount
+		char.SuperiorityDice.Current = supDiceCount // Start fully charged
+		char.SuperiorityDice.Size = supDiceSize
+
+		debug.Log("  Initialized Superiority Dice: %d%s (%d/%d)", supDiceCount, supDiceSize, char.SuperiorityDice.Current, char.SuperiorityDice.Max)
+
+	case "Spellcasting":
+		// Eldritch Knight: Set up spellcasting
+		if subclassName == "Eldritch Knight" {
+			debug.Log("  Applying Eldritch Knight Spellcasting benefits")
+			fighterLevel := char.GetFighterLevel()
+
+			// Initialize spell slots for level 3
+			if fighterLevel == 3 {
+				// Set spellcasting ability
+				char.SpellBook.SpellcastingMod = Intelligence
+
+				// Grant 2 level 1 spell slots
+				char.SpellBook.Slots.Level1.Maximum = 2
+				char.SpellBook.Slots.Level1.Current = 2
+
+				debug.Log("  Set up Eldritch Knight spellcasting: 2x 1st level slots, Intelligence ability")
+
+				// Note: Cantrip and spell selection will be prompted in the UI
+			}
+		}
+
+	case "Student of War":
+		// Battle Master: This will be handled in the UI to prompt for tool/skill selection
+		debug.Log("  Student of War benefits will be handled in UI")
 	}
 }
 
@@ -615,6 +670,48 @@ func removeSubclassFeatureBenefits(char *Character, featureName string, subclass
 				break
 			}
 		}
+
+	case "Psionic Power":
+		// Psi Warrior: Clear Psi Dice
+		debug.Log("  Removing Psionic Power benefits - Clearing Psi Dice")
+		char.PsiDice.Max = 0
+		char.PsiDice.Current = 0
+		char.PsiDice.Size = ""
+		debug.Log("  Cleared Psi Dice")
+
+	case "Combat Superiority":
+		// Battle Master: Clear Superiority Dice and Maneuvers
+		debug.Log("  Removing Combat Superiority benefits - Clearing Superiority Dice and Maneuvers")
+		char.SuperiorityDice.Max = 0
+		char.SuperiorityDice.Current = 0
+		char.SuperiorityDice.Size = ""
+		char.Maneuvers = []string{}
+		debug.Log("  Cleared Superiority Dice and Maneuvers")
+
+	case "Spellcasting":
+		// Eldritch Knight: Remove spellcasting (if this is level 3 Fighter removal)
+		if subclassName == "Eldritch Knight" {
+			debug.Log("  Removing Eldritch Knight Spellcasting benefits")
+
+			// Clear spell slots
+			char.SpellBook.Slots.Level1.Maximum = 0
+			char.SpellBook.Slots.Level1.Current = 0
+
+			// Remove Eldritch Knight cantrips and spells
+			// Note: This is a simplified approach. In a real implementation,
+			// you might want to track which spells came from Eldritch Knight specifically
+			char.SpellBook.Cantrips = []string{}
+			char.SpellBook.CantripsKnown = 0
+			char.SpellBook.Spells = []Spell{}
+
+			debug.Log("  Cleared Eldritch Knight spellcasting")
+		}
+
+	case "Student of War":
+		// Battle Master: Remove tool/skill proficiency
+		// Note: This is handled by the benefit tracker in RemoveAllBenefits
+		debug.Log("  Removing Student of War benefits")
+		remover.RemoveAllBenefits(source.Type, source.Name)
 	}
 }
 

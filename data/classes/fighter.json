@@ -341,69 +341,129 @@
   ],
   "subclasses": [
     {
-      "name": "Battle Master",
-      "description": "Those who emulate the archetypal Battle Master employ martial techniques passed down through generations. To a Battle Master, combat is an academic field, sometimes including subjects beyond battle such as weaponsmithing and calligraphy. Not every fighter absorbs the lessons of history, theory, and artistry that are reflected in the Battle Master archetype, but those who do are well-rounded fighters of great skill and knowledge.",
-      "subclass_level": 3,
-      "features": [
-        {
-          "name": "Combat Superiority",
-          "description": "You learn maneuvers that are fueled by special dice called superiority dice. Maneuvers: You learn three maneuvers of your choice. You learn two additional maneuvers at 7th, 10th, and 15th level. Superiority Dice: You have four superiority dice, which are d8s. A superiority die is expended when you use it. You regain all of your expended superiority dice when you finish a short or long rest.",
-          "uses_formula": "4",
-          "rest_type": "Short Rest"
-        },
-        {
-          "name": "Student of War",
-          "description": "You gain proficiency with one type of artisan's tools of your choice.",
-          "uses_formula": "0",
-          "rest_type": "None"
-        }
-      ]
-    },
-    {
       "name": "Champion",
       "description": "The archetypal Champion focuses on the development of raw physical power honed to deadly perfection. Those who model themselves on this archetype combine rigorous training with physical excellence to deal devastating blows.",
       "subclass_level": 3,
-      "features": [
-        {
-          "name": "Improved Critical",
-          "description": "Beginning when you choose this archetype at 3rd level, your weapon attacks score a critical hit on a roll of 19 or 20.",
-          "uses_formula": "0",
-          "rest_type": "None"
-        }
-      ]
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Improved Critical",
+            "description": "Beginning when you choose this archetype at 3rd level, your weapon attacks score a critical hit on a roll of 19 or 20.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "critical_range": 19
+            }
+          },
+          {
+            "name": "Remarkable Athlete",
+            "description": "Starting at 3rd level, you have advantage on initiative rolls. Additionally, when you make a running long jump, the distance you can cover increases by a number of feet equal to your Strength modifier. You also have advantage on Athletics checks.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "initiative_advantage": true,
+              "athletics_advantage": true
+            }
+          }
+        ]
+      }
     },
     {
       "name": "Eldritch Knight",
       "description": "The archetypal Eldritch Knight combines the martial mastery common to all fighters with a careful study of magic. Eldritch Knights use magical techniques similar to those practiced by wizards. They focus their study on two of the eight schools of magic: abjuration and evocation.",
       "subclass_level": 3,
-      "features": [
-        {
-          "name": "Spellcasting",
-          "description": "You augment your martial prowess with the ability to cast spells. You learn two cantrips of your choice from the wizard spell list. You learn additional wizard cantrips at higher levels. You know three 1st-level wizard spells of your choice, two of which you must choose from the abjuration and evocation schools.",
-          "uses_formula": "0",
-          "rest_type": "None"
-        },
-        {
-          "name": "Weapon Bond",
-          "description": "You learn a ritual that creates a magical bond between yourself and one weapon. You perform the ritual over the course of 1 hour. The weapon must be within your reach throughout the ritual. You can have up to two bonded weapons, but can summon only one at a time with your bonus action.",
-          "uses_formula": "0",
-          "rest_type": "None"
-        }
-      ],
-      "expanded_spells": []
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Spellcasting",
+            "description": "You augment your martial prowess with the ability to cast spells. You learn two cantrips of your choice from the wizard spell list. You know three 1st-level wizard spells of your choice, two of which you must choose from the abjuration and evocation schools. You have two 1st-level spell slots.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "cantrips_known": 2,
+              "spells_known": 3,
+              "spell_slots_1": 2,
+              "spellcasting_ability": "Intelligence",
+              "spell_list": "Wizard",
+              "spell_restrictions": "2 from Abjuration or Evocation"
+            }
+          },
+          {
+            "name": "Weapon Bond",
+            "description": "You learn a ritual that creates a magical bond between yourself and one weapon. You perform the ritual over the course of 1 hour. The weapon must be within your reach throughout the ritual. Once bonded, you can't be disarmed of that weapon unless you are incapacitated. You can summon a bonded weapon as a bonus action, causing it to teleport instantly to your hand.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ]
+      }
     },
     {
       "name": "Psi Warrior",
-      "description": "Awake to the psionic power within, a Psi Warrior is a fighter who augments their physical might with psi-infused weapon strikes, telekinetic lashes, and barriers of mental force. Many githyanki train to become such warriors, as do some of the most disciplined high elves.",
+      "description": "Awake to the psionic power within, a Psi Warrior is a fighter who augments their physical might with psi-infused weapon strikes, telekinetic lashes, and barriers of mental force.",
       "subclass_level": 3,
-      "features": [
-        {
-          "name": "Psionic Power",
-          "description": "You harbor a wellspring of psionic energy within yourself. This energy is represented by your Psionic Energy dice, which are each a d6. You have a number of these dice equal to twice your proficiency bonus. You can use these dice for Protective Field, Psionic Strike, and Telekinetic Movement.",
-          "uses_formula": "proficiency*2",
-          "rest_type": "Long Rest"
-        }
-      ]
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Psionic Power",
+            "description": "You harbor a wellspring of psionic energy within yourself. This energy is represented by your Psionic Energy dice. At 3rd level, you have 4 Psionic Energy dice (d6). You regain all expended dice after a long rest, and you regain 1 die after a short rest.",
+            "uses_formula": "psi_dice_scaling",
+            "rest_type": "Long Rest",
+            "mechanics": {
+              "psi_dice_count": 4,
+              "psi_dice_size": "d6",
+              "short_rest_recovery": 1
+            }
+          },
+          {
+            "name": "Protective Field",
+            "description": "When you or another creature you can see within 30 feet of you takes damage, you can use your reaction to expend one Psionic Energy die, rolling the die and reducing the damage taken by the number rolled plus your Intelligence modifier (minimum reduction of 1).",
+            "uses_formula": "0",
+            "rest_type": "None"
+          },
+          {
+            "name": "Psionic Strike",
+            "description": "Once on each of your turns when you hit a target with a weapon attack, you can expend one Psionic Energy die to deal extra force damage to the target equal to the die roll plus your Intelligence modifier.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          },
+          {
+            "name": "Telekinetic Movement",
+            "description": "You can move an object or a creature with your mind. As an action, you expend one Psionic Energy die and target one object or willing creature you can see within 30 feet. If the target weighs up to 60 pounds, you can move it up to 30 feet in any direction (including upward).",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Battle Master",
+      "description": "Those who emulate the archetypal Battle Master employ martial techniques passed down through generations. To a Battle Master, combat is an academic field, sometimes including subjects beyond battle such as weaponsmithing and calligraphy.",
+      "subclass_level": 3,
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Combat Superiority",
+            "description": "You learn maneuvers that are fueled by special dice called superiority dice. At 3rd level, you learn 3 maneuvers and have 4 superiority dice (d8). A superiority die is expended when you use it. You regain all expended superiority dice when you finish a short or long rest. The save DC for your maneuvers is 8 + your proficiency bonus + your Strength or Dexterity modifier (your choice).",
+            "uses_formula": "superiority_dice_scaling",
+            "rest_type": "Short Rest",
+            "mechanics": {
+              "superiority_dice_count": 4,
+              "superiority_dice_size": "d8",
+              "maneuvers_known": 3
+            }
+          },
+          {
+            "name": "Student of War",
+            "description": "You gain proficiency with one type of artisan's tools of your choice. Additionally, you gain proficiency in one skill from the Fighter skill list that you don't already have.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "grant_tool_proficiency": 1,
+              "grant_fighter_skill": 1
+            }
+          }
+        ]
+      }
     }
   ]
 }

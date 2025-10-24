@@ -104,6 +104,30 @@ func (p *FeaturesPanel) View(width, height int) string {
 				}
 			}
 
+			// Show Psi Dice for Psi Warrior
+			if p.character.IsPsiWarrior() && p.character.PsiDice.Max > 0 {
+				psiStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("135")).Bold(true)
+				psiValueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
+				psiLine := psiStyle.Render("🧠 Psi Dice: ") + psiValueStyle.Render(fmt.Sprintf("1%s", p.character.PsiDice.Size)) +
+					normalStyle.Render(fmt.Sprintf(" (%d/%d)", p.character.PsiDice.Current, p.character.PsiDice.Max)) +
+					normalStyle.Render(" (Long Rest, 1/Short) ") +
+					lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("[y/Y to use/restore]")
+				content = append(content, psiLine)
+				content = append(content, "")
+			}
+
+			// Show Superiority Dice for Battle Master
+			if p.character.IsBattleMaster() && p.character.SuperiorityDice.Max > 0 {
+				supStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
+				supValueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
+				supLine := supStyle.Render("⚔ Superiority Dice: ") + supValueStyle.Render(fmt.Sprintf("1%s", p.character.SuperiorityDice.Size)) +
+					normalStyle.Render(fmt.Sprintf(" (%d/%d)", p.character.SuperiorityDice.Current, p.character.SuperiorityDice.Max)) +
+					normalStyle.Render(" (Short Rest) ") +
+					lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("[u/U to use/restore]")
+				content = append(content, supLine)
+				content = append(content, "")
+			}
+
 			// Group consumable by rest type
 			shortRest := []models.Feature{}
 			longRest := []models.Feature{}
