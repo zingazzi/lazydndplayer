@@ -414,6 +414,28 @@ func (p *TraitsPanel) Next() {
 		if p.selectedIndex < len(p.character.MasteredWeapons)-1 {
 			p.selectedIndex++
 			p.viewport.LineDown(5) // More space because of descriptions
+		} else if len(p.character.Maneuvers) > 0 {
+			// Move to maneuvers section
+			p.selectedType = "maneuver"
+			p.selectedIndex = 0
+			p.viewport.LineDown(3)
+		} else if len(p.character.Resistances) > 0 {
+			// Move to resistances section
+			p.selectedType = "resistance"
+			p.selectedIndex = 0
+		} else if len(p.character.Feats) > 0 {
+			// Move to feats section
+			p.selectedType = "feat"
+			p.selectedIndex = 0
+		} else if len(p.character.SpeciesTraits) > 0 {
+			// Move to traits section
+			p.selectedType = "trait"
+			p.selectedIndex = 0
+		}
+	} else if p.selectedType == "maneuver" {
+		if p.selectedIndex < len(p.character.Maneuvers)-1 {
+			p.selectedIndex++
+			p.viewport.LineDown(2)
 		} else if len(p.character.Resistances) > 0 {
 			// Move to resistances section
 			p.selectedType = "resistance"
@@ -520,6 +542,11 @@ func (p *TraitsPanel) Prev() {
 			// Move to resistances section
 			p.selectedType = "resistance"
 			p.selectedIndex = len(p.character.Resistances) - 1
+		} else if len(p.character.Maneuvers) > 0 {
+			// Move to maneuvers section
+			p.selectedType = "maneuver"
+			p.selectedIndex = len(p.character.Maneuvers) - 1
+			p.viewport.LineUp(3)
 		} else if len(p.character.MasteredWeapons) > 0 {
 			// Move to weapon mastery section
 			p.selectedType = "mastery"
@@ -534,6 +561,25 @@ func (p *TraitsPanel) Prev() {
 		if p.selectedIndex > 0 {
 			p.selectedIndex--
 			p.viewport.LineUp(3)
+		} else if len(p.character.Maneuvers) > 0 {
+			// Move to maneuvers section
+			p.selectedType = "maneuver"
+			p.selectedIndex = len(p.character.Maneuvers) - 1
+			p.viewport.LineUp(3)
+		} else if len(p.character.MasteredWeapons) > 0 {
+			// Move to weapon mastery section
+			p.selectedType = "mastery"
+			p.selectedIndex = len(p.character.MasteredWeapons) - 1
+			p.viewport.LineUp(3)
+		} else if len(p.character.Languages) > 0 {
+			// Move to languages section
+			p.selectedType = "language"
+			p.selectedIndex = len(p.character.Languages) - 1
+		}
+	} else if p.selectedType == "maneuver" {
+		if p.selectedIndex > 0 {
+			p.selectedIndex--
+			p.viewport.LineUp(2)
 		} else if len(p.character.MasteredWeapons) > 0 {
 			// Move to weapon mastery section
 			p.selectedType = "mastery"

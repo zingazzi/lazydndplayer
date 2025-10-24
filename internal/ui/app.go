@@ -1230,12 +1230,18 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleTraitsPanel: key=%s", msg.String())
 	switch msg.String() {
-	case "up", "k":
+	case "up":
 		// Scroll viewport up freely
 		m.traitsPanel.ScrollUp()
-	case "down", "j":
+	case "down":
 		// Scroll viewport down freely
 		m.traitsPanel.ScrollDown()
+	case "j":
+		// Navigate to next selectable item
+		m.traitsPanel.Next()
+	case "k":
+		// Navigate to previous selectable item
+		m.traitsPanel.Prev()
 	case "ctrl+u", "pgup":
 		// Page up
 		m.traitsPanel.PageUp()
@@ -1336,6 +1342,9 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			debug.Log("handleTraitsPanel: Showing maneuver selector for %d maneuvers", maneuverCount)
 			// Clear Student of War flag to prevent prompting for tool/skill
 			m.studentOfWarToolSelected = false
+			// Load current maneuvers into selector before showing
+			m.maneuverSelector.SetSelectedManeuvers(m.character.Maneuvers)
+			debug.Log("handleTraitsPanel: Loaded %d existing maneuvers", len(m.character.Maneuvers))
 			m.maneuverSelector.Show(maneuverCount)
 			m.message = fmt.Sprintf("Select up to %d maneuvers...", maneuverCount)
 		} else {
@@ -3162,7 +3171,16 @@ func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
 		case FeaturesPanel:
 			return "Features", components.GetFeaturesBindings()
 		case TraitsPanel:
-			return "Traits", components.GetTraitsBindings()
+			// Dynamic bindings for Traits panel based on character state
+			bindings := components.GetTraitsBindings()
+			// Add maneuver management key if character has maneuvers
+			if m.character.IsBattleMaster() && len(m.character.Maneuvers) > 0 {
+				bindings = append(bindings, components.HelpBinding{
+					Key:  "n",
+					Desc: "Manage Battle Master maneuvers",
+				})
+			}
+			return "Traits", bindings
 		case OriginPanel:
 			return "Origin", components.GetGeneralBindings()
 		}
