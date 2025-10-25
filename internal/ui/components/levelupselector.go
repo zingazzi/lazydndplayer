@@ -40,6 +40,7 @@ type LevelUpSelector struct {
 	message           string
 	backup            *models.Character // For rollback
 	subclassSelector  *SubclassSelector
+	featSelector      *FeatSelector     // For ASI feat selection
 	// ASI-related fields
 	requiresASI       bool
 	selectedASIType   string // "ability" or "feat"
@@ -57,6 +58,7 @@ func NewLevelUpSelector(char *models.Character) *LevelUpSelector {
 		character:        char,
 		takeAverage:      true, // Default to taking average HP
 		subclassSelector: NewSubclassSelector(char),
+		featSelector:     NewFeatSelector(),
 	}
 }
 
@@ -121,6 +123,55 @@ func (ls *LevelUpSelector) loadAvailableClasses() {
 // Update handles key presses
 func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 	if !ls.visible {
+		return *ls, nil
+	}
+
+	// If feat selector is visible, delegate to it
+	if ls.featSelector.IsVisible() {
+		// Feat selector doesn't have an Update method, handle keys manually
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "up", "k":
+				ls.featSelector.Prev()
+			case "down", "j":
+				ls.featSelector.Next()
+			case "left", "h":
+				ls.featSelector.PrevCategory()
+			case "right", "l":
+				ls.featSelector.NextCategory()
+			case "pgup", "ctrl+u":
+				ls.featSelector.PageUp()
+			case "pgdown", "ctrl+d":
+				ls.featSelector.PageDown()
+			case "enter":
+				selectedFeat := ls.featSelector.GetSelectedFeat()
+				if selectedFeat != nil {
+					// Apply ASI choice
+					classLevelData := ls.character.GetClassLevelStruct(ls.selectedClass)
+					if classLevelData != nil {
+						choice := models.ASIChoice{
+							Type:     "feat",
+							FeatName: selectedFeat.Name,
+						}
+
+						if err := models.ApplyASIChoice(ls.character, ls.selectedClass, classLevelData.Level, choice); err != nil {
+							ls.message = fmt.Sprintf("Error applying feat: %s", err.Error())
+							ls.featSelector.Hide()
+							return *ls, nil
+						}
+
+						ls.selectedFeat = selectedFeat.Name
+						ls.featSelector.Hide()
+						ls.state = LevelUpComplete
+					}
+				}
+			case "esc":
+				ls.featSelector.Hide()
+				ls.state = LevelUpSelectASI
+				ls.cursor = 0
+			}
+		}
 		return *ls, nil
 	}
 
@@ -194,8 +245,6 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 			return ls.handleASISelection(msg)
 		case LevelUpSelectAbilities:
 			return ls.handleAbilitySelection(msg)
-		case LevelUpSelectFeat:
-			return ls.handleFeatSelection(msg)
 		case LevelUpComplete:
 			if msg.String() == "enter" || msg.String() == "esc" {
 				ls.Hide()
@@ -344,6 +393,19 @@ func (ls *LevelUpSelector) Rollback() {
 
 // View renders the level-up selector
 func (ls *LevelUpSelector) View() string {
+	// If feat selector is visible, show it
+	if ls.featSelector.IsVisible() {
+		popupMediumWidth := int(float64(120) * 0.75)
+		popupMediumHeight := int(float64(40) * 0.80)
+		if popupMediumWidth < 80 {
+			popupMediumWidth = 80
+		}
+		if popupMediumHeight < 25 {
+			popupMediumHeight = 25
+		}
+		return ls.featSelector.View(popupMediumWidth, popupMediumHeight)
+	}
+
 	// If subclass selector is visible, show it
 	if ls.subclassSelector.IsVisible() {
 		return ls.subclassSelector.View()
@@ -513,43 +575,6 @@ func (ls *LevelUpSelector) View() string {
 		content += "\n" + normalStyle.Render(fmt.Sprintf("Points allocated: %d/2", totalAllocated)) + "\n"
 		content += "\n" + dimStyle.Render("↑/↓: Navigate • +/-: Add/Remove point • Enter: Confirm • Esc: Back")
 
-	case LevelUpSelectFeat:
-		content += titleStyle.Render("SELECT FEAT") + "\n\n"
-
-		if len(ls.availableFeats) == 0 {
-			// Load available feats if not already loaded
-			ls.availableFeats = models.GetAvailableFeatsForASI(ls.character)
-		}
-
-		if len(ls.availableFeats) == 0 {
-			content += dimStyle.Render("No feats available") + "\n"
-		} else {
-			// Show feats in a scrollable list
-			for i, feat := range ls.availableFeats {
-				if i >= 10 { // Limit display
-					content += dimStyle.Render(fmt.Sprintf("... and %d more", len(ls.availableFeats)-10)) + "\n"
-					break
-				}
-
-				cursor := "  "
-				style := normalStyle
-				if i == ls.cursor {
-					cursor = "❯ "
-					style = selectedStyle
-				}
-
-				prereq := feat.Prerequisite
-				if prereq == "None" || prereq == "" {
-					prereq = "No prerequisite"
-				}
-
-				content += style.Render(fmt.Sprintf("%s%s", cursor, feat.Name)) + "\n"
-				content += dimStyle.Render(fmt.Sprintf("    %s", prereq)) + "\n"
-			}
-		}
-
-		content += "\n" + dimStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Back")
-
 	case LevelUpComplete:
 		content += titleStyle.Render("LEVEL UP COMPLETE!") + "\n\n"
 
@@ -615,11 +640,10 @@ func (ls *LevelUpSelector) handleASISelection(msg tea.KeyMsg) (LevelUpSelector, 
 			ls.state = LevelUpSelectAbilities
 			ls.cursor = 0
 		} else {
-			// Feat
+			// Feat - show the feat selector
 			ls.selectedASIType = "feat"
-			ls.availableFeats = models.GetAvailableFeatsForASI(ls.character)
-			ls.state = LevelUpSelectFeat
-			ls.cursor = 0
+			ls.featSelector.Show(ls.character, false) // false = not origin feat
+			// State remains at LevelUpSelectASI, but feat selector is shown
 		}
 	case "esc":
 		// Cancel level-up
