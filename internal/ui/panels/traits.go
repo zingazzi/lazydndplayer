@@ -213,9 +213,6 @@ func (p *TraitsPanel) View(width, height int) string {
 		rightCol = append(rightCol, masteryInfo)
 		rightCol = append(rightCol, "")
 
-		// Debug: Check MasteredWeapons array
-		debug.Log("TraitsPanel.View: MasteredWeapons count=%d, weapons=%v", len(p.character.MasteredWeapons), p.character.MasteredWeapons)
-
 		// Show currently mastered weapons with descriptions
 		if len(p.character.MasteredWeapons) > 0 {
 		masteredStyle := lipgloss.NewStyle().
@@ -225,15 +222,7 @@ func (p *TraitsPanel) View(width, height int) string {
 		rightCol = append(rightCol, "")
 
 		for i, weapon := range p.character.MasteredWeapons {
-				debug.Log("TraitsPanel.View: Processing weapon[%d]='%s'", i, weapon)
 				itemDef := models.GetItemDefinitionByName(weapon)
-				debug.Log("TraitsPanel.View: itemDef=%v, mastery='%s'", itemDef != nil, func() string {
-					if itemDef != nil {
-						return itemDef.Mastery
-					}
-					return "N/A"
-				}())
-
 				isSelected := p.selectedType == "mastery" && i == p.selectedIndex
 
 				if itemDef != nil && itemDef.Mastery != "" {
@@ -246,7 +235,6 @@ func (p *TraitsPanel) View(width, height int) string {
 					}
 				} else {
 					// Weapon without mastery property (or not found)
-					debug.Log("TraitsPanel.View: Weapon '%s' not found or no mastery", weapon)
 					weaponLine := fmt.Sprintf("✓ %s", weapon)
 					if isSelected {
 						rightCol = append(rightCol, selectedStyle.Render("  → "+weaponLine))
@@ -272,7 +260,6 @@ func (p *TraitsPanel) View(width, height int) string {
 			Foreground(lipgloss.Color("240")).
 			Render("  Press 'm' to manage"))
 	} else {
-		debug.Log("TraitsPanel.View: No weapon mastery feature found")
 		rightCol = append(rightCol, emptyStyle.Render("  No weapon mastery feature"))
 	}
 
@@ -388,6 +375,7 @@ func (p *TraitsPanel) Update(msg tea.Msg) {
 }
 
 func (p *TraitsPanel) Next() {
+	debug.Log("TraitsPanel.Next(): selectedType=%s, selectedIndex=%d", p.selectedType, p.selectedIndex)
 	if p.selectedType == "language" {
 		if p.selectedIndex < len(p.character.Languages)-1 {
 			p.selectedIndex++
@@ -511,6 +499,7 @@ func (p *TraitsPanel) GotoBottom() {
 }
 
 func (p *TraitsPanel) Prev() {
+	debug.Log("TraitsPanel.Prev(): selectedType=%s, selectedIndex=%d", p.selectedType, p.selectedIndex)
 	if p.selectedType == "trait" {
 		if p.selectedIndex > 0 {
 			p.selectedIndex--

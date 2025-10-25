@@ -1230,18 +1230,22 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleTraitsPanel: key=%s", msg.String())
 	switch msg.String() {
-	case "up":
-		// Scroll viewport up freely
-		m.traitsPanel.ScrollUp()
-	case "down":
-		// Scroll viewport down freely
-		m.traitsPanel.ScrollDown()
-	case "j":
-		// Navigate to next selectable item
-		m.traitsPanel.Next()
-	case "k":
+	case "up", "k":
 		// Navigate to previous selectable item
+		debug.Log("handleTraitsPanel: calling Prev()")
 		m.traitsPanel.Prev()
+	case "down", "j":
+		// Navigate to next selectable item
+		debug.Log("handleTraitsPanel: calling Next()")
+		m.traitsPanel.Next()
+	case "shift+up":
+		// Scroll viewport up
+		debug.Log("handleTraitsPanel: scrolling viewport up")
+		m.traitsPanel.ScrollUp()
+	case "shift+down":
+		// Scroll viewport down
+		debug.Log("handleTraitsPanel: scrolling viewport down")
+		m.traitsPanel.ScrollDown()
 	case "ctrl+u", "pgup":
 		// Page up
 		m.traitsPanel.PageUp()
@@ -1342,10 +1346,10 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			debug.Log("handleTraitsPanel: Showing maneuver selector for %d maneuvers", maneuverCount)
 			// Clear Student of War flag to prevent prompting for tool/skill
 			m.studentOfWarToolSelected = false
-			// Load current maneuvers into selector before showing
-			m.maneuverSelector.SetSelectedManeuvers(m.character.Maneuvers)
-			debug.Log("handleTraitsPanel: Loaded %d existing maneuvers", len(m.character.Maneuvers))
+			// Show selector first (which clears selections), THEN load current maneuvers
 			m.maneuverSelector.Show(maneuverCount)
+			m.maneuverSelector.SetSelectedManeuvers(m.character.Maneuvers)
+			debug.Log("handleTraitsPanel: Loaded %d existing maneuvers into selector", len(m.character.Maneuvers))
 			m.message = fmt.Sprintf("Select up to %d maneuvers...", maneuverCount)
 		} else {
 			debug.Log("handleTraitsPanel: Not a Battle Master")
