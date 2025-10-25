@@ -134,13 +134,12 @@ func GetActionsBindings() []HelpBinding {
 // GetFeaturesBindings returns features panel bindings (main panel)
 func GetFeaturesBindings() []HelpBinding {
 	return []HelpBinding{
-		{"↑/↓ or j/k", "Navigate features"},
+		{"↑/↓ or j/k", "Navigate consumables"},
 		{"Ctrl+D/U", "Page down/up"},
 		{"Ctrl+E/Y", "Scroll down/up"},
-		{"u", "Use feature (consume charge)"},
-		{"+/=", "Restore one use"},
-		{"d", "Delete feature"},
-		{"a", "Add feature"},
+		{"Enter", "View details (popup)"},
+		{"u", "Use selected (consume)"},
+		{"Shift+U", "Restore one use"},
 		{"r", "Short rest (recover short rest features)"},
 		{"Shift+R", "Long rest (recover all features)"},
 	}

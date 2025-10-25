@@ -77,6 +77,7 @@ type Model struct {
 	itemDetailPopup       *components.ItemDetailPopup
 	masteryDetailPopup    *components.MasteryDetailPopup
 	maneuverDetailPopup   *components.ManeuverDetailPopup
+	consumableDetailPopup *components.ConsumableDetailPopup
 	spellDetailPopup      *components.SpellDetailPopup
 	originSelector        *components.OriginSelector
 	toolSelector          *components.ToolSelector
@@ -145,6 +146,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		itemDetailPopup:       components.NewItemDetailPopup(),
 		masteryDetailPopup:    components.NewMasteryDetailPopup(),
 		maneuverDetailPopup:   components.NewManeuverDetailPopup(),
+		consumableDetailPopup: components.NewConsumableDetailPopup(),
 		spellDetailPopup:      components.NewSpellDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
 		toolSelector:          components.NewToolSelector(),
@@ -302,6 +304,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if maneuver detail popup is active
 		if m.maneuverDetailPopup.IsVisible() {
 			return m.handleManeuverDetailPopupKeys(msg)
+		}
+
+		// Check if consumable detail popup is active
+		if m.consumableDetailPopup.IsVisible() {
+			return m.handleConsumableDetailPopupKeys(msg)
 		}
 
 		// Check if item detail popup is active
@@ -1119,71 +1126,124 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.featuresPanel.ScrollUp()
 	case "ctrl+e":
 		m.featuresPanel.ScrollDown()
+	case "enter":
+		// Show popup for selected consumable
+		item := m.featuresPanel.GetSelectedConsumable()
+		if item != nil {
+			// Convert rest type to string
+			restTypeStr := "Unknown"
+			switch item.RestType {
+			case models.ShortRest:
+				restTypeStr = "Short Rest"
+			case models.LongRest:
+				restTypeStr = "Long Rest"
+			case models.Daily:
+				restTypeStr = "Daily"
+			}
+			m.consumableDetailPopup.Show(item.Name, item.Current, item.Max, restTypeStr, item.Description)
+			m.message = "Viewing details..."
+		} else {
+			m.message = "No item selected"
+		}
+		return m, nil
 	case "u":
-		// Use feature (decrement uses and apply effect)
-		debug.Log("Features panel: 'u' pressed")
-		debug.Log("Total features: %d", len(m.character.Features.Features))
+		// Consume selected item
+		item := m.featuresPanel.GetSelectedConsumable()
+		if item == nil {
+			m.message = "No item selected"
+			return m, nil
+		}
 
-		feature := m.featuresPanel.GetSelectedFeature()
-		debug.Log("Selected feature: %v", feature != nil)
+		if item.Current <= 0 {
+			m.message = fmt.Sprintf("%s has no uses remaining", item.Name)
+			return m, nil
+		}
 
-		if feature != nil {
-			debug.Log("Feature name: %s, CurrentUses: %d, MaxUses: %d", feature.Name, feature.CurrentUses, feature.MaxUses)
-
-			// Check if feature has uses remaining
-			if feature.CurrentUses > 0 {
-				debug.Log("Using feature: %s", feature.Name)
-
-				// Apply feature effect based on name
-				switch feature.Name {
+		// Handle by type
+		switch item.ItemType {
+		case "resource":
+			switch item.ResourceType {
+			case "focus_points":
+				monk := m.character.GetMonkMechanics()
+				if monk.SpendFocusPoint(1) {
+					current, max := monk.GetFocusPoints()
+					m.message = fmt.Sprintf("Focus Point spent. Current: %d/%d", current, max)
+				} else {
+					m.message = "Not enough Focus Points"
+				}
+			case "psi_dice":
+				m.character.PsiDice.Current--
+				m.message = fmt.Sprintf("Psi Die spent. Current: %d/%d", m.character.PsiDice.Current, m.character.PsiDice.Max)
+			case "superiority_dice":
+				m.character.SuperiorityDice.Current--
+				m.message = fmt.Sprintf("Superiority Die spent. Current: %d/%d", m.character.SuperiorityDice.Current, m.character.SuperiorityDice.Max)
+			}
+			m.storage.Save(m.character)
+		case "feature":
+			// Handle feature consumption with special effects
+			if item.Feature != nil {
+				switch item.Feature.Name {
 				case "Second Wind":
-					debug.Log("Applying Second Wind effect")
-					// Roll 1d10 + level
+					// Roll 1d10 + fighter level
 					result, err := dice.Roll("1d10", dice.Normal)
 					if err == nil {
-						healing := result.Total + m.character.Level
-						oldHP := m.character.CurrentHP
+						fighterLevel := m.character.GetFighterLevel()
+						healing := result.Total + fighterLevel
 						m.character.CurrentHP += healing
 						if m.character.CurrentHP > m.character.MaxHP {
 							m.character.CurrentHP = m.character.MaxHP
 						}
-						debug.Log("Second Wind: Healed from %d to %d HP (rolled %d + level %d)", oldHP, m.character.CurrentHP, result.Total, m.character.Level)
-						m.message = fmt.Sprintf("Second Wind: Healed %d HP (1d10[%d] + %d level)", healing, result.Total, m.character.Level)
+						m.message = fmt.Sprintf("Second Wind: Healed %d HP (1d10[%d] + %d level)", healing, result.Total, fighterLevel)
 					} else {
-						debug.Log("Error rolling dice for Second Wind: %v", err)
-						m.message = fmt.Sprintf("Second Wind: Healed %d HP", m.character.Level)
-						m.character.CurrentHP += m.character.Level
+						fighterLevel := m.character.GetFighterLevel()
+						m.message = fmt.Sprintf("Second Wind: Healed %d HP", fighterLevel)
+						m.character.CurrentHP += fighterLevel
 					}
 				default:
-					debug.Log("Using generic feature: %s", feature.Name)
-					m.message = fmt.Sprintf("%s used", feature.Name)
+					m.message = fmt.Sprintf("%s used", item.Feature.Name)
 				}
-
 				// Decrement uses
-		m.featuresPanel.UseFeature()
-				debug.Log("Feature uses decremented. New uses: %d", feature.CurrentUses)
-		m.storage.Save(m.character)
-			} else {
-				debug.Log("Feature %s has no uses remaining", feature.Name)
-				m.message = fmt.Sprintf("%s has no uses remaining", feature.Name)
+				m.featuresPanel.UseFeature()
+				m.storage.Save(m.character)
 			}
-		} else {
-			debug.Log("No feature selected")
-			m.message = "No feature selected"
 		}
-	case "+", "=":
-		// Restore one use
-		m.featuresPanel.RestoreFeature()
-		m.message = "Feature restored"
-		m.storage.Save(m.character)
-	case "d", "delete":
-		// Delete feature
-		m.featuresPanel.RemoveFeature()
-		m.message = "Feature removed"
-		m.storage.Save(m.character)
-	case "a":
-		// Add feature (simplified - in real app would show a form)
-		m.message = "Add feature (not yet implemented)"
+		return m, nil
+	case "U":
+		// Restore selected item
+		item := m.featuresPanel.GetSelectedConsumable()
+		if item == nil {
+			m.message = "No item selected"
+			return m, nil
+		}
+
+		if item.Current >= item.Max {
+			m.message = fmt.Sprintf("%s already at maximum", item.Name)
+			return m, nil
+		}
+
+		// Handle by type
+		switch item.ItemType {
+		case "resource":
+			switch item.ResourceType {
+			case "focus_points":
+				monk := m.character.GetMonkMechanics()
+				monk.RestoreFocusPoints(1)
+				current, max := monk.GetFocusPoints()
+				m.message = fmt.Sprintf("Focus Point restored. Current: %d/%d", current, max)
+			case "psi_dice":
+				m.character.PsiDice.Current++
+				m.message = fmt.Sprintf("Psi Die restored. Current: %d/%d", m.character.PsiDice.Current, m.character.PsiDice.Max)
+			case "superiority_dice":
+				m.character.SuperiorityDice.Current++
+				m.message = fmt.Sprintf("Superiority Die restored. Current: %d/%d", m.character.SuperiorityDice.Current, m.character.SuperiorityDice.Max)
+			}
+			m.storage.Save(m.character)
+		case "feature":
+			m.featuresPanel.RestoreFeature()
+			m.message = fmt.Sprintf("%s restored", item.Name)
+			m.storage.Save(m.character)
+		}
+		return m, nil
 	case "r":
 		// Short rest
 		m.character.ShortRest()
@@ -1459,83 +1519,6 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.message = "Select class to remove a level from..."
 		} else {
 			m.message = "Cannot de-level: Character is already at minimum level"
-		}
-		return m, nil
-	case "+", "=":
-		// Add Focus Point (Monk only)
-		if m.character.IsMonk() {
-			monk := m.character.GetMonkMechanics()
-			monk.RestoreFocusPoints(1)
-			current, max := monk.GetFocusPoints()
-			m.message = fmt.Sprintf("Focus Point restored. Current: %d/%d", current, max)
-		} else {
-			m.message = "Only Monks can use Focus Points"
-		}
-		return m, nil
-	case "-", "_":
-		// Spend Focus Point (Monk only)
-		if m.character.IsMonk() {
-			monk := m.character.GetMonkMechanics()
-			if monk.SpendFocusPoint(1) {
-				current, max := monk.GetFocusPoints()
-				m.message = fmt.Sprintf("Focus Point spent. Current: %d/%d", current, max)
-			} else {
-				m.message = "Not enough Focus Points"
-			}
-		} else {
-			m.message = "Only Monks can use Focus Points"
-		}
-		return m, nil
-	case "y":
-		// Spend Psi Die (Psi Warrior only)
-		if m.character.IsPsiWarrior() {
-			if m.character.PsiDice.Current > 0 {
-				m.character.PsiDice.Current--
-				m.message = fmt.Sprintf("Psi Die spent. Current: %d/%d", m.character.PsiDice.Current, m.character.PsiDice.Max)
-			} else {
-				m.message = "No Psi Dice remaining"
-			}
-		} else {
-			m.message = "Only Psi Warriors can use Psi Dice"
-		}
-		return m, nil
-	case "Y":
-		// Restore Psi Die (Psi Warrior only)
-		if m.character.IsPsiWarrior() {
-			if m.character.PsiDice.Current < m.character.PsiDice.Max {
-				m.character.PsiDice.Current++
-				m.message = fmt.Sprintf("Psi Die restored. Current: %d/%d", m.character.PsiDice.Current, m.character.PsiDice.Max)
-			} else {
-				m.message = "Psi Dice already at maximum"
-			}
-		} else {
-			m.message = "Only Psi Warriors can use Psi Dice"
-		}
-		return m, nil
-	case "u":
-		// Spend Superiority Die (Battle Master only)
-		if m.character.IsBattleMaster() {
-			if m.character.SuperiorityDice.Current > 0 {
-				m.character.SuperiorityDice.Current--
-				m.message = fmt.Sprintf("Superiority Die spent. Current: %d/%d", m.character.SuperiorityDice.Current, m.character.SuperiorityDice.Max)
-			} else {
-				m.message = "No Superiority Dice remaining"
-			}
-		} else {
-			m.message = "Only Battle Masters can use Superiority Dice"
-		}
-		return m, nil
-	case "U":
-		// Restore Superiority Die (Battle Master only)
-		if m.character.IsBattleMaster() {
-			if m.character.SuperiorityDice.Current < m.character.SuperiorityDice.Max {
-				m.character.SuperiorityDice.Current++
-				m.message = fmt.Sprintf("Superiority Die restored. Current: %d/%d", m.character.SuperiorityDice.Current, m.character.SuperiorityDice.Max)
-			} else {
-				m.message = "Superiority Dice already at maximum"
-			}
-		} else {
-			m.message = "Only Battle Masters can use Superiority Dice"
 		}
 		return m, nil
 	case "]", "}":
@@ -2029,7 +2012,7 @@ func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 			selectedCount := len(m.weaponMasterySelector.GetSelectedWeapons())
 			maxCount := m.getWeaponMasteryCount()
 			if selectedCount > maxCount {
-				m.message = "Maximum weapons already selected"
+			m.message = "Maximum weapons already selected"
 			}
 		}
 	case "enter":
@@ -2443,23 +2426,23 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 				m.message = fmt.Sprintf("Select subclass for %s...", selectedClassName)
 			} else {
 				// No subclass at level 1, check for fighting style or cantrips
-				needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
-				debug.Log("Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
+			needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
+			debug.Log("Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
 
-				needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
-				debug.Log("Class %s needs cantrips: %v", selectedClassName, needsCantrips)
+			needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
+			debug.Log("Class %s needs cantrips: %v", selectedClassName, needsCantrips)
 
-				if needsFightingStyle {
-					// Show fighting style selector
-					debug.Log("Showing fighting style selector")
-					m.fightingStyleSelector.Show(selectedClassName)
-					m.message = fmt.Sprintf("Select fighting style for %s...", selectedClassName)
-				} else if needsCantrips {
-					// Show cantrip selector
-					debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
-					m.cantripSelector.Show(selectedClassName, classData.Spellcasting.CantripsKnown)
-					m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, selectedClassName)
-				} else {
+			if needsFightingStyle {
+				// Show fighting style selector
+				debug.Log("Showing fighting style selector")
+				m.fightingStyleSelector.Show(selectedClassName)
+				m.message = fmt.Sprintf("Select fighting style for %s...", selectedClassName)
+			} else if needsCantrips {
+				// Show cantrip selector
+				debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
+				m.cantripSelector.Show(selectedClassName, classData.Spellcasting.CantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, selectedClassName)
+			} else {
 					// Check for weapon mastery
 					masteryCount := m.getWeaponMasteryCount()
 					debug.Log("Class %s needs weapon mastery: count=%d", selectedClassName, masteryCount)
@@ -2471,10 +2454,10 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 						m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
 					} else {
 						// No fighting style, cantrips, weapon mastery, or subclass needed, complete class selection
-						debug.Log("Saving character and completing class selection")
-						m.pendingChanges.Clear() // Clear backup on successful completion
-						m.storage.Save(m.character)
-						m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+				debug.Log("Saving character and completing class selection")
+				m.pendingChanges.Clear() // Clear backup on successful completion
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
 					}
 				}
 			}
@@ -2559,11 +2542,11 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.weaponMasterySelector.Show(masteryCount)
 				m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
 			} else {
-				// Complete class selection
-				debug.Log("Saving character and completing class selection")
-				m.pendingChanges.Clear() // Clear backup on successful completion
-				m.storage.Save(m.character)
-				m.message = fmt.Sprintf("Class selection complete! Selected %d cantrips", len(selectedCantrips))
+			// Complete class selection
+			debug.Log("Saving character and completing class selection")
+			m.pendingChanges.Clear() // Clear backup on successful completion
+			m.storage.Save(m.character)
+			m.message = fmt.Sprintf("Class selection complete! Selected %d cantrips", len(selectedCantrips))
 			}
 		} else {
 			needed := m.cantripSelector.GetMaxCantrips() - m.cantripSelector.GetSelectedCount()
@@ -2658,8 +2641,8 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 					m.fightingStyleSelector.Hide()
 				} else {
 					// No weapon mastery needed, class setup complete
-					m.pendingChanges.Clear() // Clear backup on successful completion
-					m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
+				m.pendingChanges.Clear() // Clear backup on successful completion
+				m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
 					m.fightingStyleSelector.Hide()
 				}
 			}
@@ -2739,22 +2722,22 @@ func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.pendingChanges.Clear()
 				m.storage.Save(m.character)
 			} else {
-				// After skill selection, check if we need spell or feat selection
-				species := models.GetSpeciesByName(m.character.Race)
-				if species != nil && models.HasSpellChoice(species) {
-					// Show wizard cantrip selector for High Elf
-					cantrips := models.GetWizardCantrips()
-					m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
-					m.spellSelector.Show()
-					m.message = "Select your wizard cantrip..."
-				} else if species != nil && models.HasFeatChoice(species) {
-					// Show feat selector for origin feat
-					m.featSelector.Show(m.character, true)
-					m.message = "Select your origin feat..."
-				} else {
-					m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
-					// Save when selection is complete (no more selections needed)
-					m.storage.Save(m.character)
+			// After skill selection, check if we need spell or feat selection
+			species := models.GetSpeciesByName(m.character.Race)
+			if species != nil && models.HasSpellChoice(species) {
+				// Show wizard cantrip selector for High Elf
+				cantrips := models.GetWizardCantrips()
+				m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+				m.spellSelector.Show()
+				m.message = "Select your wizard cantrip..."
+			} else if species != nil && models.HasFeatChoice(species) {
+				// Show feat selector for origin feat
+				m.featSelector.Show(m.character, true)
+				m.message = "Select your origin feat..."
+			} else {
+				m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
+				// Save when selection is complete (no more selections needed)
+				m.storage.Save(m.character)
 				}
 			}
 		}
@@ -2918,8 +2901,8 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.storage.Save(m.character)
 			m.message = "Eldritch Knight selection cancelled - restored previous state"
 		} else {
-			m.spellSelector.Hide()
-			m.message = "Spell selection cancelled"
+		m.spellSelector.Hide()
+		m.message = "Spell selection cancelled"
 		}
 	}
 	return m, nil
@@ -3027,6 +3010,15 @@ func (m *Model) handleManeuverDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 	case "esc", "enter":
 		m.maneuverDetailPopup.Hide()
 		m.message = "Closed maneuver details"
+	}
+	return m, nil
+}
+
+func (m *Model) handleConsumableDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.consumableDetailPopup.Hide()
+		m.message = ""
 	}
 	return m, nil
 }
@@ -3523,6 +3515,11 @@ func (m *Model) View() string {
 	// Maneuver detail popup (Medium)
 	if m.maneuverDetailPopup.IsVisible() {
 		return m.maneuverDetailPopup.View(m.width, m.height)
+	}
+
+	// Consumable detail popup (Medium)
+	if m.consumableDetailPopup.IsVisible() {
+		return m.consumableDetailPopup.View(m.width, m.height)
 	}
 
 	// Item detail popup (Medium)

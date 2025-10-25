@@ -11,11 +11,24 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
+// ConsumableItem represents a unified consumable resource or feature
+type ConsumableItem struct {
+	ItemType     string // "resource" or "feature"
+	ResourceType string // "focus_points", "psi_dice", "superiority_dice", ""
+	Feature      *models.Feature
+	Name         string
+	Current      int
+	Max          int
+	RestType     models.RestType
+	Description  string
+}
+
 type FeaturesPanel struct {
-	character      *models.Character
-	viewport       viewport.Model
-	ready          bool
-	selectedIndex  int
+	character     *models.Character
+	viewport      viewport.Model
+	ready         bool
+	selectedIndex int
+	consumables   []ConsumableItem // Unified list of all consumables
 }
 
 func NewFeaturesPanel(char *models.Character) *FeaturesPanel {
@@ -23,6 +36,113 @@ func NewFeaturesPanel(char *models.Character) *FeaturesPanel {
 		character:     char,
 		selectedIndex: 0,
 	}
+}
+
+// buildConsumablesList builds a unified list of all consumable resources and features
+func (p *FeaturesPanel) buildConsumablesList() []ConsumableItem {
+	var items []ConsumableItem
+
+	// Group by rest type
+	shortRest := []ConsumableItem{}
+	longRest := []ConsumableItem{}
+	daily := []ConsumableItem{}
+
+	// Add Focus Points for Monk
+	if p.character.IsMonk() {
+		monk := p.character.GetMonkMechanics()
+		currentFP, maxFP := monk.GetFocusPoints()
+		if maxFP > 0 {
+			shortRest = append(shortRest, ConsumableItem{
+				ItemType:     "resource",
+				ResourceType: "focus_points",
+				Name:         "Focus Points",
+				Current:      currentFP,
+				Max:          maxFP,
+				RestType:     models.ShortRest,
+				Description:  "Mystical energy used to power Monk techniques like Flurry of Blows, Patient Defense, and Step of the Wind.",
+			})
+		}
+	}
+
+	// Add Psi Dice for Psi Warrior
+	if p.character.IsPsiWarrior() && p.character.PsiDice.Max > 0 {
+		longRest = append(longRest, ConsumableItem{
+			ItemType:     "resource",
+			ResourceType: "psi_dice",
+			Name:         fmt.Sprintf("Psi Dice 1%s", p.character.PsiDice.Size),
+			Current:      p.character.PsiDice.Current,
+			Max:          p.character.PsiDice.Max,
+			RestType:     models.LongRest,
+			Description:  "Psionic energy dice used for Psi Warrior abilities like Protective Field, Psionic Strike, and Telekinetic Movement. Regain all on long rest, 1 on short rest.",
+		})
+	}
+
+	// Add Superiority Dice for Battle Master
+	if p.character.IsBattleMaster() && p.character.SuperiorityDice.Max > 0 {
+		shortRest = append(shortRest, ConsumableItem{
+			ItemType:     "resource",
+			ResourceType: "superiority_dice",
+			Name:         fmt.Sprintf("Superiority Dice 1%s", p.character.SuperiorityDice.Size),
+			Current:      p.character.SuperiorityDice.Current,
+			Max:          p.character.SuperiorityDice.Max,
+			RestType:     models.ShortRest,
+			Description:  "Combat superiority dice used to fuel Battle Master maneuvers. Add the die result to attack rolls, damage, ability checks, or saving throws depending on the maneuver. Regain all on short or long rest.",
+		})
+	}
+
+	// Add all consumable features (MaxUses > 0)
+	// Skip features that are already represented as resources
+	for i := range p.character.Features.Features {
+		feature := &p.character.Features.Features[i]
+		if feature.MaxUses > 0 {
+			// Skip features that are managed as resources
+			skipFeature := false
+			switch feature.Name {
+			case "Ki Points", "Focus Points", "Focus Point Improvement", "Ki Improvement":
+				// These are managed via Monk mechanics
+				skipFeature = true
+			case "Psionic Power":
+				// Managed via PsiDice
+				skipFeature = true
+			case "Combat Superiority":
+				// Managed via SuperiorityDice
+				skipFeature = true
+			}
+
+			if skipFeature {
+				continue
+			}
+
+			item := ConsumableItem{
+				ItemType:    "feature",
+				Feature:     feature,
+				Name:        feature.Name,
+				Current:     feature.CurrentUses,
+				Max:         feature.MaxUses,
+				RestType:    feature.RestType,
+				Description: feature.Description,
+			}
+
+			// Group by rest type
+			switch feature.RestType {
+			case models.ShortRest:
+				shortRest = append(shortRest, item)
+			case models.LongRest:
+				longRest = append(longRest, item)
+			case models.Daily:
+				daily = append(daily, item)
+			default:
+				longRest = append(longRest, item) // Default to long rest
+			}
+		}
+	}
+
+	// Combine in order: Short Rest, Long Rest, Daily
+	items = append(items, shortRest...)
+	items = append(items, longRest...)
+	items = append(items, daily...)
+
+	return items
 }
 
 func (p *FeaturesPanel) View(width, height int) string {
@@ -64,116 +184,98 @@ func (p *FeaturesPanel) View(width, height int) string {
 
 	var content []string
 
-	if len(p.character.Features.Features) == 0 {
+	// Build consumables list
+	p.consumables = p.buildConsumablesList()
+
+	// Separate passive features
+	passiveFeatures := []models.Feature{}
+	for _, feature := range p.character.Features.Features {
+		if feature.MaxUses == 0 {
+			passiveFeatures = append(passiveFeatures, feature)
+		}
+	}
+
+	if len(p.consumables) == 0 && len(passiveFeatures) == 0 {
 		content = append(content, emptyStyle.Render("No features yet"))
 		content = append(content, "")
 		content = append(content, normalStyle.Render("Features are limited-use abilities that recharge on rest."))
-		content = append(content, normalStyle.Render("Press 'a' to add a new feature."))
 	} else {
-		// Separate consumable and passive features
-		consumableFeatures := []models.Feature{}
-		passiveFeatures := []models.Feature{}
-
-		for _, feature := range p.character.Features.Features {
-			if feature.MaxUses > 0 {
-				consumableFeatures = append(consumableFeatures, feature)
-			} else {
-				passiveFeatures = append(passiveFeatures, feature)
-			}
-		}
-
-		currentIndex := 0
-
-		// Render CONSUMABLE features first (with rest type grouping)
-		if len(consumableFeatures) > 0 {
+		// Render CONSUMABLE features
+		if len(p.consumables) > 0 {
 			content = append(content, titleStyle.Render("=== CONSUMABLE FEATURES ==="))
 			content = append(content, "")
 
-			// Show Focus Points for Monk
-			if p.character.IsMonk() {
-				monk := p.character.GetMonkMechanics()
-				currentFP, maxFP := monk.GetFocusPoints()
-				if maxFP > 0 {
-					fpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Bold(true)
-					fpValueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
-					fpLine := fpStyle.Render("✧ Focus Points: ") + fpValueStyle.Render(fmt.Sprintf("%d/%d", currentFP, maxFP)) +
-						normalStyle.Render(" (Short Rest) ") +
-						lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("[+/- to adjust]")
-					content = append(content, fpLine)
+			// Group by rest type for rendering
+			currentRestType := models.RestType("")
+			currentIndex := 0
+
+			for _, item := range p.consumables {
+				// Add rest type header if changed
+				if item.RestType != currentRestType {
+					currentRestType = item.RestType
+					switch currentRestType {
+					case models.ShortRest:
+						content = append(content, titleStyle.Render("⚡ Short Rest"))
+					case models.LongRest:
+						content = append(content, titleStyle.Render("🌙 Long Rest"))
+					case models.Daily:
+						content = append(content, titleStyle.Render("📅 Daily"))
+					}
 					content = append(content, "")
 				}
-			}
 
-			// Show Psi Dice for Psi Warrior
-			if p.character.IsPsiWarrior() && p.character.PsiDice.Max > 0 {
-				psiStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("135")).Bold(true)
-				psiValueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
-				psiLine := psiStyle.Render("🧠 Psi Dice: ") + psiValueStyle.Render(fmt.Sprintf("1%s", p.character.PsiDice.Size)) +
-					normalStyle.Render(fmt.Sprintf(" (%d/%d)", p.character.PsiDice.Current, p.character.PsiDice.Max)) +
-					normalStyle.Render(" (Long Rest, 1/Short) ") +
-					lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("[y/Y to use/restore]")
-				content = append(content, psiLine)
-				content = append(content, "")
-			}
+				// Render item
+				isSelected := currentIndex == p.selectedIndex
+				currentIndex++
 
-			// Show Superiority Dice for Battle Master
-			if p.character.IsBattleMaster() && p.character.SuperiorityDice.Max > 0 {
-				supStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
-				supValueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
-				supLine := supStyle.Render("⚔ Superiority Dice: ") + supValueStyle.Render(fmt.Sprintf("1%s", p.character.SuperiorityDice.Size)) +
-					normalStyle.Render(fmt.Sprintf(" (%d/%d)", p.character.SuperiorityDice.Current, p.character.SuperiorityDice.Max)) +
-					normalStyle.Render(" (Short Rest) ") +
-					lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("[u/U to use/restore]")
-				content = append(content, supLine)
-				content = append(content, "")
-			}
+				usageInfo := fmt.Sprintf(" (%d/%d)", item.Current, item.Max)
 
-			// Group consumable by rest type
-			shortRest := []models.Feature{}
-			longRest := []models.Feature{}
-			daily := []models.Feature{}
-
-			for _, f := range consumableFeatures {
-				switch f.RestType {
-				case models.ShortRest:
-					shortRest = append(shortRest, f)
-				case models.LongRest:
-					longRest = append(longRest, f)
-				case models.Daily:
-					daily = append(daily, f)
-				default:
-					longRest = append(longRest, f) // Default to long rest
+				var itemLine string
+				if isSelected {
+					itemLine = selectedStyle.Render(fmt.Sprintf("  → %s%s", item.Name, usageInfo))
+				} else {
+					if item.Current == 0 {
+						itemLine = usedStyle.Render(fmt.Sprintf("    %s%s [USED]", item.Name, usageInfo))
+					} else {
+						itemLine = normalStyle.Render(fmt.Sprintf("    %s%s", item.Name, usageInfo))
+					}
 				}
-			}
+				content = append(content, itemLine)
 
-			if len(shortRest) > 0 {
-				content = append(content, titleStyle.Render("⚡ Short Rest"))
-				content = append(content, "")
-				content = p.renderFeatureGroup(content, shortRest, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
-				content = append(content, "")
-			}
+				// Show short description when selected
+				if isSelected && len(item.Description) < 100 {
+					wrapped := wrapFeatureText(item.Description, width-8)
+					for _, line := range wrapped {
+						content = append(content, descStyle.Render("      "+line))
+					}
+				}
 
-			if len(longRest) > 0 {
-				content = append(content, titleStyle.Render("🌙 Long Rest"))
-				content = append(content, "")
-				content = p.renderFeatureGroup(content, longRest, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
-				content = append(content, "")
-			}
-
-			if len(daily) > 0 {
-				content = append(content, titleStyle.Render("📅 Daily"))
-				content = append(content, "")
-				content = p.renderFeatureGroup(content, daily, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
 				content = append(content, "")
 			}
 		}
 
-		// Render PASSIVE features second
+		// Render PASSIVE features
 		if len(passiveFeatures) > 0 {
 			content = append(content, titleStyle.Render("=== PASSIVE FEATURES ==="))
 			content = append(content, "")
-			content = p.renderFeatureGroup(content, passiveFeatures, &currentIndex, normalStyle, selectedStyle, usedStyle, descStyle, width)
-			content = append(content, "")
+			for _, feature := range passiveFeatures {
+				featureLine := normalStyle.Render(fmt.Sprintf("    %s", feature.Name))
+				content = append(content, featureLine)
+
+				// Show short description
+				if len(feature.Description) < 100 {
+					wrapped := wrapFeatureText(feature.Description, width-8)
+					for _, line := range wrapped {
+						content = append(content, descStyle.Render("      "+line))
+					}
+				}
+
+				if feature.Source != "" {
+					content = append(content, descStyle.Render(fmt.Sprintf("      Source: %s", feature.Source)))
+				}
+
+				content = append(content, "")
+			}
 		}
 	}
 
@@ -205,59 +307,6 @@ func (p *FeaturesPanel) View(width, height int) string {
 	return viewportContent
 }
 
-func (p *FeaturesPanel) renderFeatureGroup(
-	content []string,
-	features []models.Feature,
-	currentIndex *int,
-	normalStyle, selectedStyle, usedStyle, descStyle lipgloss.Style,
-	width int,
-) []string {
-	for _, feature := range features {
-		isSelected := *currentIndex == p.selectedIndex
-		*currentIndex++
-
-		// Feature name and usage
-		usageInfo := ""
-		if feature.MaxUses > 0 {
-			usageInfo = fmt.Sprintf(" (%d/%d)", feature.CurrentUses, feature.MaxUses)
-		}
-
-		// Add Focus Point cost for Monk abilities
-		fpCostInfo := ""
-		if feature.Name == "Flurry of Blows" || feature.Name == "Patient Defense" || feature.Name == "Step of the Wind" {
-			fpCostInfo = lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Render(" [Costs 1 FP]")
-		}
-
-		var featureLine string
-		if isSelected {
-			featureLine = selectedStyle.Render(fmt.Sprintf("  → %s%s", feature.Name, usageInfo)) + fpCostInfo
-		} else {
-			if feature.MaxUses > 0 && feature.CurrentUses == 0 {
-				featureLine = usedStyle.Render(fmt.Sprintf("    %s%s [USED]", feature.Name, usageInfo)) + fpCostInfo
-			} else {
-				featureLine = normalStyle.Render(fmt.Sprintf("    %s%s", feature.Name, usageInfo)) + fpCostInfo
-			}
-		}
-		content = append(content, featureLine)
-
-		// Show description when selected or if it's short
-		if isSelected || len(feature.Description) < 60 {
-			wrapped := wrapFeatureText(feature.Description, width-8)
-			for _, line := range wrapped {
-				content = append(content, descStyle.Render("      "+line))
-			}
-		}
-
-		// Show source
-		if feature.Source != "" {
-			content = append(content, descStyle.Render(fmt.Sprintf("      Source: %s", feature.Source)))
-		}
-
-		content = append(content, "")
-	}
-	return content
-}
-
 func (p *FeaturesPanel) Update(msg tea.Msg) {
 	var cmd tea.Cmd
 	p.viewport, cmd = p.viewport.Update(msg)
@@ -265,10 +314,8 @@ func (p *FeaturesPanel) Update(msg tea.Msg) {
 }
 
 func (p *FeaturesPanel) Next() {
-	// Count all features (consumable and passive)
-	totalCount := len(p.character.Features.Features)
-
-	if p.selectedIndex < totalCount-1 {
+	// Navigate through consumables list
+	if p.selectedIndex < len(p.consumables)-1 {
 		p.selectedIndex++
 		p.viewport.LineDown(3)
 	}
@@ -297,54 +344,62 @@ func (p *FeaturesPanel) PageUp() {
 	p.viewport.HalfViewUp()
 }
 
+// GetSelectedConsumable returns the currently selected consumable item
+func (p *FeaturesPanel) GetSelectedConsumable() *ConsumableItem {
+	if p.selectedIndex >= 0 && p.selectedIndex < len(p.consumables) {
+		return &p.consumables[p.selectedIndex]
+	}
+	return nil
+}
+
+// UseFeature decrements the uses of a feature
 func (p *FeaturesPanel) UseFeature() {
-	actualIndex := p.getActualFeatureIndex()
-	if actualIndex >= 0 {
-		p.character.Features.UseFeature(actualIndex)
-	}
-}
-
-func (p *FeaturesPanel) RestoreFeature() {
-	actualIndex := p.getActualFeatureIndex()
-	if actualIndex >= 0 {
-		p.character.Features.RestoreFeature(actualIndex)
-	}
-}
-
-func (p *FeaturesPanel) RemoveFeature() {
-	actualIndex := p.getActualFeatureIndex()
-	if actualIndex >= 0 {
-		p.character.Features.RemoveFeature(actualIndex)
-
-		// Count remaining features
-		totalCount := len(p.character.Features.Features)
-
-		// Adjust selection if needed
-		if p.selectedIndex >= totalCount && p.selectedIndex > 0 {
-			p.selectedIndex--
+	item := p.GetSelectedConsumable()
+	if item != nil && item.ItemType == "feature" && item.Feature != nil {
+		if item.Feature.CurrentUses > 0 {
+			item.Feature.CurrentUses--
 		}
 	}
 }
 
-// getActualFeatureIndex maps the selected index to the actual index in the full features array
-func (p *FeaturesPanel) getActualFeatureIndex() int {
-	// Now we show all features, so selected index maps directly
-	if p.selectedIndex >= 0 && p.selectedIndex < len(p.character.Features.Features) {
-		return p.selectedIndex
+// RestoreFeature increments the uses of a feature
+func (p *FeaturesPanel) RestoreFeature() {
+	item := p.GetSelectedConsumable()
+	if item != nil && item.ItemType == "feature" && item.Feature != nil {
+		if item.Feature.CurrentUses < item.Feature.MaxUses {
+			item.Feature.CurrentUses++
+		}
 	}
-	return -1
 }
 
-// GetSelectedIndex returns the currently selected feature index
+// RemoveFeature removes the selected feature
+func (p *FeaturesPanel) RemoveFeature() {
+	item := p.GetSelectedConsumable()
+	if item != nil && item.ItemType == "feature" && item.Feature != nil {
+		// Find feature in character's features list
+		for i, f := range p.character.Features.Features {
+			if &f == item.Feature {
+				p.character.Features.RemoveFeature(i)
+				// Adjust selection if needed
+				if p.selectedIndex >= len(p.consumables) && p.selectedIndex > 0 {
+					p.selectedIndex--
+				}
+				break
+			}
+		}
+	}
+}
+
+// GetSelectedIndex returns the currently selected index
 func (p *FeaturesPanel) GetSelectedIndex() int {
 	return p.selectedIndex
 }
 
-// GetSelectedFeature returns the currently selected feature (if any)
-// Returns all features (consumable and passive)
+// GetSelectedFeature returns the currently selected feature (for backward compatibility)
 func (p *FeaturesPanel) GetSelectedFeature() *models.Feature {
-	if p.selectedIndex >= 0 && p.selectedIndex < len(p.character.Features.Features) {
-		return &p.character.Features.Features[p.selectedIndex]
+	item := p.GetSelectedConsumable()
+	if item != nil && item.ItemType == "feature" {
+		return item.Feature
 	}
 	return nil
 }
