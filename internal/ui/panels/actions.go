@@ -265,17 +265,24 @@ func (p *ActionsPanel) View(width, height int) string {
 
 	// Show action spells
 	if len(p.actionSpells) > 0 {
-		for _, spell := range p.actionSpells {
-			slot := char.SpellBook.GetSlotByLevel(spell.Level)
-			slotInfo := ""
-			if slot != nil {
-				slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
-			}
-			line := fmt.Sprintf("%-20s Lv%d%s", spell.Name, spell.Level, slotInfo)
+	for _, spell := range p.actionSpells {
+		slot := char.SpellBook.GetSlotByLevel(spell.Level)
+		slotInfo := ""
+		if slot != nil {
+			slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
+		}
+		markers := ""
+		if spell.Concentration {
+			markers += " (C)"
+		}
+		if spell.Ritual {
+			markers += " (R)"
+		}
+		line := fmt.Sprintf("%-20s Lv%d%s%s", spell.Name, spell.Level, slotInfo, markers)
 
-			if idx == p.selectedIndex {
-				lines = append(lines, selectedStyle.Render("▶ "+line))
-			} else {
+		if idx == p.selectedIndex {
+			lines = append(lines, selectedStyle.Render("▶ "+line))
+		} else {
 				lines = append(lines, spellStyle.Render("  "+line))
 			}
 			idx++
@@ -377,17 +384,24 @@ func (p *ActionsPanel) View(width, height int) string {
 
 	// Bonus action spells
 	if len(p.bonusSpells) > 0 {
-		for _, spell := range p.bonusSpells {
-			slot := char.SpellBook.GetSlotByLevel(spell.Level)
-			slotInfo := ""
-			if slot != nil {
-				slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
-			}
-			line := fmt.Sprintf("%-20s Lv%d%s", spell.Name, spell.Level, slotInfo)
+	for _, spell := range p.bonusSpells {
+		slot := char.SpellBook.GetSlotByLevel(spell.Level)
+		slotInfo := ""
+		if slot != nil {
+			slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
+		}
+		markers := ""
+		if spell.Concentration {
+			markers += " (C)"
+		}
+		if spell.Ritual {
+			markers += " (R)"
+		}
+		line := fmt.Sprintf("%-20s Lv%d%s%s", spell.Name, spell.Level, slotInfo, markers)
 
-			if idx == p.selectedIndex {
-				lines = append(lines, selectedStyle.Render("▶ "+line))
-			} else {
+		if idx == p.selectedIndex {
+			lines = append(lines, selectedStyle.Render("▶ "+line))
+		} else {
 				lines = append(lines, spellStyle.Render("  "+line))
 			}
 			idx++
@@ -480,17 +494,24 @@ func (p *ActionsPanel) View(width, height int) string {
 
 	// Reaction spells
 	if len(p.reactionSpells) > 0 {
-		for _, spell := range p.reactionSpells {
-			slot := char.SpellBook.GetSlotByLevel(spell.Level)
-			slotInfo := ""
-			if slot != nil {
-				slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
-			}
-			line := fmt.Sprintf("%-20s Lv%d%s", spell.Name, spell.Level, slotInfo)
+	for _, spell := range p.reactionSpells {
+		slot := char.SpellBook.GetSlotByLevel(spell.Level)
+		slotInfo := ""
+		if slot != nil {
+			slotInfo = fmt.Sprintf(" [%d/%d slots]", slot.Current, slot.Maximum)
+		}
+		markers := ""
+		if spell.Concentration {
+			markers += " (C)"
+		}
+		if spell.Ritual {
+			markers += " (R)"
+		}
+		line := fmt.Sprintf("%-20s Lv%d%s%s", spell.Name, spell.Level, slotInfo, markers)
 
-			if idx == p.selectedIndex {
-				lines = append(lines, selectedStyle.Render("▶ "+line))
-			} else {
+		if idx == p.selectedIndex {
+			lines = append(lines, selectedStyle.Render("▶ "+line))
+		} else {
 				lines = append(lines, spellStyle.Render("  "+line))
 			}
 			idx++

@@ -93,6 +93,8 @@ type Model struct {
 	subclassSelector       *components.SubclassSelector
 	fightingStyleSelector  *components.FightingStyleSelector
 	cantripSelector        *components.CantripSelector
+	leveledSpellSelector   *components.LeveledSpellSelector
+	spellbookEditor        *components.SpellbookEditor
 	spellPrepSelector      *components.SpellPrepSelector
 	slotRestorer           *components.SlotRestorer
 	statGenerator          *components.StatGenerator
@@ -169,6 +171,8 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		subclassSelector:       components.NewSubclassSelector(char),
 		fightingStyleSelector:  components.NewFightingStyleSelector(),
 		cantripSelector:        components.NewCantripSelector(char),
+		leveledSpellSelector:   components.NewLeveledSpellSelector(char),
+		spellbookEditor:        components.NewSpellbookEditor(char),
 		spellPrepSelector:      components.NewSpellPrepSelector(char),
 		slotRestorer:           components.NewSlotRestorer(char),
 		statGenerator:          components.NewStatGenerator(),
@@ -287,23 +291,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleAbilityRollerKeys(msg)
 		}
 
-		// Panel navigation (only when focused on main and no popups)
-		switch msg.String() {
-		case "tab":
-			if m.focusArea == FocusMain {
-				m.tabs.Next()
-				m.currentPanel = PanelType(m.tabs.SelectedIndex)
-			}
-			return m, nil
-
-		case "shift+tab":
-			if m.focusArea == FocusMain {
-				m.tabs.Prev()
-				m.currentPanel = PanelType(m.tabs.SelectedIndex)
-			}
-				return m, nil
-		}
-
+		// Check all popups/selectors BEFORE panel navigation (so Tab works in popups)
 		// Check if spell selector is active
 		if m.spellSelector.IsVisible() {
 			return m.handleSpellSelectorKeys(msg)
@@ -429,6 +417,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleCantripSelectorKeys(msg)
 		}
 
+		// Check if leveled spell selector is active
+		if m.leveledSpellSelector.IsVisible() {
+			return m.handleLeveledSpellSelectorKeys(msg)
+		}
+
+		// Check if spellbook editor is active
+		if m.spellbookEditor.IsVisible() {
+			return m.handleSpellbookEditorKeys(msg)
+		}
+
 		// Check if spell prep selector is active
 		if m.spellPrepSelector.IsVisible() {
 			return m.handleSpellPrepSelectorKeys(msg)
@@ -457,6 +455,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if species selector is active
 		if m.speciesSelector.IsVisible() {
 			return m.handleSpeciesSelectorKeys(msg)
+		}
+
+		// Panel navigation (AFTER all popups, only when focused on main and no popups active)
+		switch msg.String() {
+		case "tab":
+			if m.focusArea == FocusMain {
+				m.tabs.Next()
+				m.currentPanel = PanelType(m.tabs.SelectedIndex)
+			}
+			return m, nil
+
+		case "shift+tab":
+			if m.focusArea == FocusMain {
+				m.tabs.Prev()
+				m.currentPanel = PanelType(m.tabs.SelectedIndex)
+			}
+			return m, nil
 		}
 
 		// Handle input based on current focus
@@ -1127,12 +1142,26 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.message = "Only prepared casters can change cantrips this way"
 		}
-	case "v":
-		// Open spell preparation selector
-		if m.character.SpellBook.IsPreparedCaster {
+	case "v", "b":
+		// Open spellbook editor (for Wizards) or spell prep selector (for other prepared casters)
+		debug.Log("=== KEY 'v' or 'b' PRESSED IN SPELLS PANEL")
+		debug.Log("=== IsSpellbookCaster: %v, HasWizard: %v, IsPreparedCaster: %v",
+			m.character.SpellBook.IsSpellbookCaster,
+			m.character.HasClass("Wizard"),
+			m.character.SpellBook.IsPreparedCaster)
+		debug.Log("=== Current spells in spellbook: %d", len(m.character.SpellBook.Spells))
+
+		if m.character.SpellBook.IsSpellbookCaster && m.character.HasClass("Wizard") {
+			debug.Log("=== OPENING SPELLBOOK EDITOR")
+			m.spellbookEditor.Show()
+			m.message = "Managing spellbook... (Space: Prepare | a: Add | d/x: Remove | c: Cantrips | 0-9: Filter)"
+			debug.Log("=== Spellbook editor visible: %v", m.spellbookEditor.IsVisible())
+		} else if m.character.SpellBook.IsPreparedCaster {
+			debug.Log("=== OPENING SPELL PREP SELECTOR")
 			m.spellPrepSelector.Show()
 			m.message = "Select spells to prepare..."
 		} else {
+			debug.Log("=== Not a prepared caster - showing error message")
 			m.message = "Only prepared casters can prepare spells"
 		}
 	case "s":
@@ -1142,6 +1171,29 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.message = "Select spell slot to restore..."
 		} else {
 			m.message = "Not a spellcaster"
+		}
+	case "a":
+		// Add new spell to spellbook (Wizard only)
+		debug.Log("=== KEY 'a' PRESSED IN SPELLS PANEL")
+		debug.Log("=== IsSpellbookCaster: %v, HasWizard: %v",
+			m.character.SpellBook.IsSpellbookCaster,
+			m.character.HasClass("Wizard"))
+
+		if m.character.SpellBook.IsSpellbookCaster && m.character.HasClass("Wizard") {
+			wizardLevel := m.character.GetClassLevel("Wizard")
+			maxSpellLevel := (wizardLevel + 1) / 2
+			if maxSpellLevel > 9 {
+				maxSpellLevel = 9
+			}
+			debug.Log("=== SHOWING SPELL SELECTOR: WizardLevel=%d, MaxSpellLevel=%d", wizardLevel, maxSpellLevel)
+			// For now, prompt to add 1 spell at a time
+			// You can change the spell level by showing a menu first
+			m.leveledSpellSelector.Show("Wizard", 1, 1) // Add 1 level 1 spell for now
+			m.message = fmt.Sprintf("Add a new spell to your spellbook (up to level %d)...", maxSpellLevel)
+			debug.Log("=== Spell selector visible: %v", m.leveledSpellSelector.IsVisible())
+		} else {
+			debug.Log("=== Not a Wizard spellbook caster")
+			m.message = "Only Wizards can add spells to their spellbook"
 		}
 	case "enter":
 		// View spell details
@@ -2220,6 +2272,23 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		// Check if Wizard needs spell learning (gains 2 spells per level)
+		if m.character.HasClass("Wizard") {
+			wizardLevel := m.character.GetClassLevel("Wizard")
+			if wizardLevel > 1 {
+				// Wizard gained a level, prompt for 2 new spells
+				// Determine which level of spells they can learn (up to half their wizard level, rounded up)
+				maxSpellLevel := (wizardLevel + 1) / 2
+				if maxSpellLevel > 9 {
+					maxSpellLevel = 9
+				}
+				debug.Log("Wizard leveled up to %d - can learn spells up to level %d", wizardLevel, maxSpellLevel)
+				m.leveledSpellSelector.Show("Wizard", 1, 2) // For now, show level 1 spells. TODO: allow choosing spell level
+				m.message = fmt.Sprintf("You gained a Wizard level! Select 2 new spells to add to your spellbook (up to level %d)...", maxSpellLevel)
+				return m, cmd
+			}
+		}
+
 		m.message = "Character updated!"
 	}
 
@@ -2530,21 +2599,24 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			} else {
 				// No subclass at level 1, check for fighting style or cantrips
 			needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
-			debug.Log("Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
+			debug.Log("=== Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
 
-			needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
-			debug.Log("Class %s needs cantrips: %v", selectedClassName, needsCantrips)
+			// Check the character's spellbook for cantrips (loaded from level progression)
+			needsCantrips := m.character.SpellBook.CantripsKnown > 0
+			debug.Log("=== Class %s needs cantrips: %v (Character.SpellBook.CantripsKnown=%d)",
+				selectedClassName, needsCantrips, m.character.SpellBook.CantripsKnown)
 
 			if needsFightingStyle {
 				// Show fighting style selector
-				debug.Log("Showing fighting style selector")
+				debug.Log("=== Showing fighting style selector")
 				m.fightingStyleSelector.Show(selectedClassName)
 				m.message = fmt.Sprintf("Select fighting style for %s...", selectedClassName)
 			} else if needsCantrips {
 				// Show cantrip selector
-				debug.Log("Showing cantrip selector for %d cantrips", classData.Spellcasting.CantripsKnown)
-				m.cantripSelector.Show(selectedClassName, classData.Spellcasting.CantripsKnown)
-				m.message = fmt.Sprintf("Select %d cantrips for %s...", classData.Spellcasting.CantripsKnown, selectedClassName)
+				debug.Log("=== SHOWING CANTRIP SELECTOR for %s: %d cantrips needed", selectedClassName, m.character.SpellBook.CantripsKnown)
+				m.cantripSelector.Show(selectedClassName, m.character.SpellBook.CantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for %s...", m.character.SpellBook.CantripsKnown, selectedClassName)
+				debug.Log("=== Cantrip selector should now be visible: %v", m.cantripSelector.IsVisible())
 			} else {
 					// Check for weapon mastery
 					masteryCount := m.getWeaponMasteryCount()
@@ -2593,13 +2665,29 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		if m.cantripSelector.CanConfirm() {
 			selectedCantrips := m.cantripSelector.GetSelectedCantrips()
-			debug.Log("Selected cantrips: %v", selectedCantrips)
+			debug.Log("=== CANTRIPS CONFIRMED: Selected cantrips: %v", selectedCantrips)
 
 			// Apply cantrips to character's spellbook
 			m.character.SpellBook.Cantrips = selectedCantrips
 			m.character.SpellBook.CantripsKnown = len(selectedCantrips)
+			debug.Log("=== Applied cantrips to spellbook. Total: %d", len(m.character.SpellBook.Cantrips))
 
 			m.cantripSelector.Hide()
+
+			// Check if Wizard level 1 needs spell selection
+			hasWizard := m.character.HasClass("Wizard")
+			wizardLevel := m.character.GetClassLevel("Wizard")
+			debug.Log("=== Checking Wizard spell selection: HasWizard=%v, WizardLevel=%d", hasWizard, wizardLevel)
+
+			if hasWizard && wizardLevel == 1 {
+				debug.Log("=== WIZARD LEVEL 1 DETECTED - SHOWING SPELL SELECTOR FOR 6 SPELLS")
+				m.leveledSpellSelector.Show("Wizard", 1, 6)
+				m.message = "Select 6 level 1 spells for your spellbook..."
+				debug.Log("=== Spell selector should now be visible: %v", m.leveledSpellSelector.IsVisible())
+				return m, cmd
+			} else {
+				debug.Log("=== Wizard level 1 check failed - skipping spell selection")
+			}
 
 			// Check if Eldritch Knight needs spell selection
 			if m.character.IsEldritchKnight() {
@@ -2662,6 +2750,104 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.pendingChanges.RestoreClass(m.character)
 		m.storage.Save(m.character)
 		m.message = "Class selection cancelled - restored previous state"
+	}
+
+	return m, cmd
+}
+
+// handleLeveledSpellSelectorKeys handles keyboard input for the leveled spell selector
+func (m *Model) handleLeveledSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleLeveledSpellSelectorKeys: key=%s", msg.String())
+
+	// Delegate navigation and selection to the component's Update method
+	var cmd tea.Cmd
+	*m.leveledSpellSelector, cmd = m.leveledSpellSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter":
+		if m.leveledSpellSelector.GetRemainingCount() == 0 {
+			selectedSpells := m.leveledSpellSelector.GetSelectedSpells()
+			debug.Log("=== SPELL SELECTOR CONFIRMED: Selected spells: %v", selectedSpells)
+
+			// Add spells to character's spellbook
+			addedCount := 0
+			for _, spellName := range selectedSpells {
+				// Load spell details and add to spellbook
+				allSpells, err := models.LoadSpellsFromJSON("data/spells.json")
+				if err != nil {
+					debug.Log("=== ERROR loading spells: %v", err)
+					m.message = "Error loading spells"
+					return m, cmd
+				}
+
+				for _, spell := range allSpells {
+					if spell.Name == spellName {
+						// Set spell as known but not prepared
+						spell.Known = true
+						spell.Prepared = false
+						m.character.SpellBook.Spells = append(m.character.SpellBook.Spells, spell)
+						addedCount++
+						debug.Log("=== Added spell to spellbook: %s (Known=%v, Prepared=%v)", spell.Name, spell.Known, spell.Prepared)
+						break
+					}
+				}
+			}
+
+			debug.Log("=== Total spells in spellbook after adding: %d", len(m.character.SpellBook.Spells))
+			debug.Log("=== Spellbook contents: %v", func() []string {
+				names := []string{}
+				for _, s := range m.character.SpellBook.Spells {
+					names = append(names, fmt.Sprintf("%s(K:%v,P:%v)", s.Name, s.Known, s.Prepared))
+				}
+				return names
+			}())
+
+			m.leveledSpellSelector.Hide()
+
+			// Save character
+			m.pendingChanges.Clear()
+			m.storage.Save(m.character)
+			m.message = fmt.Sprintf("Spell selection complete! Added %d spells to spellbook (Total: %d)", addedCount, len(m.character.SpellBook.Spells))
+		} else {
+			needed := m.leveledSpellSelector.GetRemainingCount()
+			m.message = fmt.Sprintf("Please select %d more spell(s)", needed)
+		}
+	case "esc":
+		// Cancel - rollback to previous state
+		debug.Log("Spell selection cancelled, rolling back changes")
+		m.leveledSpellSelector.Hide()
+		m.pendingChanges.RestoreClass(m.character)
+		m.storage.Save(m.character)
+		m.message = "Spell selection cancelled - restored previous state"
+	}
+
+	return m, cmd
+}
+
+// handleSpellbookEditorKeys handles keyboard input for the spellbook editor
+func (m *Model) handleSpellbookEditorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleSpellbookEditorKeys: key=%s", msg.String())
+
+	// Delegate to the component's Update method
+	var cmd tea.Cmd
+	*m.spellbookEditor, cmd = m.spellbookEditor.Update(tea.KeyMsg(msg))
+
+	// Save character after any changes
+	if msg.String() == " " || msg.String() == "a" {
+		m.storage.Save(m.character)
+		preparedCount := 0
+		for _, spell := range m.character.SpellBook.Spells {
+			if spell.Prepared && spell.Level > 0 {
+				preparedCount++
+			}
+		}
+		m.message = fmt.Sprintf("Spellbook updated (Prepared: %d/%d)", preparedCount, m.character.SpellBook.MaxPreparedSpells)
+	}
+
+	if msg.String() == "esc" {
+		m.spellbookEditor.Hide()
+		m.storage.Save(m.character)
+		m.message = "Spellbook closed"
 	}
 
 	return m, cmd
@@ -3737,6 +3923,16 @@ func (m *Model) View() string {
 	// Cantrip selector takes seventh priority (Medium)
 	if m.cantripSelector.IsVisible() {
 		return m.cantripSelector.View()
+	}
+
+	// Leveled spell selector takes priority
+	if m.leveledSpellSelector.IsVisible() {
+		return m.leveledSpellSelector.View(m.width, m.height)
+	}
+
+	// Spellbook editor takes priority
+	if m.spellbookEditor.IsVisible() {
+		return m.spellbookEditor.View(m.width, m.height)
 	}
 
 	// Spell prep selector takes eighth priority (Medium)

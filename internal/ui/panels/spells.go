@@ -216,8 +216,22 @@ func (p *SpellsPanel) View(width, height int) string {
 				style = selectedStyle
 			}
 
+			// Find the spell to check for concentration and ritual
+			markers := ""
+			for _, spell := range p.allSpells {
+				if spell.Name == cantripName && spell.Level == 0 {
+					if spell.Concentration {
+						markers += " (C)"
+					}
+					if spell.Ritual {
+						markers += " (R)"
+					}
+					break
+				}
+			}
+
 			levelTag := levelStyle.Render("[0]")
-			lines = append(lines, style.Render(fmt.Sprintf("%s● %s %s", cursor, cantripName, levelTag)))
+			lines = append(lines, style.Render(fmt.Sprintf("%s● %s %s%s", cursor, cantripName, levelTag, markers)))
 			currentIdx++
 		}
 	}
@@ -238,11 +252,30 @@ func (p *SpellsPanel) View(width, height int) string {
 
 	if totalCount == 0 {
 		lines = append(lines, dimStyle.Render("  No spells prepared"))
-		lines = append(lines, dimStyle.Render("  Press 'v' to prepare spells"))
+		if char.SpellBook.IsSpellbookCaster {
+			lines = append(lines, dimStyle.Render("  Press 'v' or 'b' to open your spellbook and prepare spells"))
+		} else {
+			lines = append(lines, dimStyle.Render("  Press 'v' to prepare spells"))
+		}
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Keys: ↑/↓: Select • Enter: View Details • 'v': Prepare • 'c': Cantrips • 's': Restore Slot • 'r': Rest"))
+	if char.SpellBook.IsSpellbookCaster {
+		// Special help for Wizards
+		knownCount := len(char.SpellBook.Spells)
+		cantripCount := len(char.SpellBook.Cantrips)
+		preparedCount := 0
+		for _, spell := range char.SpellBook.Spells {
+			if spell.Prepared {
+				preparedCount++
+			}
+		}
+		maxPrepared := char.SpellBook.MaxPreparedSpells
+		lines = append(lines, dimStyle.Render(fmt.Sprintf("Cantrips: %d | Known: %d | Prepared: %d/%d", cantripCount, knownCount, preparedCount, maxPrepared)))
+		lines = append(lines, dimStyle.Render("Press 'v/b' to open spellbook editor"))
+		lines = append(lines, "")
+	}
+	lines = append(lines, dimStyle.Render("Keys: ↑/↓: Select • Enter: View Details • 'v/b': Spellbook • 'c': Cantrips • 'a': Add Spell • 's': Restore Slot • 'r': Rest"))
 
 	content := strings.Join(lines, "\n")
 
@@ -435,13 +468,16 @@ func (p *SpellsPanel) renderPreparedSpellsByLevelWithSelection(currentIdx *int) 
 				style = selectedStyle
 			}
 
-			ritualMarker := ""
+			markers := ""
+			if spell.Concentration {
+				markers += " (C)"
+			}
 			if spell.Ritual {
-				ritualMarker = " (R)"
+				markers += " (R)"
 			}
 
 			levelTag := levelTagStyle.Render(fmt.Sprintf("[%d]", spell.Level))
-			line := fmt.Sprintf("%s● %s %s%s", cursor, spell.Name, levelTag, ritualMarker)
+			line := fmt.Sprintf("%s● %s %s%s", cursor, spell.Name, levelTag, markers)
 			lines = append(lines, style.Render(line))
 			totalCount++
 			*currentIdx++

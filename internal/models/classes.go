@@ -506,6 +506,9 @@ func InitializeSpellcasting(char *Character, class *Class) {
 	}
 
 	debug.Log("InitializeSpellcasting: Setting up spellcasting for %s", class.Name)
+	debug.Log("  class.Spellcasting.PreparationFormula from JSON: '%s'", class.Spellcasting.PreparationFormula)
+	debug.Log("  class.Spellcasting.Ability: '%s'", class.Spellcasting.Ability)
+	debug.Log("  class.Spellcasting.RitualCasting: %v", class.Spellcasting.RitualCasting)
 
 	// Check if this class gets spells at level 1
 	// Ranger and Paladin don't get spells until level 2
@@ -518,43 +521,49 @@ func InitializeSpellcasting(char *Character, class *Class) {
 	// Set spellcasting ability
 	char.SpellBook.SpellcastingMod = AbilityType(class.Spellcasting.Ability)
 
-	// Determine caster type
-	// Prepared Casters: Cleric, Druid, Wizard (know all spells, prepare subset)
+	// Special handling for Wizard spellbook (do this FIRST)
+	if class.Name == "Wizard" {
+		char.SpellBook.IsSpellbookCaster = true
+		char.SpellBook.IsPreparedCaster = true // Wizards are prepared casters
+		debug.Log("  Wizard: IsSpellbookCaster and IsPreparedCaster set to true")
+
+		// FALLBACK: If PreparationFormula is empty, set it manually for Wizards
+		if class.Spellcasting.PreparationFormula == "" {
+			debug.Log("  WARNING: PreparationFormula is empty! Setting fallback: 'intelligence+level'")
+			class.Spellcasting.PreparationFormula = "intelligence+level"
+		}
+	}
+
+	// Determine caster type (for non-Wizards)
+	// Prepared Casters: Cleric, Druid (know all spells, prepare subset)
 	// Known Casters: Bard, Sorcerer, Warlock, Ranger (select specific spells)
 	// Pact Magic: Warlock (special short rest recovery - uses same slots for now)
-	isPreparedCaster := class.Spellcasting.SpellsKnownFormula == "all"
-	char.SpellBook.IsPreparedCaster = isPreparedCaster
-	debug.Log("  IsPreparedCaster: %v", isPreparedCaster)
+	if class.Name != "Wizard" {
+		isPreparedCaster := class.Spellcasting.SpellsKnownFormula == "all"
+		char.SpellBook.IsPreparedCaster = isPreparedCaster
+		debug.Log("  IsPreparedCaster: %v", isPreparedCaster)
+	}
 
-	// Set cantrips known
-	char.SpellBook.CantripsKnown = class.Spellcasting.CantripsKnown
-	debug.Log("  CantripsKnown: %d", char.SpellBook.CantripsKnown)
+	// Load spell slots from class progression FIRST (this also loads cantrips_known)
+	LoadSpellSlotsForLevel(char, class, currentClassLevel)
 
 	// Calculate max prepared spells if this is a prepared caster
-	if isPreparedCaster && class.Spellcasting.PreparationFormula != "" {
-		// Store the formula so it can be recalculated when stats change
-		char.SpellBook.PreparationFormula = class.Spellcasting.PreparationFormula
-		maxPrepared := char.CalculateMaxPreparedSpells(class.Spellcasting.PreparationFormula)
-		char.SpellBook.MaxPreparedSpells = maxPrepared
-		debug.Log("  MaxPreparedSpells: %d (formula: %s)", maxPrepared, class.Spellcasting.PreparationFormula)
+	if char.SpellBook.IsPreparedCaster {
+		if class.Spellcasting.PreparationFormula != "" {
+			// Store the formula so it can be recalculated when stats change
+			char.SpellBook.PreparationFormula = class.Spellcasting.PreparationFormula
+			maxPrepared := char.CalculateMaxPreparedSpells(class.Spellcasting.PreparationFormula)
+			char.SpellBook.MaxPreparedSpells = maxPrepared
+			debug.Log("  MaxPreparedSpells: %d (formula: %s)", maxPrepared, class.Spellcasting.PreparationFormula)
+		}
 	}
 
 	// For known casters (Bard, Sorcerer, Warlock), calculate spells known from formula
-	if !isPreparedCaster && class.Spellcasting.SpellsKnownFormula != "" {
+	if !char.SpellBook.IsPreparedCaster && class.Spellcasting.SpellsKnownFormula != "" {
 		// Parse formula like "2" or "level+1" (simplified for now)
 		// TODO: Implement formula parsing for spells known
 		debug.Log("  Known caster: formula '%s'", class.Spellcasting.SpellsKnownFormula)
 	}
-
-	// Special handling for Wizard spellbook
-	if class.Name == "Wizard" {
-		debug.Log("  Wizard: Initialize spellbook with 6 level 1 spells")
-		// Wizards start with 6 level 1 spells in their spellbook
-		// TODO: Implement spellbook selection
-	}
-
-	// Load spell slots from class progression
-	LoadSpellSlotsForLevel(char, class, currentClassLevel)
 
 	// Update spell save DC and attack bonus
 	char.UpdateDerivedStats()
@@ -581,7 +590,9 @@ func LoadSpellSlotsForLevel(char *Character, class *Class, level int) {
 		LevelProgression []struct {
 			Level            int                   `json:"level"`
 			SpellcastingInfo *struct {
-				SpellSlots map[string]int `json:"spell_slots"`
+				SpellSlots         map[string]int `json:"spell_slots"`
+				SpellsInSpellbook int            `json:"spells_in_spellbook"`
+				CantripsKnown     int            `json:"cantrips_known"`
 			} `json:"spellcasting_info"`
 		} `json:"level_progression"`
 	}
@@ -632,6 +643,18 @@ func LoadSpellSlotsForLevel(char *Character, class *Class, level int) {
 			if slots, ok := levelData.SpellcastingInfo.SpellSlots["9"]; ok {
 				char.SpellBook.Slots.Level9.Maximum = slots
 				char.SpellBook.Slots.Level9.Current = slots
+			}
+
+			// Set spells in spellbook for Wizard
+			if char.SpellBook.IsSpellbookCaster && levelData.SpellcastingInfo.SpellsInSpellbook > 0 {
+				char.SpellBook.SpellsInSpellbook = levelData.SpellcastingInfo.SpellsInSpellbook
+				debug.Log("  Spells in spellbook: %d", char.SpellBook.SpellsInSpellbook)
+			}
+
+			// Update cantrips known
+			if levelData.SpellcastingInfo.CantripsKnown > 0 {
+				char.SpellBook.CantripsKnown = levelData.SpellcastingInfo.CantripsKnown
+				debug.Log("  Cantrips known: %d", char.SpellBook.CantripsKnown)
 			}
 
 			debug.Log("  Level 1 slots: %d", char.SpellBook.Slots.Level1.Maximum)
