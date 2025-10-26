@@ -88,17 +88,21 @@
       "proficiency_bonus": 2,
       "features": [
         {
+          "name": "Primal Knowledge",
+          "description": "You gain proficiency in one skill of your choice from the Barbarian skill list.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "type": "skill_choice",
+            "skill_list": ["Animal Handling", "Athletics", "Intimidation", "Nature", "Perception", "Survival"]
+          }
+        },
+        {
           "name": "Primal Path",
           "description": "At 3rd level, you choose a path that shapes the nature of your rage. Your choice grants you features at 3rd level and again at 6th, 10th, and 14th levels.",
           "uses_formula": "0",
           "rest_type": "None",
           "subclass_choice": true
-        },
-        {
-          "name": "Rage Improvement",
-          "description": "Your rage damage bonus increases and you gain more uses.",
-          "uses_formula": "rage_scaling",
-          "rest_type": "Long Rest"
         }
       ],
       "ability_score_improvement": false
@@ -392,9 +396,101 @@
         "3": [
           {
             "name": "Frenzy",
-            "description": "You can go into a frenzy when you rage. If you do so, for the duration of your rage you can make a single melee weapon attack as a bonus action on each of your turns after this one. When your rage ends, you suffer one level of exhaustion.",
+            "description": "When you use Reckless Attack while raging, you deal extra damage to the first target you hit: (Rage Damage Bonus)d6. Example: +2 rage = 2d6, +3 rage = 3d6, +4 rage = 4d6.",
             "uses_formula": "0",
-            "rest_type": "None"
+            "rest_type": "None",
+            "mechanics": {
+              "type": "rage_effect",
+              "damage_formula": "rage_bonus_d6"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Path of the Wild Heart",
+      "description": "Barbarians who walk the Path of the Wild Heart are spiritually attuned to the natural world. They draw their rage from a primal connection to nature, channeling the essence of animals.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Animal Speaker",
+            "description": "You can cast Beast Sense and Speak with Animals as ritual spells. You don't need material components to cast them.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "spell_grant",
+              "spells": ["Beast Sense", "Speak with Animals"],
+              "ritual_only": true
+            }
+          },
+          {
+            "name": "Rage of the Wilds",
+            "description": "When you enter rage, choose one animal form to gain its benefits for the duration:\n\n• Bear: Resistance to all damage except Force, Necrotic, Psychic, and Radiant\n• Eagle: You can take Dash or Disengage as a bonus action (can use both)\n• Wolf: Allies within 5ft of you have advantage on attack rolls against creatures hostile to you",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "rage_effect",
+              "requires_choice": true,
+              "choice_type": "animal_form"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Path of the Zealot",
+      "description": "Some barbarians are driven by a higher power, be it a deity, an ideal, or a cause. The Path of the Zealot blends divine power with primal fury.",
+      "subclass_level": 3,
+      "source": "Xanathar's Guide to Everything",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Divine Fury",
+            "description": "While raging, the first creature you hit with a weapon attack on each of your turns takes extra damage: 1d6 + half your barbarian level (rounded down). Choose Necrotic or Radiant damage each time this triggers.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "rage_effect",
+              "damage_formula": "1d6_plus_half_level",
+              "requires_choice": true,
+              "choice_type": "damage_type",
+              "damage_types": ["Necrotic", "Radiant"]
+            }
+          },
+          {
+            "name": "Warrior of the Gods",
+            "description": "You have divine energy stored as Warrior Dice. As a bonus action, you can expend one die to heal yourself, rolling the die and regaining HP equal to the result. You have 4 dice at level 3 (increasing to 5 at level 6, 6 at level 12, 7 at level 17). Regain all expended dice after a long rest.",
+            "uses_formula": "warrior_dice_scaling",
+            "rest_type": "Long Rest",
+            "mechanics": {
+              "type": "warrior_dice",
+              "dice_size": "d12",
+              "bonus_action_heal": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Path of the World Tree",
+      "description": "Barbarians who follow the Path of the World Tree draw their strength from the cosmic tree that connects all planes of existence. Their rage channels life energy from this primordial source.",
+      "subclass_level": 3,
+      "source": "Tasha's Cauldron of Everything",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Vitality of the Tree",
+            "description": "When you enter rage, you gain the following benefits:\n\n• Vitality Surge: You gain temporary HP equal to your barbarian level\n• Life-Giving Force: Choose one creature within 10ft of you. That creature gains temporary HP equal to (Rage Damage Bonus)d6. Example: +2 rage = 2d6, +3 rage = 3d6, +4 rage = 4d6",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "rage_effect",
+              "temp_hp_self": "barbarian_level",
+              "temp_hp_ally": "rage_bonus_d6",
+              "range_ft": 10
+            }
           }
         ]
       }

@@ -77,6 +77,13 @@ type Character struct {
 	} `json:"superiority_dice,omitempty"`
 	Maneuvers []string `json:"maneuvers,omitempty"` // List of known Battle Master maneuvers
 
+	// Barbarian Subclass Resources
+	WarriorDice struct {
+		Current int    `json:"current"`
+		Max     int    `json:"max"`
+		Size    string `json:"size"` // Always "d12" for Zealot
+	} `json:"warrior_dice,omitempty"` // Path of the Zealot
+
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
 
@@ -433,6 +440,46 @@ func (c *Character) IsPsiWarrior() bool {
 // IsBattleMaster checks if character is a Battle Master Fighter
 func (c *Character) IsBattleMaster() bool {
 	return c.GetFighterSubclass() == "Battle Master"
+}
+
+// GetBarbarianSubclass returns the character's Barbarian subclass
+func (c *Character) GetBarbarianSubclass() string {
+	for _, classLevel := range c.Classes {
+		if classLevel.ClassName == "Barbarian" {
+			return classLevel.Subclass
+		}
+	}
+	return ""
+}
+
+// IsZealot checks if character is a Path of the Zealot Barbarian
+func (c *Character) IsZealot() bool {
+	return c.GetBarbarianSubclass() == "Path of the Zealot"
+}
+
+// IsWildHeart checks if character is a Path of the Wild Heart Barbarian
+func (c *Character) IsWildHeart() bool {
+	return c.GetBarbarianSubclass() == "Path of the Wild Heart"
+}
+
+// IsBerserker checks if character is a Path of the Berserker Barbarian
+func (c *Character) IsBerserker() bool {
+	return c.GetBarbarianSubclass() == "Path of the Berserker"
+}
+
+// IsWorldTree checks if character is a Path of the World Tree Barbarian
+func (c *Character) IsWorldTree() bool {
+	return c.GetBarbarianSubclass() == "Path of the World Tree"
+}
+
+// GetBarbarianLevel returns the character's Barbarian level
+func (c *Character) GetBarbarianLevel() int {
+	for _, classLevel := range c.Classes {
+		if classLevel.ClassName == "Barbarian" {
+			return classLevel.Level
+		}
+	}
+	return 0
 }
 
 // HasImprovedCritical checks if character has Improved Critical feature (Champion)

@@ -443,6 +443,14 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 
 					// Apply special benefits for certain subclass features
 					applySubclassFeatureBenefits(char, feature.Name, subclassName)
+
+					// Check if feature has mechanics that require user choices
+					if featureDef.Mechanics != nil {
+						if mechType, ok := featureDef.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+							debug.Log("  Feature %s requires skill choice", feature.Name)
+							// This will be handled by UI after level-up is completed
+						}
+					}
 				}
 			} else {
 				debug.Log("GrantSubclassFeatures: No features found for level %d", level)
@@ -489,6 +497,37 @@ func applySubclassFeatureBenefits(char *Character, featureName string, subclassN
 			debug.Log("  Error adding Herbalism Kit proficiency: %v", err)
 		} else {
 			debug.Log("  Granted Herbalism Kit proficiency")
+		}
+
+	case "Animal Speaker":
+		// Path of the Wild Heart: Grant Beast Sense and Speak with Animals as ritual spells
+		debug.Log("  Applying Animal Speaker benefits")
+
+		// Add Beast Sense spell
+		if err := applier.AddSpell(source, "Beast Sense"); err != nil {
+			debug.Log("  Error adding Beast Sense spell: %v", err)
+		} else {
+			debug.Log("  Granted Beast Sense spell")
+		}
+
+		// Add Speak with Animals spell
+		if err := applier.AddSpell(source, "Speak with Animals"); err != nil {
+			debug.Log("  Error adding Speak with Animals spell: %v", err)
+		} else {
+			debug.Log("  Granted Speak with Animals spell")
+		}
+
+	case "Warrior of the Gods":
+		// Path of the Zealot: Initialize Warrior Dice
+		debug.Log("  Applying Warrior of the Gods benefits")
+
+		barbarianLevel := char.GetBarbarianLevel()
+		if barbarianLevel >= 3 {
+			diceCount := GetFeatureScaling("Barbarian", "Warrior of the Gods", barbarianLevel)
+			char.WarriorDice.Max = diceCount
+			char.WarriorDice.Current = diceCount
+			char.WarriorDice.Size = GetWarriorDiceSize(barbarianLevel)
+			debug.Log("  Initialized Warrior Dice: %d/%d %s", char.WarriorDice.Current, char.WarriorDice.Max, char.WarriorDice.Size)
 		}
 
 	case "Shadow Arts":

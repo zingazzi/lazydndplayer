@@ -101,6 +101,19 @@ func (p *FeaturesPanel) buildConsumablesList() []ConsumableItem {
 		})
 	}
 
+	// Add Warrior Dice for Path of the Zealot
+	if p.character.IsZealot() && p.character.WarriorDice.Max > 0 {
+		longRest = append(longRest, ConsumableItem{
+			ItemType:     "resource",
+			ResourceType: "warrior_dice",
+			Name:         fmt.Sprintf("Warrior Dice 1%s", p.character.WarriorDice.Size),
+			Current:      p.character.WarriorDice.Current,
+			Max:          p.character.WarriorDice.Max,
+			RestType:     models.LongRest,
+			Description:  "Divine energy dice used by Path of the Zealot Barbarians. As a bonus action, expend one die to heal yourself, rolling the die and regaining HP equal to the result. Regain all on long rest.",
+		})
+	}
+
 	// Add all consumable features (MaxUses > 0)
 	// Skip features that are already represented as resources
 	for i := range p.character.Features.Features {
@@ -166,13 +179,12 @@ func (p *FeaturesPanel) buildRageEffects() []SelectableItem {
 	}
 
 	// Get Barbarian level for damage calculation
-	barbarianLevel := 1
-	for _, classLevel := range p.character.Classes {
-		if classLevel.ClassName == "Barbarian" {
-			barbarianLevel = classLevel.Level
-			break
-		}
+	barbarianLevel := p.character.GetBarbarianLevel()
+	if barbarianLevel == 0 {
+		barbarianLevel = 1
 	}
+
+	// Basic Rage Effects (always present)
 
 	// Rage Damage
 	rageDamage := models.GetRageDamageBonus(barbarianLevel)
@@ -202,6 +214,48 @@ func (p *FeaturesPanel) buildRageEffects() []SelectableItem {
 		Name:        "No Concentration",
 		Description: "While raging, you cannot maintain concentration on spells.",
 	})
+
+	// Subclass-Specific Rage Effects
+
+	// Path of the Berserker - Frenzy
+	if p.character.IsBerserker() {
+		frenzyDice := rageDamage
+		effects = append(effects, SelectableItem{
+			ItemType:    "rage_effect",
+			Name:        fmt.Sprintf("Frenzy: %dd6", frenzyDice),
+			Description: fmt.Sprintf("When you use Reckless Attack while raging, deal an extra %dd6 damage to the first target you hit.", frenzyDice),
+		})
+	}
+
+	// Path of the Wild Heart - Rage of the Wilds
+	if p.character.IsWildHeart() {
+		effects = append(effects, SelectableItem{
+			ItemType:    "rage_effect",
+			Name:        "Rage of the Wilds",
+			Description: "Choose one animal form when entering rage:\n• Bear: Resistance to all damage except Force, Necrotic, Psychic, Radiant\n• Eagle: Dash or Disengage as bonus action (can use both)\n• Wolf: Allies within 5ft have advantage on attacks",
+		})
+	}
+
+	// Path of the Zealot - Divine Fury
+	if p.character.IsZealot() {
+		halfLevel := barbarianLevel / 2
+		effects = append(effects, SelectableItem{
+			ItemType:    "rage_effect",
+			Name:        fmt.Sprintf("Divine Fury: 1d6+%d", halfLevel),
+			Description: fmt.Sprintf("First creature you hit each turn takes extra 1d6+%d damage. Choose Necrotic or Radiant damage type each time.", halfLevel),
+		})
+	}
+
+	// Path of the World Tree - Vitality of the Tree
+	if p.character.IsWorldTree() {
+		vitalitySurge := barbarianLevel
+		lifeGivingDice := rageDamage
+		effects = append(effects, SelectableItem{
+			ItemType:    "rage_effect",
+			Name:        "Vitality of the Tree",
+			Description: fmt.Sprintf("When entering rage:\n• Vitality Surge: Gain %d temp HP\n• Life-Giving Force: One ally within 10ft gains %dd6 temp HP", vitalitySurge, lifeGivingDice),
+		})
+	}
 
 	return effects
 }

@@ -12,6 +12,12 @@ var FeatureScaling = map[string]map[string]map[int]int{
 			12: 5, 13: 5, 14: 5, 15: 5, 16: 5, // 5 uses at levels 12-16
 			17: 6, 18: 6, 19: 6, 20: 6, // 6 uses at levels 17-20
 		},
+		"Warrior of the Gods": {
+			3: 4, 4: 4, 5: 4, // 4 dice (d12) at levels 3-5
+			6: 5, 7: 5, 8: 5, 9: 5, 10: 5, 11: 5, // 5 dice at levels 6-11
+			12: 6, 13: 6, 14: 6, 15: 6, 16: 6, // 6 dice at levels 12-16
+			17: 7, 18: 7, 19: 7, 20: 7, // 7 dice at levels 17-20
+		},
 	},
 	"Fighter": {
 		"Action Surge": {
@@ -174,4 +180,9 @@ func GetRageDamageBonus(characterLevel int) int {
 	default:
 		return 2
 	}
+}
+
+// GetWarriorDiceSize returns the die size for Path of the Zealot (always d12)
+func GetWarriorDiceSize(barbarianLevel int) string {
+	return "d12" // Warrior Dice are always d12 for Zealot
 }

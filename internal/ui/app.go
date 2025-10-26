@@ -1241,6 +1241,9 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "superiority_dice":
 				m.character.SuperiorityDice.Current--
 				m.message = fmt.Sprintf("Superiority Die spent. Current: %d/%d", m.character.SuperiorityDice.Current, m.character.SuperiorityDice.Max)
+			case "warrior_dice":
+				m.character.WarriorDice.Current--
+				m.message = fmt.Sprintf("Warrior Die spent. Current: %d/%d", m.character.WarriorDice.Current, m.character.WarriorDice.Max)
 			}
 			m.storage.Save(m.character)
 		case "feature":
@@ -1300,6 +1303,9 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "superiority_dice":
 				m.character.SuperiorityDice.Current++
 				m.message = fmt.Sprintf("Superiority Die restored. Current: %d/%d", m.character.SuperiorityDice.Current, m.character.SuperiorityDice.Max)
+			case "warrior_dice":
+				m.character.WarriorDice.Current++
+				m.message = fmt.Sprintf("Warrior Die restored. Current: %d/%d", m.character.WarriorDice.Current, m.character.WarriorDice.Max)
 			}
 			m.storage.Save(m.character)
 		case "feature":

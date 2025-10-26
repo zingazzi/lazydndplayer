@@ -42,6 +42,16 @@ type FighterReaction struct {
 	Cost        string // e.g., "1 Psi Die", "1 Superiority Die"
 }
 
+// BarbarianBonusAction represents a Barbarian-specific bonus action
+type BarbarianBonusAction struct {
+	Name         string
+	Description  string
+	ResourceName string // Name of the resource (e.g., "Warrior Dice")
+	CurrentUses  int
+	MaxUses      int
+	DiceSize     string // e.g., "d12"
+}
+
 // ActionsPanel displays character actions
 type ActionsPanel struct {
 	character          *models.Character
@@ -52,11 +62,12 @@ type ActionsPanel struct {
 	actionSpells       []models.Spell        // Spells that are actions
 	bonusSpells        []models.Spell        // Spells that are bonus actions
 	reactionSpells     []models.Spell        // Spells that are reactions
-	monkBonusActions   []MonkBonusAction     // Monk bonus actions
-	monkReactions      []MonkReaction        // Monk reactions
-	fighterBonusActions []FighterBonusAction // Fighter bonus actions
-	fighterReactions   []FighterReaction     // Fighter reactions
-	totalItemCount     int                   // Total number of items (attacks + spells + actions)
+	monkBonusActions      []MonkBonusAction      // Monk bonus actions
+	monkReactions         []MonkReaction         // Monk reactions
+	fighterBonusActions   []FighterBonusAction   // Fighter bonus actions
+	fighterReactions      []FighterReaction      // Fighter reactions
+	barbarianBonusActions []BarbarianBonusAction // Barbarian bonus actions
+	totalItemCount        int                    // Total number of items (attacks + spells + actions)
 }
 
 // NewActionsPanel creates a new actions panel
@@ -149,6 +160,21 @@ func (p *ActionsPanel) View(width, height int) string {
 					break
 				}
 			}
+		}
+	}
+
+	// Build Barbarian bonus actions
+	p.barbarianBonusActions = []BarbarianBonusAction{}
+	if char.IsZealot() && char.HasFeature("Warrior of the Gods") {
+		if char.WarriorDice.Max > 0 {
+			p.barbarianBonusActions = append(p.barbarianBonusActions, BarbarianBonusAction{
+				Name:         "Warrior of the Gods",
+				Description:  fmt.Sprintf("Heal yourself by rolling 1%s", char.WarriorDice.Size),
+				ResourceName: "Warrior Dice",
+				CurrentUses:  char.WarriorDice.Current,
+				MaxUses:      char.WarriorDice.Max,
+				DiceSize:     char.WarriorDice.Size,
+			})
 		}
 	}
 
@@ -321,6 +347,34 @@ func (p *ActionsPanel) View(width, height int) string {
 		}
 	}
 
+	// Barbarian bonus actions
+	barbarianActionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("196")) // Red for Barbarian actions
+
+	if len(p.barbarianBonusActions) > 0 {
+		for _, action := range p.barbarianBonusActions {
+			// Show dice uses
+			usesStr := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render(fmt.Sprintf(" [%d/%d %s]", action.CurrentUses, action.MaxUses, action.DiceSize))
+
+			// Gray out if no dice left
+			var line string
+			if action.CurrentUses == 0 {
+				line = fmt.Sprintf("%-20s%s", action.Name, usesStr)
+				lines = append(lines, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render("  "+line+" (No dice left)"))
+			} else {
+				line = fmt.Sprintf("%-20s%s", action.Name, usesStr)
+				if idx == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render("▶ "+line))
+				} else {
+					lines = append(lines, barbarianActionStyle.Render("  "+line))
+				}
+			}
+			idx++
+		}
+	}
+
 	// Bonus action spells
 	if len(p.bonusSpells) > 0 {
 		for _, spell := range p.bonusSpells {
@@ -341,7 +395,7 @@ func (p *ActionsPanel) View(width, height int) string {
 	}
 
 	// Show "no bonus actions" only if there are no class actions and no spells
-	if len(p.fighterBonusActions) == 0 && len(p.monkBonusActions) == 0 && len(p.bonusSpells) == 0 {
+	if len(p.fighterBonusActions) == 0 && len(p.monkBonusActions) == 0 && len(p.barbarianBonusActions) == 0 && len(p.bonusSpells) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true).
