@@ -6,12 +6,9 @@ package models
 var FeatureScaling = map[string]map[string]map[int]int{
 	"Barbarian": {
 		"Rage": {
-			1: 2, 2: 2,
-			3: 3, 4: 3, 5: 3,
-			6: 4, 7: 4, 8: 4, 9: 4, 10: 4, 11: 4,
-			12: 5, 13: 5, 14: 5, 15: 5, 16: 5,
-			17: 6, 18: 6, 19: 6,
-			20: 999, // Unlimited at level 20
+			1: 2, 2: 2, 3: 2, // 2 uses at levels 1-3
+			4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, // 3 uses at levels 4-9
+			10: 4, 11: 4, 12: 4, 13: 4, 14: 4, 15: 4, 16: 4, 17: 4, 18: 4, 19: 4, 20: 4, // 4 uses at levels 10-20
 		},
 	},
 	"Fighter": {
@@ -162,5 +159,17 @@ func GetSuperiorityDiceSize(fighterLevel int) string {
 		return "d10"
 	default:
 		return "d8"
+	}
+}
+
+// GetRageDamageBonus returns the damage bonus for Barbarian Rage at a given character level
+func GetRageDamageBonus(characterLevel int) int {
+	switch {
+	case characterLevel >= 17:
+		return 4
+	case characterLevel >= 9:
+		return 3
+	default:
+		return 2
 	}
 }
