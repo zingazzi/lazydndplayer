@@ -2,7 +2,6 @@
 package panels
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -26,7 +25,7 @@ func NewOriginPanel(char *models.Character) *OriginPanel {
 	}
 }
 
-// View renders the origin panel with two-column layout
+// View renders the origin panel with simplified character information
 func (p *OriginPanel) View(width, height int) string {
 	// Use all available height for the viewport
 	viewportHeight := height
@@ -63,23 +62,9 @@ func (p *OriginPanel) View(width, height int) string {
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
 
-	descStyle := lipgloss.NewStyle().
+	hintStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
-
-	abilityStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("86")).
-		Bold(true)
-
-	featStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("141")).
-		Bold(true)
-
-	skillStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("214"))
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240"))
 
 	// Build content
 	var content []string
@@ -87,168 +72,101 @@ func (p *OriginPanel) View(width, height int) string {
 	content = append(content, titleStyle.Render("CHARACTER ORIGIN"))
 	content = append(content, "")
 
-	// Check if origin is set
-	if p.character.Origin == "" {
-		content = append(content, emptyStyle.Render("No origin selected"))
-		content = append(content, "")
-		content = append(content, helpStyle.Render("Press 'o' to select an origin"))
-
-		contentStr := strings.Join(content, "\n")
-		p.viewport.SetContent(contentStr)
-		return p.viewport.View()
-	}
-
-	// Get origin details
-	origin := models.GetOriginByName(p.character.Origin)
-	if origin == nil {
-		content = append(content, emptyStyle.Render("Origin not found"))
-		contentStr := strings.Join(content, "\n")
-		p.viewport.SetContent(contentStr)
-		return p.viewport.View()
-	}
-
-	// Calculate column widths (60% left, 40% right)
-	leftWidth := int(float64(width) * 0.6)
-	rightWidth := width - leftWidth - 3 // -3 for spacing
-
-	// LEFT COLUMN - Origin Information
-	var leftContent []string
-
-	// Origin name
-	leftContent = append(leftContent, sectionTitleStyle.Render(origin.Name))
-	leftContent = append(leftContent, "")
-
-	// Description
-	wrapped := wrapText(origin.Description, leftWidth-4)
-	for _, line := range wrapped {
-		leftContent = append(leftContent, descStyle.Render(line))
-	}
-	leftContent = append(leftContent, "")
-
-	// Ability Increases
-	if origin.AbilityIncreases != nil {
-		leftContent = append(leftContent, abilityStyle.Render("ABILITY INCREASE:"))
-		if len(origin.AbilityIncreases.Choices) > 0 {
-			// Show what was chosen (tracked in BenefitTracker)
-			benefits := p.character.BenefitTracker.GetBenefitsBySource("origin", origin.Name)
-			for _, benefit := range benefits {
-				if benefit.Type == models.BenefitAbilityScore {
-					leftContent = append(leftContent, valueStyle.Render(
-						fmt.Sprintf("  +%d %s", benefit.Value, benefit.Target)))
-				}
-			}
-		} else if origin.AbilityIncreases.Ability != "" {
-			leftContent = append(leftContent, valueStyle.Render(
-				fmt.Sprintf("  +%d %s",
-					origin.AbilityIncreases.Amount,
-					origin.AbilityIncreases.Ability)))
+	// Origin Section
+	if p.character.Origin != "" {
+		origin := models.GetOriginByName(p.character.Origin)
+		if origin != nil {
+			content = append(content, sectionTitleStyle.Render("Origin: ")+valueStyle.Render(origin.Name))
+			content = append(content, hintStyle.Render("  [Press Enter for details]"))
+			content = append(content, "")
+			
+			// Short description (first 100 chars)
+			shortDesc := p.getOriginShortDescription(origin.Description)
+			content = append(content, labelStyle.Render("  "+shortDesc))
+		} else {
+			content = append(content, sectionTitleStyle.Render("Origin: ")+emptyStyle.Render("Unknown"))
 		}
-		leftContent = append(leftContent, "")
-	}
-
-	// Granted Feat
-	if origin.Feat != "" {
-		leftContent = append(leftContent, featStyle.Render("GRANTED FEAT:"))
-		leftContent = append(leftContent, valueStyle.Render("  "+origin.Feat))
-
-		// Show if feat was applied
-		hasFeat := false
-		for _, feat := range p.character.Feats {
-			if feat == origin.Feat {
-				hasFeat = true
-				break
-			}
-		}
-		if hasFeat {
-			leftContent = append(leftContent, labelStyle.Render("  (Applied ✓)"))
-		}
-		leftContent = append(leftContent, "")
-	}
-
-	// Equipment
-	if len(origin.Equipment) > 0 {
-		leftContent = append(leftContent, sectionTitleStyle.Render("STARTING EQUIPMENT:"))
-		for _, item := range origin.Equipment {
-			wrappedItem := wrapText(item, leftWidth-6)
-			for _, line := range wrappedItem {
-				leftContent = append(leftContent, labelStyle.Render("  • "+line))
-			}
-		}
-		leftContent = append(leftContent, "")
-	}
-
-	// Help text
-	leftContent = append(leftContent, "")
-	leftContent = append(leftContent, helpStyle.Render("Press 'o' to change origin"))
-
-	// RIGHT COLUMN - Tool Proficiencies
-	var rightContent []string
-
-	rightContent = append(rightContent, sectionTitleStyle.Render("TOOL PROFICIENCIES"))
-	rightContent = append(rightContent, "")
-
-	// Get all tool proficiencies (from all sources, not just origin)
-	allTools := p.character.ToolProficiencies
-
-	if len(allTools) > 0 {
-		// Show all tools character has
-		for _, tool := range allTools {
-			wrappedTool := wrapText(tool, rightWidth-4)
-			for i, line := range wrappedTool {
-				if i == 0 {
-					rightContent = append(rightContent, valueStyle.Render("  • "+line))
-				} else {
-					rightContent = append(rightContent, labelStyle.Render("    "+line))
-				}
-			}
-		}
-		rightContent = append(rightContent, "")
 	} else {
-		rightContent = append(rightContent, labelStyle.Render("  No tool proficiencies"))
-		rightContent = append(rightContent, "")
+		content = append(content, sectionTitleStyle.Render("Origin: ")+emptyStyle.Render("Not set"))
+		content = append(content, hintStyle.Render("  [Press 'o' to select]"))
 	}
-
-	rightContent = append(rightContent, "")
-	rightContent = append(rightContent, helpStyle.Render("Press 't' to add tool"))
-	rightContent = append(rightContent, helpStyle.Render("Press 'T' to remove tool"))
-
-	// Languages (if any from origin)
-	originLanguages := []string{}
-	benefits := p.character.BenefitTracker.GetBenefitsBySource("origin", origin.Name)
-	for _, benefit := range benefits {
-		if benefit.Type == models.BenefitLanguage {
-			originLanguages = append(originLanguages, benefit.Target)
-		}
+	content = append(content, "")
+	
+	// Alignment Section
+	alignment := p.character.Alignment
+	if alignment == "" {
+		alignment = "Not set"
 	}
-
-	if len(originLanguages) > 0 {
-		rightContent = append(rightContent, skillStyle.Render("LANGUAGES:"))
-		for _, lang := range originLanguages {
-			rightContent = append(rightContent, valueStyle.Render("  • "+lang+" ✓"))
-		}
-		rightContent = append(rightContent, "")
+	content = append(content, sectionTitleStyle.Render("Alignment: ")+valueStyle.Render(alignment))
+	content = append(content, hintStyle.Render("  [Press 'a' to change]"))
+	content = append(content, "")
+	
+	// Appearance Section
+	content = append(content, sectionTitleStyle.Render("Appearance:"))
+	
+	heightValue := p.character.Height
+	if heightValue == "" {
+		heightValue = "Not set"
 	}
-
-	// Create bordered columns
-	leftColumnStyle := lipgloss.NewStyle().
-		Width(leftWidth).
-		Padding(0, 1)
-
-	rightColumnStyle := lipgloss.NewStyle().
-		Width(rightWidth).
-		Padding(0, 1).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderLeft(true).
-		BorderForeground(lipgloss.Color("240"))
-
-	// Render columns
-	leftRendered := leftColumnStyle.Render(strings.Join(leftContent, "\n"))
-	rightRendered := rightColumnStyle.Render(strings.Join(rightContent, "\n"))
-
-	// Combine columns side by side
-	combinedContent := lipgloss.JoinHorizontal(lipgloss.Top, leftRendered, rightRendered)
-
-	content = append(content, combinedContent)
+	content = append(content, labelStyle.Render("  Height: ")+valueStyle.Render(heightValue)+hintStyle.Render("  [Press 'h' to edit]"))
+	
+	weightValue := p.character.Weight
+	if weightValue == "" {
+		weightValue = "Not set"
+	}
+	content = append(content, labelStyle.Render("  Weight: ")+valueStyle.Render(weightValue)+hintStyle.Render("  [Press 'w' to edit]"))
+	content = append(content, "")
+	
+	// Personality Section
+	personality := p.character.Personality
+	if personality == "" {
+		personality = "Not set"
+	}
+	displayPersonality := p.truncateText(personality, 60)
+	content = append(content, sectionTitleStyle.Render("Personality: ")+valueStyle.Render(displayPersonality))
+	content = append(content, hintStyle.Render("  [Press 'p' to change]"))
+	content = append(content, "")
+	
+	// Ideal Section
+	ideal := p.character.Ideal
+	if ideal == "" {
+		ideal = "Not set"
+	}
+	displayIdeal := p.truncateText(ideal, 60)
+	content = append(content, sectionTitleStyle.Render("Ideal: ")+valueStyle.Render(displayIdeal))
+	content = append(content, hintStyle.Render("  [Press 'i' to change]"))
+	content = append(content, "")
+	
+	// Bond Section
+	bond := p.character.Bond
+	if bond == "" {
+		bond = "Not set"
+	}
+	displayBond := p.truncateText(bond, 60)
+	content = append(content, sectionTitleStyle.Render("Bond: ")+valueStyle.Render(displayBond))
+	content = append(content, hintStyle.Render("  [Press 'b' to change]"))
+	content = append(content, "")
+	
+	// Flaw Section
+	flaw := p.character.Flaw
+	if flaw == "" {
+		flaw = "Not set"
+	}
+	displayFlaw := p.truncateText(flaw, 60)
+	content = append(content, sectionTitleStyle.Render("Flaw: ")+valueStyle.Render(displayFlaw))
+	content = append(content, hintStyle.Render("  [Press 'f' to change]"))
+	content = append(content, "")
+	
+	// Backstory Section
+	content = append(content, sectionTitleStyle.Render("Backstory:"))
+	backstory := p.character.Backstory
+	if backstory == "" {
+		content = append(content, labelStyle.Render("  ")+emptyStyle.Render("No backstory written"))
+	} else {
+		backstoryPreview := p.getBackstoryPreview(backstory)
+		content = append(content, labelStyle.Render("  "+backstoryPreview))
+	}
+	content = append(content, hintStyle.Render("  [Press 's' to edit]"))
 
 	contentStr := strings.Join(content, "\n")
 	p.viewport.SetContent(contentStr)
@@ -281,4 +199,51 @@ func (p *OriginPanel) PageDown() {
 // PageUp scrolls up by half a page
 func (p *OriginPanel) PageUp() {
 	p.viewport.HalfViewUp()
+}
+
+// getOriginShortDescription truncates origin description to ~100 chars
+func (p *OriginPanel) getOriginShortDescription(description string) string {
+	if len(description) <= 100 {
+		return description
+	}
+	
+	// Find last space before 100 chars
+	truncated := description[:100]
+	lastSpace := strings.LastIndex(truncated, " ")
+	if lastSpace > 0 {
+		truncated = description[:lastSpace]
+	}
+	
+	return truncated + "..."
+}
+
+// getBackstoryPreview truncates backstory to ~100 chars
+func (p *OriginPanel) getBackstoryPreview(backstory string) string {
+	if len(backstory) <= 100 {
+		return backstory
+	}
+	
+	// Find last space before 100 chars
+	truncated := backstory[:100]
+	lastSpace := strings.LastIndex(truncated, " ")
+	if lastSpace > 0 {
+		truncated = backstory[:lastSpace]
+	}
+	
+	return truncated + "..."
+}
+
+// truncateText truncates text to specified length
+func (p *OriginPanel) truncateText(text string, maxLen int) string {
+	if len(text) <= maxLen {
+		return text
+	}
+	
+	truncated := text[:maxLen-3]
+	lastSpace := strings.LastIndex(truncated, " ")
+	if lastSpace > 0 {
+		truncated = text[:lastSpace]
+	}
+	
+	return truncated + "..."
 }

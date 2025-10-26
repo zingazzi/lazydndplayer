@@ -80,6 +80,11 @@ type Model struct {
 	consumableDetailPopup *components.ConsumableDetailPopup
 	spellDetailPopup      *components.SpellDetailPopup
 	originSelector        *components.OriginSelector
+	alignmentSelector     *components.AlignmentSelector
+	traitSelector         *components.TraitSelector
+	backstoryEditor       *components.BackstoryEditor
+	originDetailPopup     *components.OriginDetailPopup
+	inputPopup            *components.InputPopup
 	toolSelector          *components.ToolSelector
 	itemSelector           *components.ItemSelector
 	classSelector          *components.ClassSelector
@@ -127,6 +132,7 @@ type Model struct {
 	eldritchKnightSpellsSelected int   // Counter for Eldritch Knight spell selection (0-3)
 	eldritchKnightSpells []models.Spell // Temporarily store selected spells
 	studentOfWarToolSelected bool // Flag for Student of War tool selection flow
+	inputPopupContext string // Context for what is being edited in inputPopup
 }
 
 // NewModel creates a new application model
@@ -149,6 +155,11 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		consumableDetailPopup: components.NewConsumableDetailPopup(),
 		spellDetailPopup:      components.NewSpellDetailPopup(),
 		originSelector:        components.NewOriginSelector(),
+		alignmentSelector:     components.NewAlignmentSelector(),
+		traitSelector:         components.NewTraitSelector(),
+		backstoryEditor:       components.NewBackstoryEditor(),
+		originDetailPopup:     components.NewOriginDetailPopup(),
+		inputPopup:            components.NewInputPopup(),
 		toolSelector:          components.NewToolSelector(),
 		itemSelector:           components.NewItemSelector(),
 		classSelector:          components.NewClassSelector(char),
@@ -324,6 +335,31 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if origin selector is active
 		if m.originSelector.IsVisible() {
 			return m.handleOriginSelectorKeys(msg)
+		}
+
+		// Check if alignment selector is active
+		if m.alignmentSelector.IsVisible() {
+			return m.handleAlignmentSelectorKeys(msg)
+		}
+
+		// Check if trait selector is active
+		if m.traitSelector.IsVisible() {
+			return m.handleTraitSelectorKeys(msg)
+		}
+
+		// Check if backstory editor is active
+		if m.backstoryEditor.IsVisible() {
+			return m.handleBackstoryEditorKeys(msg)
+		}
+
+		// Check if origin detail popup is active
+		if m.originDetailPopup.IsVisible() {
+			return m.handleOriginDetailPopupKeys(msg)
+		}
+
+		// Check if input popup is active
+		if m.inputPopup.IsVisible() {
+			return m.handleInputPopupKeys(msg)
 		}
 
 		// Check if ability choice selector is active (for feat ability choices)
@@ -739,7 +775,7 @@ func (m *Model) rollAttackDirect(attack *models.Attack, rollType string) string 
 	if roll >= critRange {
 		critText := "CRITICAL HIT!"
 		if critRange < 20 {
-			critText = fmt.Sprintf("CRITICAL HIT! (19-20 range)")
+			critText = "CRITICAL HIT! (19-20 range)"
 		}
 		return fmt.Sprintf("%s: %s [%d] + %d = %d %s",
 			attack.Name, critText, roll, attack.AttackBonus, total, advantageStr)
@@ -1273,15 +1309,48 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Open origin selector
 		m.originSelector.Show(m.character)
 		m.message = "Select an origin..."
-	case "t":
-		// Add tool proficiency
-		m.toolSelector.SetExcludeTools(m.character.ToolProficiencies)
-		m.toolSelector.Show()
-		m.message = "Select tool proficiency to add..."
-	case "T":
-		// Remove tool proficiency
-		m.toolSelector.ShowForDeletion(m.character.ToolProficiencies)
-		m.message = "Select tool proficiency to remove..."
+	case "enter":
+		// Show origin details
+		if m.character.Origin != "" {
+			origin := models.GetOriginByName(m.character.Origin)
+			if origin != nil {
+				m.originDetailPopup.Show(origin)
+			}
+		}
+	case "a":
+		// Open alignment selector
+		m.alignmentSelector.Show()
+		m.message = "Select an alignment..."
+	case "h":
+		// Edit height
+		m.inputPopup.Show("Edit Height", m.character.Height, "Enter height (e.g., 6'2\")...")
+		m.inputPopupContext = "height"
+		m.message = "Editing height..."
+	case "w":
+		// Edit weight
+		m.inputPopup.Show("Edit Weight", m.character.Weight, "Enter weight (e.g., 180 lbs)...")
+		m.inputPopupContext = "weight"
+		m.message = "Editing weight..."
+	case "p":
+		// Edit personality
+		m.traitSelector.Show(models.TraitPersonality)
+		m.message = "Select or create personality trait..."
+	case "i":
+		// Edit ideal
+		m.traitSelector.Show(models.TraitIdeal)
+		m.message = "Select or create ideal..."
+	case "b":
+		// Edit bond
+		m.traitSelector.Show(models.TraitBond)
+		m.message = "Select or create bond..."
+	case "f":
+		// Edit flaw
+		m.traitSelector.Show(models.TraitFlaw)
+		m.message = "Select or create flaw..."
+	case "s":
+		// Edit backstory
+		m.backstoryEditor.Show(m.character.Backstory)
+		m.message = "Edit your character's backstory..."
 	}
 	return m, nil
 }
@@ -3237,7 +3306,7 @@ func (m *Model) buildStatusBar() string {
 			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [f] Add Feat • [m] Weapon Mastery"
 		case OriginPanel:
 			panelName = "Origin"
-			contextHelp = "[o] Change Origin • [t] Add Tool • [T] Remove Tool"
+			contextHelp = "[o] Origin • [Enter] Details • [a] Alignment • [h/w] Height/Weight • [p/i/b/f] Traits • [s] Backstory"
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
@@ -3537,6 +3606,31 @@ func (m *Model) View() string {
 		return m.originSelector.View(popupMediumWidth, popupMediumHeight)
 	}
 
+	// Alignment selector (takes full screen)
+	if m.alignmentSelector.IsVisible() {
+		return m.alignmentSelector.View(m.width, m.height)
+	}
+
+	// Trait selector (Medium)
+	if m.traitSelector.IsVisible() {
+		return m.traitSelector.View(popupMediumWidth, popupMediumHeight)
+	}
+
+	// Backstory editor (takes full screen)
+	if m.backstoryEditor.IsVisible() {
+		return m.backstoryEditor.View(m.width, m.height)
+	}
+
+	// Origin detail popup (Medium)
+	if m.originDetailPopup.IsVisible() {
+		return m.originDetailPopup.View(popupMediumWidth, popupMediumHeight)
+	}
+
+	// Input popup (Small)
+	if m.inputPopup.IsVisible() {
+		return m.inputPopup.View(popupSmallWidth, popupSmallHeight)
+	}
+
 	// Ability choice selector (for feat ability choices) (Small)
 	if m.abilityChoiceSelector.IsVisible() {
 		return m.abilityChoiceSelector.View(popupSmallWidth, popupSmallHeight)
@@ -3674,6 +3768,126 @@ func (m *Model) getWeaponMasteryCount() int {
 	}
 	debug.Log("getWeaponMasteryCount: Weapon Mastery feature not found, returning 0")
 	return 0
+}
+
+// handleAlignmentSelectorKeys handles alignment selector input
+func (m *Model) handleAlignmentSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.alignmentSelector.Hide()
+		m.message = ""
+	case "up", "k":
+		m.alignmentSelector.MoveUp()
+	case "down", "j":
+		m.alignmentSelector.MoveDown()
+	case "left", "h":
+		m.alignmentSelector.MoveLeft()
+	case "right", "l":
+		m.alignmentSelector.MoveRight()
+	case "enter":
+		selected := m.alignmentSelector.GetSelectedAlignment()
+		m.character.Alignment = selected
+		m.alignmentSelector.Hide()
+		m.message = fmt.Sprintf("Alignment set to %s", selected)
+		m.storage.Save(m.character)
+	}
+	return m, nil
+}
+
+// handleTraitSelectorKeys handles trait selector input
+func (m *Model) handleTraitSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.traitSelector.Hide()
+		m.message = ""
+	case "up", "k":
+		m.traitSelector.Prev()
+	case "down", "j":
+		m.traitSelector.Next()
+	case "enter":
+		// Check if in custom mode
+		m.traitSelector.ToggleCustomMode()
+		
+		// If not in custom mode (already selected), save
+		selected := m.traitSelector.GetSelectedTrait()
+		if selected != "" {
+			// Save the trait based on current type
+			switch m.traitSelector.TraitType {
+			case models.TraitPersonality:
+				m.character.Personality = selected
+				m.message = "Personality trait saved!"
+			case models.TraitIdeal:
+				m.character.Ideal = selected
+				m.message = "Ideal saved!"
+			case models.TraitBond:
+				m.character.Bond = selected
+				m.message = "Bond saved!"
+			case models.TraitFlaw:
+				m.character.Flaw = selected
+				m.message = "Flaw saved!"
+			}
+			m.traitSelector.Hide()
+			m.storage.Save(m.character)
+		}
+	default:
+		// Update text input if in custom mode
+		m.traitSelector.Update(msg)
+	}
+	return m, nil
+}
+
+// handleBackstoryEditorKeys handles backstory editor input
+func (m *Model) handleBackstoryEditorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+enter":
+		// Save and close
+		m.character.Backstory = m.backstoryEditor.GetValue()
+		m.backstoryEditor.Hide()
+		m.message = "Backstory saved!"
+		m.storage.Save(m.character)
+	default:
+		// Update textarea
+		m.backstoryEditor.Update(msg)
+	}
+	return m, nil
+}
+
+// handleOriginDetailPopupKeys handles origin detail popup input
+func (m *Model) handleOriginDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.originDetailPopup.Hide()
+		m.message = ""
+	}
+	return m, nil
+}
+
+// handleInputPopupKeys handles input popup input
+func (m *Model) handleInputPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.inputPopup.Hide()
+		m.inputPopupContext = ""
+		m.message = "Cancelled"
+	case "enter":
+		// Save based on context
+		value := m.inputPopup.GetValue()
+		switch m.inputPopupContext {
+		case "height":
+			m.character.Height = value
+			m.message = "Height updated!"
+		case "weight":
+			m.character.Weight = value
+			m.message = "Weight updated!"
+		}
+		m.inputPopup.Hide()
+		m.inputPopupContext = ""
+		m.storage.Save(m.character)
+	default:
+		// Update text input
+		m.inputPopup.Update(msg)
+	}
+	return m, nil
 }
 
 // Run runs the application

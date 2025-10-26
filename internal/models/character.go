@@ -15,6 +15,13 @@ type Character struct {
 	Background    string `json:"background"`
 	Origin        string `json:"origin"`    // Character origin (2024 rules)
 	Alignment     string `json:"alignment"`
+	Height        string `json:"height"`         // e.g., "6'2\""
+	Weight        string `json:"weight"`         // e.g., "180 lbs"
+	Personality   string `json:"personality"`    // Personality trait
+	Ideal         string `json:"ideal"`          // Character ideal
+	Bond          string `json:"bond"`           // Character bond
+	Flaw          string `json:"flaw"`           // Character flaw
+	Backstory     string `json:"backstory"`      // Character backstory
 
 	// Level & Experience
 	Level      int `json:"level"`      // Total character level (sum of all class levels)
@@ -126,6 +133,14 @@ func NewCharacter() *Character {
 		Class:      "",           // Empty - user must select a class
 		Classes:    []ClassLevel{}, // Empty - populated when class is selected
 		Background: "Folk Hero",
+		Alignment:  "Neutral",
+		Height:     "",
+		Weight:     "",
+		Personality: "",
+		Ideal:      "",
+		Bond:       "",
+		Flaw:       "",
+		Backstory:  "",
 		Level:      1,            // Start at level 1
 		TotalLevel: 1,            // Total level starts at 1
 		MaxHP:      10,
