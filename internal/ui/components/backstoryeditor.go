@@ -25,6 +25,14 @@ func NewBackstoryEditor() *BackstoryEditor {
 	ta.SetHeight(20)
 	ta.ShowLineNumbers = false
 
+	// Set text style to white and ensure proper alignment
+	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("255")) // White color
+	ta.FocusedStyle.Text = textStyle
+	ta.BlurredStyle.Text = textStyle
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle() // No special styling for cursor line
+	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	ta.BlurredStyle.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
 	return &BackstoryEditor{
 		visible:  false,
 		textarea: ta,
@@ -36,6 +44,11 @@ func (b *BackstoryEditor) Show(currentText string) {
 	b.visible = true
 	b.textarea.SetValue(currentText)
 	b.textarea.Focus()
+
+	// Ensure text style is white when showing
+	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
+	b.textarea.FocusedStyle.Text = textStyle
+	b.textarea.BlurredStyle.Text = textStyle
 }
 
 // Hide closes the editor
@@ -123,4 +136,3 @@ func (b *BackstoryEditor) View(width, height int) string {
 		borderStyle.Render(content.String()),
 	)
 }
-

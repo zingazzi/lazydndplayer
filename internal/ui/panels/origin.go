@@ -78,8 +78,8 @@ func (p *OriginPanel) View(width, height int) string {
 		if origin != nil {
 			content = append(content, sectionTitleStyle.Render("Origin: ")+valueStyle.Render(origin.Name))
 			content = append(content, hintStyle.Render("  [Press Enter for details]"))
-			content = append(content, "")
-			
+		content = append(content, "")
+
 			// Short description (first 100 chars)
 			shortDesc := p.getOriginShortDescription(origin.Description)
 			content = append(content, labelStyle.Render("  "+shortDesc))
@@ -91,7 +91,7 @@ func (p *OriginPanel) View(width, height int) string {
 		content = append(content, hintStyle.Render("  [Press 'o' to select]"))
 	}
 	content = append(content, "")
-	
+
 	// Alignment Section
 	alignment := p.character.Alignment
 	if alignment == "" {
@@ -100,73 +100,85 @@ func (p *OriginPanel) View(width, height int) string {
 	content = append(content, sectionTitleStyle.Render("Alignment: ")+valueStyle.Render(alignment))
 	content = append(content, hintStyle.Render("  [Press 'a' to change]"))
 	content = append(content, "")
-	
+
 	// Appearance Section
 	content = append(content, sectionTitleStyle.Render("Appearance:"))
-	
+
 	heightValue := p.character.Height
 	if heightValue == "" {
 		heightValue = "Not set"
 	}
 	content = append(content, labelStyle.Render("  Height: ")+valueStyle.Render(heightValue)+hintStyle.Render("  [Press 'h' to edit]"))
-	
+
 	weightValue := p.character.Weight
 	if weightValue == "" {
 		weightValue = "Not set"
 	}
 	content = append(content, labelStyle.Render("  Weight: ")+valueStyle.Render(weightValue)+hintStyle.Render("  [Press 'w' to edit]"))
 	content = append(content, "")
-	
+
 	// Personality Section
-	personality := p.character.Personality
-	if personality == "" {
-		personality = "Not set"
+	content = append(content, sectionTitleStyle.Render("Personality:")+" "+hintStyle.Render("[Press 't' to change]"))
+	if len(p.character.Personality) > 0 {
+		for _, trait := range p.character.Personality {
+			content = append(content, valueStyle.Render("  • "+trait))
+		}
+	} else {
+		content = append(content, labelStyle.Render("  Not set"))
 	}
-	displayPersonality := p.truncateText(personality, 60)
-	content = append(content, sectionTitleStyle.Render("Personality: ")+valueStyle.Render(displayPersonality))
-	content = append(content, hintStyle.Render("  [Press 'p' to change]"))
 	content = append(content, "")
-	
+
 	// Ideal Section
-	ideal := p.character.Ideal
-	if ideal == "" {
-		ideal = "Not set"
+	content = append(content, sectionTitleStyle.Render("Ideal:")+" "+hintStyle.Render("[Press 'i' to change]"))
+	if len(p.character.Ideal) > 0 {
+		for _, trait := range p.character.Ideal {
+			content = append(content, valueStyle.Render("  • "+trait))
+		}
+	} else {
+		content = append(content, labelStyle.Render("  Not set"))
 	}
-	displayIdeal := p.truncateText(ideal, 60)
-	content = append(content, sectionTitleStyle.Render("Ideal: ")+valueStyle.Render(displayIdeal))
-	content = append(content, hintStyle.Render("  [Press 'i' to change]"))
 	content = append(content, "")
-	
+
 	// Bond Section
-	bond := p.character.Bond
-	if bond == "" {
-		bond = "Not set"
+	content = append(content, sectionTitleStyle.Render("Bond:")+" "+hintStyle.Render("[Press 'b' to change]"))
+	if len(p.character.Bond) > 0 {
+		for _, trait := range p.character.Bond {
+			content = append(content, valueStyle.Render("  • "+trait))
+		}
+	} else {
+		content = append(content, labelStyle.Render("  Not set"))
 	}
-	displayBond := p.truncateText(bond, 60)
-	content = append(content, sectionTitleStyle.Render("Bond: ")+valueStyle.Render(displayBond))
-	content = append(content, hintStyle.Render("  [Press 'b' to change]"))
 	content = append(content, "")
-	
+
 	// Flaw Section
-	flaw := p.character.Flaw
-	if flaw == "" {
-		flaw = "Not set"
+	content = append(content, sectionTitleStyle.Render("Flaw:")+" "+hintStyle.Render("[Press 'f' to change]"))
+	if len(p.character.Flaw) > 0 {
+		for _, trait := range p.character.Flaw {
+			content = append(content, valueStyle.Render("  • "+trait))
+		}
+	} else {
+		content = append(content, labelStyle.Render("  Not set"))
 	}
-	displayFlaw := p.truncateText(flaw, 60)
-	content = append(content, sectionTitleStyle.Render("Flaw: ")+valueStyle.Render(displayFlaw))
-	content = append(content, hintStyle.Render("  [Press 'f' to change]"))
 	content = append(content, "")
-	
+
 	// Backstory Section
-	content = append(content, sectionTitleStyle.Render("Backstory:"))
+	content = append(content, sectionTitleStyle.Render("Backstory:")+" "+hintStyle.Render("[Press 's' to edit]"))
 	backstory := p.character.Backstory
 	if backstory == "" {
 		content = append(content, labelStyle.Render("  ")+emptyStyle.Render("No backstory written"))
 	} else {
-		backstoryPreview := p.getBackstoryPreview(backstory)
-		content = append(content, labelStyle.Render("  "+backstoryPreview))
+		// Split backstory by newlines and display all lines
+		lines := strings.Split(backstory, "\n")
+		for _, line := range lines {
+			if line == "" {
+				// Keep empty lines for spacing
+				content = append(content, "")
+			} else {
+				content = append(content, valueStyle.Render("  "+line))
+			}
+		}
 	}
-	content = append(content, hintStyle.Render("  [Press 's' to edit]"))
+	content = append(content, "")
 
 	contentStr := strings.Join(content, "\n")
 	p.viewport.SetContent(contentStr)
@@ -206,14 +218,14 @@ func (p *OriginPanel) getOriginShortDescription(description string) string {
 	if len(description) <= 100 {
 		return description
 	}
-	
+
 	// Find last space before 100 chars
 	truncated := description[:100]
 	lastSpace := strings.LastIndex(truncated, " ")
 	if lastSpace > 0 {
 		truncated = description[:lastSpace]
 	}
-	
+
 	return truncated + "..."
 }
 
@@ -222,14 +234,14 @@ func (p *OriginPanel) getBackstoryPreview(backstory string) string {
 	if len(backstory) <= 100 {
 		return backstory
 	}
-	
+
 	// Find last space before 100 chars
 	truncated := backstory[:100]
 	lastSpace := strings.LastIndex(truncated, " ")
 	if lastSpace > 0 {
 		truncated = backstory[:lastSpace]
 	}
-	
+
 	return truncated + "..."
 }
 
@@ -238,12 +250,12 @@ func (p *OriginPanel) truncateText(text string, maxLen int) string {
 	if len(text) <= maxLen {
 		return text
 	}
-	
+
 	truncated := text[:maxLen-3]
 	lastSpace := strings.LastIndex(truncated, " ")
 	if lastSpace > 0 {
 		truncated = text[:lastSpace]
 	}
-	
+
 	return truncated + "..."
 }

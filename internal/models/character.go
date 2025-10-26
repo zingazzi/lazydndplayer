@@ -17,10 +17,10 @@ type Character struct {
 	Alignment     string `json:"alignment"`
 	Height        string `json:"height"`         // e.g., "6'2\""
 	Weight        string `json:"weight"`         // e.g., "180 lbs"
-	Personality   string `json:"personality"`    // Personality trait
-	Ideal         string `json:"ideal"`          // Character ideal
-	Bond          string `json:"bond"`           // Character bond
-	Flaw          string `json:"flaw"`           // Character flaw
+	Personality   []string `json:"personality"`    // Personality traits (can have multiple)
+	Ideal         []string `json:"ideal"`          // Character ideals (can have multiple)
+	Bond          []string `json:"bond"`           // Character bonds (can have multiple)
+	Flaw          []string `json:"flaw"`           // Character flaws (can have multiple)
 	Backstory     string `json:"backstory"`      // Character backstory
 
 	// Level & Experience
@@ -136,10 +136,10 @@ func NewCharacter() *Character {
 		Alignment:  "Neutral",
 		Height:     "",
 		Weight:     "",
-		Personality: "",
-		Ideal:      "",
-		Bond:       "",
-		Flaw:       "",
+		Personality: []string{},
+		Ideal:      []string{},
+		Bond:       []string{},
+		Flaw:       []string{},
 		Backstory:  "",
 		Level:      1,            // Start at level 1
 		TotalLevel: 1,            // Total level starts at 1

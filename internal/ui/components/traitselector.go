@@ -13,12 +13,13 @@ import (
 
 // TraitSelector allows selection of character traits (personality, ideal, bond, flaw)
 type TraitSelector struct {
-	visible       bool
-	TraitType     models.TraitType
-	options       []string
-	selectedIndex int
-	customMode    bool
-	customInput   textinput.Model
+	visible        bool
+	TraitType      models.TraitType
+	options        []string
+	selectedIndex  int
+	customMode     bool
+	customInput    textinput.Model
+	selectedItems  []string // Items that are currently selected (multi-select mode)
 }
 
 // NewTraitSelector creates a new trait selector
@@ -36,14 +37,46 @@ func NewTraitSelector() *TraitSelector {
 	}
 }
 
-// Show displays the selector with the specified trait type
-func (t *TraitSelector) Show(traitType models.TraitType) {
+// Show displays the selector with the specified trait type and current selections
+func (t *TraitSelector) Show(traitType models.TraitType, currentSelections []string) {
 	t.visible = true
 	t.TraitType = traitType
-	t.options = models.GetTraitOptions(traitType)
+
+	// Get predefined options
+	predefinedOptions := models.GetTraitOptions(traitType)
+
+	// Build options list: predefined options + custom items (excluding "[Custom]" entry)
+	t.options = []string{}
+
+	// Add predefined options (except "[Custom]")
+	for _, opt := range predefinedOptions {
+		if opt != "[Custom]" {
+			t.options = append(t.options, opt)
+		}
+	}
+
+	// Add custom items that are in currentSelections but not in predefined options
+	for _, selection := range currentSelections {
+		isCustom := true
+		for _, predefined := range predefinedOptions {
+			if selection == predefined {
+				isCustom = false
+				break
+			}
+		}
+		if isCustom && selection != "" {
+			t.options = append(t.options, selection)
+		}
+	}
+
+	// Add "[Custom]" option at the end
+	t.options = append(t.options, "[Custom]")
+
 	t.selectedIndex = 0
 	t.customMode = false
 	t.customInput.SetValue("")
+	t.selectedItems = make([]string, len(currentSelections))
+	copy(t.selectedItems, currentSelections)
 }
 
 // Hide closes the selector
@@ -79,7 +112,7 @@ func (t *TraitSelector) ToggleCustomMode() {
 	}
 }
 
-// GetSelectedTrait returns the selected trait text
+// GetSelectedTrait returns the selected trait text (for custom mode)
 func (t *TraitSelector) GetSelectedTrait() string {
 	if t.customMode {
 		return t.customInput.Value()
@@ -92,6 +125,59 @@ func (t *TraitSelector) GetSelectedTrait() string {
 		return selected
 	}
 	return ""
+}
+
+// GetSelectedItems returns all selected items (for multi-select mode)
+func (t *TraitSelector) GetSelectedItems() []string {
+	result := make([]string, len(t.selectedItems))
+	copy(result, t.selectedItems)
+	return result
+}
+
+// IsCustomMode returns whether the selector is in custom input mode
+func (t *TraitSelector) IsCustomMode() bool {
+	return t.customMode
+}
+
+// ToggleItem toggles the selection of the current item
+func (t *TraitSelector) ToggleItem() {
+	if t.selectedIndex < 0 || t.selectedIndex >= len(t.options) {
+		return
+	}
+
+	currentOption := t.options[t.selectedIndex]
+	if currentOption == "[Custom]" {
+		return // Don't toggle [Custom] option
+	}
+
+	// Check if already selected
+	found := false
+	foundIndex := -1
+	for i, item := range t.selectedItems {
+		if item == currentOption {
+			found = true
+			foundIndex = i
+			break
+		}
+	}
+
+	if found {
+		// Remove from selection
+		t.selectedItems = append(t.selectedItems[:foundIndex], t.selectedItems[foundIndex+1:]...)
+	} else {
+		// Add to selection
+		t.selectedItems = append(t.selectedItems, currentOption)
+	}
+}
+
+// IsItemSelected checks if the current item is selected
+func (t *TraitSelector) IsItemSelected(item string) bool {
+	for _, selected := range t.selectedItems {
+		if selected == item {
+			return true
+		}
+	}
+	return false
 }
 
 // Update handles text input updates
@@ -140,27 +226,36 @@ func (t *TraitSelector) View(width, height int) string {
 		content.WriteString("\n\n")
 		content.WriteString(hintStyle.Render("Enter: Confirm | Esc: Cancel"))
 	} else {
-		// Selection mode
+		// Selection mode with multi-select
 		for i, option := range t.options {
 			cursor := "  "
+			checkbox := "☐ "
 			style := normalStyle
+
 			if i == t.selectedIndex {
 				cursor = "→ "
 				style = selectedStyle
 			}
 
-			// Truncate long options for display
-			displayText := option
-			if len(displayText) > 70 {
-				displayText = displayText[:67] + "..."
+			// Check if this item is selected
+			if t.IsItemSelected(option) && option != "[Custom]" {
+				checkbox = "☑ "
 			}
 
-			content.WriteString(style.Render(cursor + displayText))
+			// Don't show checkbox for [Custom] option
+			if option == "[Custom]" {
+				checkbox = ""
+			}
+
+			// Show full text without truncation
+			displayText := option
+
+			content.WriteString(style.Render(cursor + checkbox + displayText))
 			content.WriteString("\n")
 		}
 
 		content.WriteString("\n")
-		content.WriteString(hintStyle.Render("↑/↓: Navigate | Enter: Select | Esc: Cancel"))
+		content.WriteString(hintStyle.Render("↑/↓: Navigate | Space: Toggle | Enter: Confirm | Esc: Cancel"))
 	}
 
 	borderStyle := lipgloss.NewStyle().
@@ -177,4 +272,3 @@ func (t *TraitSelector) View(width, height int) string {
 		borderStyle.Render(content.String()),
 	)
 }
-

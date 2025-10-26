@@ -218,6 +218,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// Check if trait selector is active (BEFORE global keys to allow 'p' in custom input)
+		if m.traitSelector.IsVisible() {
+			return m.handleTraitSelectorKeys(msg)
+		}
+
+		// Check if backstory editor is active (BEFORE global keys to allow 'q' in editor)
+		if m.backstoryEditor.IsVisible() {
+			return m.handleBackstoryEditorKeys(msg)
+		}
+
 		// Global keys
 		switch msg.String() {
 		case "q", "ctrl+c":
@@ -340,16 +350,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if alignment selector is active
 		if m.alignmentSelector.IsVisible() {
 			return m.handleAlignmentSelectorKeys(msg)
-		}
-
-		// Check if trait selector is active
-		if m.traitSelector.IsVisible() {
-			return m.handleTraitSelectorKeys(msg)
-		}
-
-		// Check if backstory editor is active
-		if m.backstoryEditor.IsVisible() {
-			return m.handleBackstoryEditorKeys(msg)
 		}
 
 		// Check if origin detail popup is active
@@ -1239,8 +1239,8 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.message = fmt.Sprintf("%s used", item.Feature.Name)
 				}
 				// Decrement uses
-				m.featuresPanel.UseFeature()
-				m.storage.Save(m.character)
+		m.featuresPanel.UseFeature()
+		m.storage.Save(m.character)
 			}
 		}
 		return m, nil
@@ -1275,9 +1275,9 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.storage.Save(m.character)
 		case "feature":
-			m.featuresPanel.RestoreFeature()
+		m.featuresPanel.RestoreFeature()
 			m.message = fmt.Sprintf("%s restored", item.Name)
-			m.storage.Save(m.character)
+		m.storage.Save(m.character)
 		}
 		return m, nil
 	case "r":
@@ -1331,22 +1331,22 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.inputPopup.Show("Edit Weight", m.character.Weight, "Enter weight (e.g., 180 lbs)...")
 		m.inputPopupContext = "weight"
 		m.message = "Editing weight..."
-	case "p":
+	case "t":
 		// Edit personality
-		m.traitSelector.Show(models.TraitPersonality)
-		m.message = "Select or create personality trait..."
+		m.traitSelector.Show(models.TraitPersonality, m.character.Personality)
+		m.message = "Select or create personality traits (Space to toggle, Enter to confirm)..."
 	case "i":
 		// Edit ideal
-		m.traitSelector.Show(models.TraitIdeal)
-		m.message = "Select or create ideal..."
+		m.traitSelector.Show(models.TraitIdeal, m.character.Ideal)
+		m.message = "Select or create ideals (Space to toggle, Enter to confirm)..."
 	case "b":
 		// Edit bond
-		m.traitSelector.Show(models.TraitBond)
-		m.message = "Select or create bond..."
+		m.traitSelector.Show(models.TraitBond, m.character.Bond)
+		m.message = "Select or create bonds (Space to toggle, Enter to confirm)..."
 	case "f":
 		// Edit flaw
-		m.traitSelector.Show(models.TraitFlaw)
-		m.message = "Select or create flaw..."
+		m.traitSelector.Show(models.TraitFlaw, m.character.Flaw)
+		m.message = "Select or create flaws (Space to toggle, Enter to confirm)..."
 	case "s":
 		// Edit backstory
 		m.backstoryEditor.Show(m.character.Backstory)
@@ -3306,7 +3306,7 @@ func (m *Model) buildStatusBar() string {
 			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [f] Add Feat • [m] Weapon Mastery"
 		case OriginPanel:
 			panelName = "Origin"
-			contextHelp = "[o] Origin • [Enter] Details • [a] Alignment • [h/w] Height/Weight • [p/i/b/f] Traits • [s] Backstory"
+			contextHelp = "[o] Origin • [Enter] Details • [a] Alignment • [h/w] Height/Weight • [t/i/b/f] Traits • [s] Backstory"
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
@@ -3777,13 +3777,9 @@ func (m *Model) handleAlignmentSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.alignmentSelector.Hide()
 		m.message = ""
 	case "up", "k":
-		m.alignmentSelector.MoveUp()
+		m.alignmentSelector.Prev()
 	case "down", "j":
-		m.alignmentSelector.MoveDown()
-	case "left", "h":
-		m.alignmentSelector.MoveLeft()
-	case "right", "l":
-		m.alignmentSelector.MoveRight()
+		m.alignmentSelector.Next()
 	case "enter":
 		selected := m.alignmentSelector.GetSelectedAlignment()
 		m.character.Alignment = selected
@@ -3796,6 +3792,42 @@ func (m *Model) handleAlignmentSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 
 // handleTraitSelectorKeys handles trait selector input
 func (m *Model) handleTraitSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// If in custom mode, handle it separately to allow all keys including 'p' and space
+	if m.traitSelector.IsCustomMode() {
+		switch msg.String() {
+		case "esc":
+			m.traitSelector.Hide()
+			m.message = ""
+		case "enter":
+			// Save custom value and add to the list
+			customValue := m.traitSelector.GetSelectedTrait()
+			if customValue != "" {
+				// Add to appropriate array
+				switch m.traitSelector.TraitType {
+				case models.TraitPersonality:
+					m.character.Personality = append(m.character.Personality, customValue)
+					m.message = "Custom personality trait added!"
+				case models.TraitIdeal:
+					m.character.Ideal = append(m.character.Ideal, customValue)
+					m.message = "Custom ideal added!"
+				case models.TraitBond:
+					m.character.Bond = append(m.character.Bond, customValue)
+					m.message = "Custom bond added!"
+				case models.TraitFlaw:
+					m.character.Flaw = append(m.character.Flaw, customValue)
+					m.message = "Custom flaw added!"
+				}
+				m.traitSelector.Hide()
+				m.storage.Save(m.character)
+			}
+		default:
+			// Pass all other keys to text input (including 'p', space, etc.)
+			m.traitSelector.Update(msg)
+		}
+		return m, nil
+	}
+
+	// Normal multi-select mode
 	switch msg.String() {
 	case "esc":
 		m.traitSelector.Hide()
@@ -3804,34 +3836,35 @@ func (m *Model) handleTraitSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.traitSelector.Prev()
 	case "down", "j":
 		m.traitSelector.Next()
+	case " ":
+		// Space key toggles the current item
+		m.traitSelector.ToggleItem()
 	case "enter":
-		// Check if in custom mode
+		// Check if [Custom] is selected to enter custom mode
 		m.traitSelector.ToggleCustomMode()
-		
-		// If not in custom mode (already selected), save
-		selected := m.traitSelector.GetSelectedTrait()
-		if selected != "" {
+
+		// If not entering custom mode, save all selected items
+		if !m.traitSelector.IsCustomMode() {
+			selectedItems := m.traitSelector.GetSelectedItems()
+
 			// Save the trait based on current type
 			switch m.traitSelector.TraitType {
 			case models.TraitPersonality:
-				m.character.Personality = selected
-				m.message = "Personality trait saved!"
+				m.character.Personality = selectedItems
+				m.message = "Personality traits saved!"
 			case models.TraitIdeal:
-				m.character.Ideal = selected
-				m.message = "Ideal saved!"
+				m.character.Ideal = selectedItems
+				m.message = "Ideals saved!"
 			case models.TraitBond:
-				m.character.Bond = selected
-				m.message = "Bond saved!"
+				m.character.Bond = selectedItems
+				m.message = "Bonds saved!"
 			case models.TraitFlaw:
-				m.character.Flaw = selected
-				m.message = "Flaw saved!"
+				m.character.Flaw = selectedItems
+				m.message = "Flaws saved!"
 			}
 			m.traitSelector.Hide()
 			m.storage.Save(m.character)
 		}
-	default:
-		// Update text input if in custom mode
-		m.traitSelector.Update(msg)
 	}
 	return m, nil
 }

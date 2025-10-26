@@ -2,6 +2,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -16,40 +17,29 @@ type Alignment struct {
 
 // AlignmentSelector allows selection of character alignment
 type AlignmentSelector struct {
-	visible      bool
-	selectedRow  int // 0-2 (Good/Neutral/Evil)
-	selectedCol  int // 0-2 (Lawful/Neutral/Chaotic)
-	alignments   [][]Alignment
+	visible       bool
+	selectedIndex int
+	alignments    []Alignment
 }
 
 // NewAlignmentSelector creates a new alignment selector
 func NewAlignmentSelector() *AlignmentSelector {
-	alignments := [][]Alignment{
-		// Good row
-		{
-			{Name: "Lawful Good", Short: "LG", Description: "Acts with compassion and honor, respecting law and tradition while helping others"},
-			{Name: "Neutral Good", Short: "NG", Description: "Does their best to help others, regardless of law or chaos"},
-			{Name: "Chaotic Good", Short: "CG", Description: "Acts as their conscience directs with little regard for what others expect"},
-		},
-		// Neutral row
-		{
-			{Name: "Lawful Neutral", Short: "LN", Description: "Acts in accordance with law, tradition, or personal codes"},
-			{Name: "True Neutral", Short: "N", Description: "Prefers to stay out of moral questions and doesn't take sides"},
-			{Name: "Chaotic Neutral", Short: "CN", Description: "Follows their whims, holding personal freedom above all else"},
-		},
-		// Evil row
-		{
-			{Name: "Lawful Evil", Short: "LE", Description: "Methodically takes what they want within the limits of a code"},
-			{Name: "Neutral Evil", Short: "NE", Description: "Does whatever they can get away with, without compassion or qualms"},
-			{Name: "Chaotic Evil", Short: "CE", Description: "Acts with arbitrary violence, spurred by greed, hatred, or bloodlust"},
-		},
+	alignments := []Alignment{
+		{Name: "Lawful Good", Short: "LG", Description: "Acts with compassion and honor, respecting law and tradition while helping others"},
+		{Name: "Neutral Good", Short: "NG", Description: "Does their best to help others, regardless of law or chaos"},
+		{Name: "Chaotic Good", Short: "CG", Description: "Acts as their conscience directs with little regard for what others expect"},
+		{Name: "Lawful Neutral", Short: "LN", Description: "Acts in accordance with law, tradition, or personal codes"},
+		{Name: "True Neutral", Short: "N", Description: "Prefers to stay out of moral questions and doesn't take sides"},
+		{Name: "Chaotic Neutral", Short: "CN", Description: "Follows their whims, holding personal freedom above all else"},
+		{Name: "Lawful Evil", Short: "LE", Description: "Methodically takes what they want within the limits of a code"},
+		{Name: "Neutral Evil", Short: "NE", Description: "Does whatever they can get away with, without compassion or qualms"},
+		{Name: "Chaotic Evil", Short: "CE", Description: "Acts with arbitrary violence, spurred by greed, hatred, or bloodlust"},
 	}
 
 	return &AlignmentSelector{
-		visible:      false,
-		selectedRow:  1, // Start at True Neutral
-		selectedCol:  1,
-		alignments:   alignments,
+		visible:       false,
+		selectedIndex: 4, // Default to True Neutral
+		alignments:    alignments,
 	}
 }
 
@@ -68,37 +58,26 @@ func (a *AlignmentSelector) IsVisible() bool {
 	return a.visible
 }
 
-// MoveUp moves selection up
-func (a *AlignmentSelector) MoveUp() {
-	if a.selectedRow > 0 {
-		a.selectedRow--
+// Next moves selection down
+func (a *AlignmentSelector) Next() {
+	if a.selectedIndex < len(a.alignments)-1 {
+		a.selectedIndex++
 	}
 }
 
-// MoveDown moves selection down
-func (a *AlignmentSelector) MoveDown() {
-	if a.selectedRow < 2 {
-		a.selectedRow++
-	}
-}
-
-// MoveLeft moves selection left
-func (a *AlignmentSelector) MoveLeft() {
-	if a.selectedCol > 0 {
-		a.selectedCol--
-	}
-}
-
-// MoveRight moves selection right
-func (a *AlignmentSelector) MoveRight() {
-	if a.selectedCol < 2 {
-		a.selectedCol++
+// Prev moves selection up
+func (a *AlignmentSelector) Prev() {
+	if a.selectedIndex > 0 {
+		a.selectedIndex--
 	}
 }
 
 // GetSelectedAlignment returns the currently selected alignment
 func (a *AlignmentSelector) GetSelectedAlignment() string {
-	return a.alignments[a.selectedRow][a.selectedCol].Name
+	if a.selectedIndex >= 0 && a.selectedIndex < len(a.alignments) {
+		return a.alignments[a.selectedIndex].Name
+	}
+	return "True Neutral"
 }
 
 // View renders the selector
@@ -114,22 +93,14 @@ func (a *AlignmentSelector) View(width, height int) string {
 
 	selectedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("205")).
-		Background(lipgloss.Color("236")).
-		Bold(true).
-		Padding(1, 2).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("205"))
+		Bold(true)
 
 	normalStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252")).
-		Padding(1, 2).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240"))
+		Foreground(lipgloss.Color("252"))
 
 	descStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true).
-		Width(60).
 		Align(lipgloss.Center)
 
 	hintStyle := lipgloss.NewStyle().
@@ -141,62 +112,41 @@ func (a *AlignmentSelector) View(width, height int) string {
 	content.WriteString(titleStyle.Render("SELECT ALIGNMENT"))
 	content.WriteString("\n\n")
 
-	// Render 3x3 grid
-	columnHeaders := []string{"Lawful", "Neutral", "Chaotic"}
-	rowHeaders := []string{"Good", "Neutral", "Evil"}
-
-	// Column headers
-	content.WriteString("           ")
-	for _, header := range columnHeaders {
-		headerStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("86")).
-			Width(20).
-			Align(lipgloss.Center)
-		content.WriteString(headerStyle.Render(header))
-	}
-	content.WriteString("\n")
-
-	// Grid rows
-	for row := 0; row < 3; row++ {
-		// Row header
-		rowHeaderStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("86")).
-			Width(10).
-			Align(lipgloss.Right)
-		content.WriteString(rowHeaderStyle.Render(rowHeaders[row]))
-		content.WriteString(" ")
-
-		// Cells
-		for col := 0; col < 3; col++ {
-			alignment := a.alignments[row][col]
-			cellText := alignment.Short
-
-			var cellStyle lipgloss.Style
-			if row == a.selectedRow && col == a.selectedCol {
-				cellStyle = selectedStyle
-			} else {
-				cellStyle = normalStyle
-			}
-
-			content.WriteString(cellStyle.Render(cellText))
+	// Render as vertical list
+	for i, alignment := range a.alignments {
+		cursor := "  "
+		style := normalStyle
+		if i == a.selectedIndex {
+			cursor = "→ "
+			style = selectedStyle
 		}
+
+		line := fmt.Sprintf("%-15s (%s)", alignment.Name, alignment.Short)
+		content.WriteString(style.Render(cursor + line))
 		content.WriteString("\n")
 	}
 
 	content.WriteString("\n")
 
 	// Show description of selected alignment
-	selectedAlignment := a.alignments[a.selectedRow][a.selectedCol]
-	content.WriteString(descStyle.Render(selectedAlignment.Description))
-	content.WriteString("\n\n")
+	if a.selectedIndex >= 0 && a.selectedIndex < len(a.alignments) {
+		selectedAlignment := a.alignments[a.selectedIndex]
+		// Wrap description to fit width
+		wrappedDesc := wrapAlignmentText(selectedAlignment.Description, 70)
+		for _, line := range wrappedDesc {
+			content.WriteString(descStyle.Render(line))
+			content.WriteString("\n")
+		}
+	}
+	content.WriteString("\n")
 
-	content.WriteString(hintStyle.Render("Arrow keys: Navigate | Enter: Select | Esc: Cancel"))
+	content.WriteString(hintStyle.Render("↑/↓: Navigate | Enter: Select | Esc: Cancel"))
 
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("99")).
 		Padding(1, 2).
-		Width(70)
+		Width(80)
 
 	return lipgloss.Place(
 		width,
@@ -207,3 +157,45 @@ func (a *AlignmentSelector) View(width, height int) string {
 	)
 }
 
+// wrapAlignmentText wraps text to fit within the given width
+func wrapAlignmentText(text string, width int) []string {
+	if width <= 0 {
+		return []string{text}
+	}
+
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{text}
+	}
+
+	var lines []string
+	var currentLine strings.Builder
+
+	for _, word := range words {
+		testLine := currentLine.String()
+		if testLine != "" {
+			testLine += " " + word
+		} else {
+			testLine = word
+		}
+
+		if len(testLine) > width {
+			if currentLine.Len() > 0 {
+				lines = append(lines, currentLine.String())
+				currentLine.Reset()
+			}
+			currentLine.WriteString(word)
+		} else {
+			if currentLine.Len() > 0 {
+				currentLine.WriteString(" ")
+			}
+			currentLine.WriteString(word)
+		}
+	}
+
+	if currentLine.Len() > 0 {
+		lines = append(lines, currentLine.String())
+	}
+
+	return lines
+}
