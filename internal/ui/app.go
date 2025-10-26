@@ -74,6 +74,7 @@ type Model struct {
 	spellSelector    *components.SpellSelector
 	featSelector          *components.FeatSelector
 	featDetailPopup       *components.FeatDetailPopup
+	featureDetailPopup    *components.FeatureDetailPopup
 	itemDetailPopup       *components.ItemDetailPopup
 	masteryDetailPopup    *components.MasteryDetailPopup
 	maneuverDetailPopup   *components.ManeuverDetailPopup
@@ -149,6 +150,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		spellSelector:       components.NewSpellSelector(),
 		featSelector:          components.NewFeatSelector(),
 		featDetailPopup:       components.NewFeatDetailPopup(),
+		featureDetailPopup:    components.NewFeatureDetailPopup(),
 		itemDetailPopup:       components.NewItemDetailPopup(),
 		masteryDetailPopup:    components.NewMasteryDetailPopup(),
 		maneuverDetailPopup:   components.NewManeuverDetailPopup(),
@@ -330,6 +332,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if consumable detail popup is active
 		if m.consumableDetailPopup.IsVisible() {
 			return m.handleConsumableDetailPopupKeys(msg)
+		}
+
+		// Check if feature detail popup is active
+		if m.featureDetailPopup.IsVisible() {
+			return m.handleFeatureDetailPopupKeys(msg)
 		}
 
 		// Check if item detail popup is active
@@ -1163,21 +1170,42 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+e":
 		m.featuresPanel.ScrollDown()
 	case "enter":
-		// Show popup for selected consumable
-		item := m.featuresPanel.GetSelectedConsumable()
-		if item != nil {
-			// Convert rest type to string
-			restTypeStr := "Unknown"
-			switch item.RestType {
-			case models.ShortRest:
-				restTypeStr = "Short Rest"
-			case models.LongRest:
-				restTypeStr = "Long Rest"
-			case models.Daily:
-				restTypeStr = "Daily"
+		// Show popup for selected item (any type)
+		selectedItem := m.featuresPanel.GetSelectedItem()
+		if selectedItem != nil {
+			switch selectedItem.ItemType {
+			case "consumable":
+				// Show consumable detail popup
+				item := selectedItem.Consumable
+				if item != nil {
+					restTypeStr := "Unknown"
+					switch item.RestType {
+					case models.ShortRest:
+						restTypeStr = "Short Rest"
+					case models.LongRest:
+						restTypeStr = "Long Rest"
+					case models.Daily:
+						restTypeStr = "Daily"
+					}
+					m.consumableDetailPopup.Show(item.Name, item.Current, item.Max, restTypeStr, item.Description)
+					m.message = "Viewing details..."
+				}
+			case "passive", "rage_effect":
+				// Show feature detail popup
+				usesStr := ""
+				restTypeStr := ""
+
+				// For passive features, show uses info if applicable
+				if selectedItem.Feature != nil {
+					if selectedItem.Feature.MaxUses > 0 {
+						usesStr = fmt.Sprintf("%d/%d", selectedItem.Feature.CurrentUses, selectedItem.Feature.MaxUses)
+					}
+					restTypeStr = string(selectedItem.Feature.RestType)
+				}
+
+				m.featureDetailPopup.Show(selectedItem.Name, selectedItem.Description, usesStr, restTypeStr)
+				m.message = "Viewing feature details..."
 			}
-			m.consumableDetailPopup.Show(item.Name, item.Current, item.Max, restTypeStr, item.Description)
-			m.message = "Viewing details..."
 		} else {
 			m.message = "No item selected"
 		}
@@ -3092,6 +3120,15 @@ func (m *Model) handleConsumableDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.
 	return m, nil
 }
 
+func (m *Model) handleFeatureDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.featureDetailPopup.Hide()
+		m.message = ""
+	}
+	return m, nil
+}
+
 func (m *Model) handleItemDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "enter":
@@ -3589,6 +3626,11 @@ func (m *Model) View() string {
 	// Consumable detail popup (Medium)
 	if m.consumableDetailPopup.IsVisible() {
 		return m.consumableDetailPopup.View(m.width, m.height)
+	}
+
+	// Feature detail popup (Medium)
+	if m.featureDetailPopup.IsVisible() {
+		return m.featureDetailPopup.View(m.width, m.height)
 	}
 
 	// Item detail popup (Medium)

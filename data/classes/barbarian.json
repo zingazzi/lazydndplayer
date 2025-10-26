@@ -25,8 +25,8 @@
       "features": [
         {
           "name": "Rage",
-          "description": "As a bonus action, you can enter a rage for 10 minutes. While raging:\n• Advantage on STR checks and STR saving throws\n• +2 damage on melee weapon attacks using STR (increases at higher levels: +3 at 9, +4 at 17)\n• Resistance to bludgeoning, piercing, and slashing damage\n• Cannot maintain concentration on spells\n\nYou have 2 uses at level 1 (3 at level 4, 4 at level 10). Regain 1 use after a short rest, and all uses after a long rest.",
-          "uses_formula": "rage_uses",
+          "description": "As a bonus action, you can enter a rage for 10 minutes. While raging:\n• Advantage on STR checks and STR saving throws\n• +2 damage on melee weapon attacks using STR (increases at higher levels: +3 at 9, +4 at 17)\n• Resistance to bludgeoning, piercing, and slashing damage\n• Cannot maintain concentration on spells\n\nUses: 2 (L1-2), 3 (L3-5), 4 (L6-11), 5 (L12-16), 6 (L17-20). Regain 1 use after a short rest, and all uses after a long rest.",
+          "uses_formula": "rage_scaling",
           "rest_type": "Short Rest",
           "mechanics": {
             "type": "rage",

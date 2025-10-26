@@ -35,8 +35,15 @@ func (fd *FeatureDefinition) CalculateMaxUses(char *Character) int {
 		// Check if formula references a scaling table (ends with "_scaling")
 		featureName := fd.Name
 		if strings.HasSuffix(formula, "_scaling") {
-			// Use the feature name for lookup
-			if uses := GetFeatureScaling(char.Class, featureName, char.Level); uses > 0 {
+			// Use the feature name for lookup - check all classes for multiclass support
+			for _, classLevel := range char.Classes {
+				if uses := GetFeatureScaling(classLevel.ClassName, featureName, classLevel.Level); uses > 0 {
+					return uses
+				}
+			}
+			// Fallback to total character level with simplified class name
+			className := strings.Split(char.Class, " ")[0] // Extract first class name
+			if uses := GetFeatureScaling(className, featureName, char.Level); uses > 0 {
 				return uses
 			}
 		}
