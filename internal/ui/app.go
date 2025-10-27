@@ -108,6 +108,7 @@ type Model struct {
 	levelUpSelector       *components.LevelUpSelector
 	deLevelSelector       *components.DeLevelSelector
 	restPopup             *components.RestPopup
+	messagePopup          *components.MessagePopup
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -199,6 +200,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		levelUpSelector:       components.NewLevelUpSelector(char),
 		deLevelSelector:       components.NewDeLevelSelector(char),
 		restPopup:             components.NewRestPopup(char, models.NewStandardDiceRoller()),
+		messagePopup:          components.NewMessagePopup(),
 		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:           panels.NewSkillsPanel(char),
 		inventoryPanel:        panels.NewInventoryPanel(char),
@@ -309,6 +311,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if rest popup is active (BEFORE tab handling)
 		if m.restPopup.IsVisible() {
 			return m.handleRestPopupKeys(msg)
+		}
+
+		// Check if message popup is active
+		if m.messagePopup.IsVisible() {
+			return m.handleMessagePopupKeys(msg)
 		}
 
 		// Check all popups/selectors BEFORE panel navigation (so Tab works in popups)
@@ -1927,6 +1934,12 @@ func (m *Model) handleRestPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// handleMessagePopupKeys handles message popup specific keys
+func (m *Model) handleMessagePopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	cmd := m.messagePopup.Update(msg)
+	return m, cmd
+}
+
 // handleSpeciesSelectorKeys handles species selector specific keys
 func (m *Model) handleSpeciesSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -2340,24 +2353,76 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-		// Check if Wizard needs spell learning (gains 2 spells per level)
+		// Check if Scholar skill selection is needed (Wizard level 2)
 		if m.character.HasClass("Wizard") {
 			wizardLevel := m.character.GetClassLevel("Wizard")
-			if wizardLevel > 1 {
-				// Wizard gained a level, open spellbook editor to add 2 new spells
-				// Determine which level of spells they can learn (up to half their wizard level, rounded up)
+			if wizardLevel == 2 {
+				// Check if Scholar feature exists and needs skill selection
+				for _, feature := range m.character.Features.Features {
+					if feature.Name == "Scholar" && feature.Mechanics != nil {
+						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+							if skillList, ok := feature.Mechanics["skill_list"].([]interface{}); ok {
+								skills := []string{}
+								for _, s := range skillList {
+									if skillStr, ok := s.(string); ok {
+										skills = append(skills, skillStr)
+									}
+								}
+								debug.Log("Scholar feature needs skill selection: %v", skills)
+								m.classSkillSelector.Show("Wizard", skills, 1, m.character)
+								m.message = "Select 1 skill for Scholar feature..."
+								return m, cmd
+							}
+						}
+					}
+				}
+			}
+
+			// Check if Savant spell selection is needed (Wizard level 3 with subclass)
+			if wizardLevel == 3 {
+				debug.Log("Wizard level 3 detected - checking for Savant spell selection")
+				// Check for Savant features that require spell selection
+				for _, feature := range m.character.Features.Features {
+					if feature.Mechanics != nil {
+						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "spell_selection" {
+							// Get school, count, and maxLevel from mechanics
+							school, _ := feature.Mechanics["spell_school"].(string)
+							spellCount := 2 // default
+							if count, ok := feature.Mechanics["spell_count"].(float64); ok {
+								spellCount = int(count)
+							}
+							maxLevel := 2 // default
+							if level, ok := feature.Mechanics["max_spell_level"].(float64); ok {
+								maxLevel = int(level)
+							}
+
+							debug.Log("Triggering school spell selector: school=%s, count=%d, maxLevel=%d", school, spellCount, maxLevel)
+							m.schoolSpellSelector.Show(school, maxLevel, spellCount)
+							m.message = fmt.Sprintf("Select %d %s spells for your spellbook...", spellCount, school)
+							return m, cmd
+						}
+					}
+				}
+			}
+		}
+
+		// Wizard spell learning - show message popup for levels 4+
+		if m.character.HasClass("Wizard") {
+			wizardLevel := m.character.GetClassLevel("Wizard")
+			if wizardLevel > 3 {
+				// Level 4+: Show message popup
 				maxSpellLevel := (wizardLevel + 1) / 2
 				if maxSpellLevel > 9 {
 					maxSpellLevel = 9
 				}
-				debug.Log("Wizard leveled up to %d - can learn spells up to level %d", wizardLevel, maxSpellLevel)
-				m.spellbookEditor.Show()
-				m.message = fmt.Sprintf("You gained a Wizard level! Open your spellbook to add 2 new spells (up to level %d)...", maxSpellLevel)
+				m.messagePopup.Show("Wizard Spellbook", fmt.Sprintf("Add 2 spells (up to level %d) to your spellbook.\n\nPress 'v' in the Spells panel to open your spellbook.", maxSpellLevel))
 				return m, cmd
+			} else {
+				m.message = "Character updated!"
 			}
+		} else {
+			m.message = "Character updated!"
 		}
-
-		m.message = "Character updated!"
 	}
 
 	return m, cmd
@@ -2673,6 +2738,15 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 			m.classSkillSelector.Hide()
 
+			// Check if this was Scholar skill selection (Wizard level 2)
+			if selectedClassName == "Wizard" && m.character.GetClassLevel("Wizard") == 2 {
+				debug.Log("Scholar skill selection complete - showing spell message")
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+				m.messagePopup.Show("Wizard Spellbook", "Add 2 spells to your spellbook.\n\nPress 'v' in the Spells panel to open your spellbook.")
+				return m, cmd
+			}
+
 			// Check if this class needs a subclass at level 1
 			classData := models.GetClassByName(selectedClassName)
 			needsSubclass := false
@@ -2770,16 +2844,16 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 			m.cantripSelector.Hide()
 
-			// Check if Wizard level 1 needs spell selection
+			// Check if Wizard level 1 - show message popup to add 6 spells
 			hasWizard := m.character.HasClass("Wizard")
 			wizardLevel := m.character.GetClassLevel("Wizard")
 			debug.Log("=== Checking Wizard spell selection: HasWizard=%v, WizardLevel=%d", hasWizard, wizardLevel)
 
 			if hasWizard && wizardLevel == 1 {
-				debug.Log("=== WIZARD LEVEL 1 DETECTED - SHOWING SPELLBOOK EDITOR")
-				m.spellbookEditor.Show()
-				m.message = "Select 6 level 1 spells for your spellbook..."
-				debug.Log("=== Spellbook editor should now be visible: %v", m.spellbookEditor.IsVisible())
+				debug.Log("=== WIZARD LEVEL 1 DETECTED - Showing message to add 6 spells")
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+				m.messagePopup.Show("Wizard Spellbook", "Add 6 level 1 spells to your spellbook.\n\nPress 'v' in the Spells panel to open your spellbook.")
 				return m, cmd
 			} else {
 				debug.Log("=== Wizard level 1 check failed - skipping spell selection")
@@ -2949,7 +3023,12 @@ func (m *Model) handleSchoolSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 
 			// Save character
 			m.storage.Save(m.character)
-			m.message = fmt.Sprintf("Added %d %s spells to spellbook", addedCount, m.schoolSpellSelector.GetSchool())
+
+			// Show message popup about adding 2 more spells
+			debug.Log("=== SHOWING MESSAGE POPUP after Savant selection")
+			m.messagePopup.Show("Wizard Spellbook", "Add 2 spells to your spellbook.\n\nPress 'v' in the Spells panel to open your spellbook.")
+			debug.Log("=== Message popup visible: %v", m.messagePopup.IsVisible())
+			return m, cmd
 		} else {
 			needed := m.schoolSpellSelector.GetRemainingCount()
 			m.message = fmt.Sprintf("Please select %d more spell(s)", needed)
@@ -4062,6 +4141,11 @@ func (m *Model) View() string {
 	// Cantrip selector takes seventh priority (Medium)
 	if m.cantripSelector.IsVisible() {
 		return m.cantripSelector.View()
+	}
+
+	// Message popup takes highest priority (shown after selections complete)
+	if m.messagePopup.IsVisible() {
+		return m.messagePopup.View(m.width, m.height)
 	}
 
 	// Leveled spell selector takes priority

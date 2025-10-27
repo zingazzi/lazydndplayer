@@ -213,6 +213,14 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 							return *ls, cmd
 						}
 					}
+
+					// Check if Wizard subclass needs Savant spell selection
+					if ls.selectedClass == "Wizard" {
+						// Mark that Savant spell selection is needed
+						// This will be handled in app.go's handleLevelUpSelectorKeys
+						ls.state = LevelUpComplete
+						return *ls, cmd
+					}
 				}
 
 				// Continue with level-up process
