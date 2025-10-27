@@ -766,5 +766,22 @@ func (c *Character) PerformLongRest() {
 		debug.Log("  Restored Warrior Dice: %d/%d", c.WarriorDice.Current, c.WarriorDice.Max)
 	}
 
+	// Roll new Portent dice for Diviner
+	roller := NewStandardDiceRoller()
+	for i := range c.Features.Features {
+		if c.Features.Features[i].Name == "Portent" {
+			if c.Features.Features[i].Mechanics != nil {
+				if rollOnRest, ok := c.Features.Features[i].Mechanics["roll_on_long_rest"].(bool); ok && rollOnRest {
+					// Roll 2d20 and store in Mechanics["portent_rolls"]
+					roll1 := roller.Roll(20)
+					roll2 := roller.Roll(20)
+					c.Features.Features[i].Mechanics["portent_rolls"] = []int{roll1, roll2}
+					c.Features.Features[i].CurrentUses = 2
+					debug.Log("  Rolled new Portent dice: %d, %d", roll1, roll2)
+				}
+			}
+		}
+	}
+
 	debug.Log("=== LONG REST COMPLETE ===")
 }

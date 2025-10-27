@@ -69,20 +69,13 @@
       "features": [
         {
           "name": "Scholar",
-          "description": "You gain proficiency in one skill of your choice from: Arcana, History, Investigation, Medicine, Nature, or Religion.",
+          "description": "You gain proficiency in one skill of your choice from: Medicine, Nature, Investigation, or Religion.",
           "uses_formula": "0",
           "rest_type": "None",
           "mechanics": {
             "type": "skill_choice",
-            "skill_list": ["Arcana", "History", "Investigation", "Medicine", "Nature", "Religion"]
+            "skill_list": ["Medicine", "Nature", "Investigation", "Religion"]
           }
-        },
-        {
-          "name": "Arcane Tradition",
-          "description": "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic. Your choice grants you features at 2nd level and again at 6th, 10th, and 14th level.",
-          "uses_formula": "0",
-          "rest_type": "None",
-          "subclass_choice": true
         }
       ],
       "spellcasting_info": {
@@ -98,10 +91,18 @@
     {
       "level": 3,
       "proficiency_bonus": 2,
-      "features": [],
+      "features": [
+        {
+          "name": "Arcane Tradition",
+          "description": "You choose an arcane tradition, shaping your practice of magic. Your choice grants you features at 3rd level and again at 6th, 10th, and 14th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "subclass_choice": true
+        }
+      ],
       "spellcasting_info": {
         "cantrips_known": 3,
-        "spells_in_spellbook": 6,
+        "spells_in_spellbook": 10,
         "spells_prepared": "Int mod + level",
         "spell_slots": {
           "1": 4,
@@ -495,23 +496,137 @@
   ],
   "subclasses": [
     {
-      "name": "School of Evocation",
-      "description": "You focus your study on magic that creates powerful elemental effects such as bitter cold, searing flame, rolling thunder, crackling lightning, and burning acid. Some evokers find employment in military forces, serving as artillery to blast enemy armies from afar.",
-      "subclass_level": 2,
-      "source": "Player's Handbook",
+      "name": "School of Abjuration",
+      "description": "The School of Abjuration emphasizes magic that blocks, banishes, or protects.",
+      "subclass_level": 3,
       "features_by_level": {
-        "2": [
+        "3": [
           {
-            "name": "Evocation Savant",
-            "description": "The gold and time you must spend to copy an evocation spell into your spellbook is halved.",
+            "name": "Abjuration Savant",
+            "description": "You can add 2 Abjuration spells of 1st or 2nd level to your spellbook.",
             "uses_formula": "0",
-            "rest_type": "None"
+            "rest_type": "None",
+            "mechanics": {
+              "type": "spell_selection",
+              "spell_school": "abjuration",
+              "spell_count": 2,
+              "max_spell_level": 2,
+              "auto_add_to_spellbook": true
+            }
           },
           {
-            "name": "Sculpt Spells",
-            "description": "You can create pockets of relative safety within the effects of your evocation spells. When you cast an evocation spell that affects other creatures that you can see, you can choose a number of them equal to 1 + the spell's level. The chosen creatures automatically succeed on their saving throws against the spell, and they take no damage if they would normally take half damage on a successful save.",
+            "name": "Arcane Ward",
+            "description": "You can weave magic into a ward that protects you. The ward has hit points equal to twice your wizard level. Whenever you take damage, the ward takes the damage instead. If this damage reduces the ward to 0 hit points, you take any remaining damage. The ward regains all hit points when you finish a long rest.",
+            "uses_formula": "wizard_level*2",
+            "rest_type": "Long Rest",
+            "mechanics": {
+              "type": "resource_pool",
+              "resource_name": "Arcane Ward HP",
+              "formula": "wizard_level*2",
+              "tracks_current_and_max": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "School of Divination",
+      "description": "The School of Divination focuses on seeing the future, understanding the present, and learning from the past.",
+      "subclass_level": 3,
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Divination Savant",
+            "description": "You can add 2 Divination spells of 1st or 2nd level to your spellbook.",
             "uses_formula": "0",
-            "rest_type": "None"
+            "rest_type": "None",
+            "mechanics": {
+              "type": "spell_selection",
+              "spell_school": "divination",
+              "spell_count": 2,
+              "max_spell_level": 2,
+              "auto_add_to_spellbook": true
+            }
+          },
+          {
+            "name": "Portent",
+            "description": "When you finish a long rest, roll two d20s and record the numbers rolled. You can replace any attack roll, saving throw, or ability check made by you or a creature you can see with one of these foretelling rolls. You must choose to do so before the roll. Once used, a foretelling roll is lost.",
+            "uses_formula": "2",
+            "rest_type": "Long Rest",
+            "mechanics": {
+              "type": "portent_dice",
+              "dice_count": 2,
+              "stores_roll_values": true,
+              "roll_on_long_rest": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "School of Evocation",
+      "description": "You focus your study on magic that creates powerful elemental effects.",
+      "subclass_level": 3,
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Evocation Savant",
+            "description": "You can add 2 Evocation spells of 1st or 2nd level to your spellbook.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "spell_selection",
+              "spell_school": "evocation",
+              "spell_count": 2,
+              "max_spell_level": 2,
+              "auto_add_to_spellbook": true
+            }
+          },
+          {
+            "name": "Potent Cantrip",
+            "description": "When a creature succeeds on a saving throw against your cantrip, the creature takes half the cantrip's damage (if any) but suffers no additional effect from the cantrip.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "passive_effect",
+              "effect": "cantrip_half_damage_on_save"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "School of Illusion",
+      "description": "You focus your studies on magic that dazzles the senses, befuddles the mind, and tricks even the wisest folk.",
+      "subclass_level": 3,
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Illusion Savant",
+            "description": "You can add 2 Illusion spells of 1st or 2nd level to your spellbook.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "spell_selection",
+              "spell_school": "illusion",
+              "spell_count": 2,
+              "max_spell_level": 2,
+              "auto_add_to_spellbook": true
+            }
+          },
+          {
+            "name": "Improved Illusion",
+            "description": "You learn the Minor Illusion cantrip (if you already know it, choose another Wizard cantrip). You can cast Minor Illusion as a bonus action, and when you cast an Illusion spell, you can increase its range by 60 feet and cast it without verbal components.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "cantrip_grant",
+              "cantrip_name": "Minor Illusion",
+              "fallback_if_known": "choose_wizard_cantrip",
+              "bonus_action_cast": true,
+              "illusion_range_bonus": 60,
+              "no_verbal_components": true
+            }
           }
         ]
       }

@@ -404,6 +404,27 @@ func (p *FeaturesPanel) View(width, height int) string {
 
 				usageInfo := fmt.Sprintf(" (%d/%d)", item.Current, item.Max)
 
+				// Special handling for Portent - show rolled d20 values
+				if item.Name == "Portent" && item.Feature != nil && item.Feature.Mechanics != nil {
+					if portentRolls, ok := item.Feature.Mechanics["portent_rolls"].([]interface{}); ok && len(portentRolls) > 0 {
+						rollsStr := ""
+						for i, roll := range portentRolls {
+							if i > 0 {
+								rollsStr += ", "
+							}
+							// Convert interface{} to int
+							if rollInt, ok := roll.(int); ok {
+								rollsStr += fmt.Sprintf("%d", rollInt)
+							} else if rollFloat, ok := roll.(float64); ok {
+								rollsStr += fmt.Sprintf("%d", int(rollFloat))
+							}
+						}
+						if rollsStr != "" {
+							usageInfo = fmt.Sprintf(" (rolls: %s) [%d/%d uses]", rollsStr, item.Current, item.Max)
+						}
+					}
+				}
+
 				var itemLine string
 				if isSelected {
 					itemLine = selectedStyle.Render(fmt.Sprintf("  → %s%s", item.Name, usageInfo))

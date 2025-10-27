@@ -227,7 +227,7 @@ func (p *SpellsPanel) View(width, height int) string {
 				break
 			}
 		}
-		
+
 		// If not found in allSpells, create a minimal spell entry so it's still selectable
 		if !found {
 			minimalSpell := models.Spell{

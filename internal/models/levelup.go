@@ -446,9 +446,63 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 
 					// Check if feature has mechanics that require user choices
 					if featureDef.Mechanics != nil {
-						if mechType, ok := featureDef.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+						mechType, _ := featureDef.Mechanics["type"].(string)
+
+						switch mechType {
+						case "skill_choice":
 							debug.Log("  Feature %s requires skill choice", feature.Name)
 							// This will be handled by UI after level-up is completed
+
+						case "spell_selection":
+							debug.Log("  Feature %s requires spell selection (school-filtered)", feature.Name)
+							// This will be handled by UI (SchoolSpellSelector)
+
+						case "resource_pool":
+							// Handle resource pools like Arcane Ward
+							if tracksCurrentMax, ok := featureDef.Mechanics["tracks_current_and_max"].(bool); ok && tracksCurrentMax {
+								debug.Log("  Feature %s is a resource pool", feature.Name)
+								// MaxUses and CurrentUses already set by ToFeature, no additional action needed
+							}
+
+						case "portent_dice":
+							// Handle Portent dice - roll on long rest
+							if rollOnLongRest, ok := featureDef.Mechanics["roll_on_long_rest"].(bool); ok && rollOnLongRest {
+								debug.Log("  Feature %s requires Portent dice rolls", feature.Name)
+								// Initial rolls will be done immediately
+								roller := NewStandardDiceRoller()
+								roll1 := roller.Roll(20)
+								roll2 := roller.Roll(20)
+
+								// Store rolls in the feature's Mechanics
+								if char.Features.Features[len(char.Features.Features)-1].Mechanics == nil {
+									char.Features.Features[len(char.Features.Features)-1].Mechanics = make(map[string]interface{})
+								}
+								char.Features.Features[len(char.Features.Features)-1].Mechanics["portent_rolls"] = []int{roll1, roll2}
+								debug.Log("  Initial Portent rolls: %d, %d", roll1, roll2)
+							}
+
+						case "cantrip_grant":
+							debug.Log("  Feature %s grants a cantrip", feature.Name)
+							// Check if cantrip_name is specified
+							if cantripName, ok := featureDef.Mechanics["cantrip_name"].(string); ok {
+								// Check if character already has this cantrip
+								hasCantrip := false
+								for _, cantrip := range char.SpellBook.Cantrips {
+									if cantrip == cantripName {
+										hasCantrip = true
+										break
+									}
+								}
+
+								if hasCantrip {
+									debug.Log("  Character already has %s, will need to choose another", cantripName)
+									// UI will handle prompting for another cantrip
+								} else {
+									// Auto-add the cantrip
+									char.SpellBook.Cantrips = append(char.SpellBook.Cantrips, cantripName)
+									debug.Log("  Auto-granted cantrip: %s", cantripName)
+								}
+							}
 						}
 					}
 				}
@@ -918,7 +972,7 @@ func RequiresSubclassAtLevel(class *Class, level int) bool {
 	}
 
 	// Classes that get subclass at level 2
-	level2Subclasses := []string{"Druid", "Wizard"}
+	level2Subclasses := []string{"Druid"}
 	for _, name := range level2Subclasses {
 		if class.Name == name && level == 2 {
 			return true
@@ -926,7 +980,7 @@ func RequiresSubclassAtLevel(class *Class, level int) bool {
 	}
 
 	// Classes that get subclass at level 3
-	level3Subclasses := []string{"Bard", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Barbarian"}
+	level3Subclasses := []string{"Bard", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Barbarian", "Wizard"}
 	for _, name := range level3Subclasses {
 		if class.Name == name && level == 3 {
 			return true
