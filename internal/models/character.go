@@ -1,7 +1,18 @@
 // internal/models/character.go
 package models
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
+)
+
+// HitDicePool tracks hit dice for a specific class
+type HitDicePool struct {
+	Count   int `json:"count"`    // Number of hit dice available for this class
+	MaxDice int `json:"max_dice"` // Max hit dice for this class (equal to class level)
+	DieSize int `json:"die_size"` // Size of the die (6, 8, 10, 12)
+}
 
 // Character represents a D&D 5e character
 type Character struct {
@@ -33,6 +44,13 @@ type Character struct {
 	CurrentHP       int `json:"current_hp"`
 	TempHP          int `json:"temp_hp"`
 	SpeciesHPBonus  int `json:"species_hp_bonus"` // HP bonus from species (e.g., Dwarven Toughness)
+
+	// Hit Dice (for resting)
+	HitDice struct {
+		Current int `json:"current"` // Current hit dice available
+		Max     int `json:"max"`     // Max hit dice (equal to total level)
+	} `json:"hit_dice"`
+	HitDiceByClass map[string]HitDicePool `json:"hit_dice_by_class"` // Track hit dice per class
 
 	// Armor Class & Speed
 	ArmorClass int `json:"armor_class"`
@@ -532,4 +550,221 @@ func GetLevelXP(level int) int {
 		return xp
 	}
 	return 355000 // Max level XP
+}
+
+// InitializeHitDice sets up hit dice tracking based on character's classes
+// This should be called after loading class data
+func (c *Character) InitializeHitDice(classes map[string]*Class) {
+	if c.HitDiceByClass == nil {
+		c.HitDiceByClass = make(map[string]HitDicePool)
+	}
+
+	totalDice := 0
+	for _, classLevel := range c.Classes {
+		pool := c.HitDiceByClass[classLevel.ClassName]
+		pool.MaxDice = classLevel.Level
+
+		// Get hit die size from class definition
+		if class, ok := classes[classLevel.ClassName]; ok {
+			pool.DieSize = class.HitDie
+		}
+
+		// If count is 0 or greater than max, reset to max (for new characters or after long rest)
+		if pool.Count == 0 || pool.Count > pool.MaxDice {
+			pool.Count = pool.MaxDice
+		}
+
+		c.HitDiceByClass[classLevel.ClassName] = pool
+		totalDice += pool.Count
+	}
+
+	c.HitDice.Max = c.Level
+	c.HitDice.Current = totalDice
+
+	debug.Log("Initialized hit dice: Current=%d, Max=%d", c.HitDice.Current, c.HitDice.Max)
+}
+
+// GetTotalHitDice returns the total number of hit dice available
+func (c *Character) GetTotalHitDice() int {
+	total := 0
+	for _, pool := range c.HitDiceByClass {
+		total += pool.Count
+	}
+	return total
+}
+
+// SpendHitDice spends hit dice and restores HP (returns HP restored)
+func (c *Character) SpendHitDice(count int, roller DiceRoller) int {
+	if count <= 0 {
+		return 0
+	}
+
+	totalHealing := 0
+	diceSpent := 0
+	conMod := c.AbilityScores.GetModifier("Constitution")
+
+	debug.Log("=== SPENDING HIT DICE ===")
+	debug.Log("  Requested: %d dice", count)
+	debug.Log("  Available: %d dice", c.GetTotalHitDice())
+	debug.Log("  CON Modifier: %d", conMod)
+
+	// Spend hit dice from each class pool
+	for className, pool := range c.HitDiceByClass {
+		if diceSpent >= count {
+			break
+		}
+
+		diceToSpend := count - diceSpent
+		if diceToSpend > pool.Count {
+			diceToSpend = pool.Count
+		}
+
+		for i := 0; i < diceToSpend; i++ {
+			roll := roller.Roll(pool.DieSize)
+			healing := roll + conMod
+			if healing < 1 {
+				healing = 1 // Minimum 1 HP per hit die
+			}
+			totalHealing += healing
+			debug.Log("  Spent 1d%d from %s: rolled %d + %d CON = %d HP", pool.DieSize, className, roll, conMod, healing)
+		}
+
+		pool.Count -= diceToSpend
+		c.HitDiceByClass[className] = pool
+		diceSpent += diceToSpend
+	}
+
+	// Update total hit dice count
+	c.HitDice.Current = c.GetTotalHitDice()
+
+	// Restore HP
+	c.CurrentHP += totalHealing
+	if c.CurrentHP > c.MaxHP {
+		c.CurrentHP = c.MaxHP
+	}
+
+	debug.Log("  Total Healing: %d HP", totalHealing)
+	debug.Log("  HP: %d/%d", c.CurrentHP, c.MaxHP)
+	debug.Log("  Remaining Hit Dice: %d/%d", c.HitDice.Current, c.HitDice.Max)
+
+	return totalHealing
+}
+
+// PerformShortRest performs a short rest, restoring hit dice-based HP and short rest features
+func (c *Character) PerformShortRest(diceSpent int, roller DiceRoller) int {
+	debug.Log("=== PERFORMING SHORT REST ===")
+
+	// Spend hit dice for healing
+	healing := c.SpendHitDice(diceSpent, roller)
+
+	// Restore all short rest features
+	for i := range c.Features.Features {
+		if c.Features.Features[i].RestType == ShortRest || c.Features.Features[i].RestType == Daily {
+			c.Features.Features[i].CurrentUses = c.Features.Features[i].MaxUses
+			debug.Log("  Restored feature: %s (%d uses)", c.Features.Features[i].Name, c.Features.Features[i].MaxUses)
+		}
+	}
+
+	// Note: Actions don't track uses separately, they're tied to features
+
+	// Restore Psi Dice for Psi Warrior (1 die on short rest)
+	if c.PsiDice.Max > 0 && c.PsiDice.Current < c.PsiDice.Max {
+		c.PsiDice.Current++
+		debug.Log("  Restored 1 Psi Die: %d/%d", c.PsiDice.Current, c.PsiDice.Max)
+	}
+
+	// Restore Superiority Dice for Battle Master (all dice on short rest)
+	if c.SuperiorityDice.Max > 0 {
+		c.SuperiorityDice.Current = c.SuperiorityDice.Max
+		debug.Log("  Restored Superiority Dice: %d/%d", c.SuperiorityDice.Current, c.SuperiorityDice.Max)
+	}
+
+	// Restore Warrior Dice for Zealot (1 die on short rest)
+	if c.WarriorDice.Max > 0 && c.WarriorDice.Current < c.WarriorDice.Max {
+		c.WarriorDice.Current++
+		debug.Log("  Restored 1 Warrior Die: %d/%d", c.WarriorDice.Current, c.WarriorDice.Max)
+	}
+
+	debug.Log("=== SHORT REST COMPLETE ===")
+	return healing
+}
+
+// PerformLongRest performs a long rest, restoring all HP, hit dice, and features
+func (c *Character) PerformLongRest() {
+	debug.Log("=== PERFORMING LONG REST ===")
+
+	// Restore all HP
+	c.CurrentHP = c.MaxHP
+	debug.Log("  HP fully restored: %d/%d", c.CurrentHP, c.MaxHP)
+
+	// Restore hit dice (regain half of max, minimum 1)
+	hitDiceToRestore := c.HitDice.Max / 2
+	if hitDiceToRestore < 1 {
+		hitDiceToRestore = 1
+	}
+
+	debug.Log("  Restoring %d hit dice (half of %d)", hitDiceToRestore, c.HitDice.Max)
+
+	// Distribute restored hit dice across classes
+	for className, pool := range c.HitDiceByClass {
+		if hitDiceToRestore <= 0 {
+			break
+		}
+
+		missing := pool.MaxDice - pool.Count
+		toRestore := missing
+		if toRestore > hitDiceToRestore {
+			toRestore = hitDiceToRestore
+		}
+
+		pool.Count += toRestore
+		c.HitDiceByClass[className] = pool
+		hitDiceToRestore -= toRestore
+		debug.Log("  Restored %d d%d hit dice for %s", toRestore, pool.DieSize, className)
+	}
+
+	c.HitDice.Current = c.GetTotalHitDice()
+	debug.Log("  Total hit dice: %d/%d", c.HitDice.Current, c.HitDice.Max)
+
+	// Restore all features (both short and long rest)
+	for i := range c.Features.Features {
+		if c.Features.Features[i].RestType != None {
+			c.Features.Features[i].CurrentUses = c.Features.Features[i].MaxUses
+			debug.Log("  Restored feature: %s (%d uses)", c.Features.Features[i].Name, c.Features.Features[i].MaxUses)
+		}
+	}
+
+	// Note: Actions don't track uses separately, they're tied to features
+
+	// Restore all spell slots
+	c.SpellBook.Slots.Level1.Current = c.SpellBook.Slots.Level1.Maximum
+	c.SpellBook.Slots.Level2.Current = c.SpellBook.Slots.Level2.Maximum
+	c.SpellBook.Slots.Level3.Current = c.SpellBook.Slots.Level3.Maximum
+	c.SpellBook.Slots.Level4.Current = c.SpellBook.Slots.Level4.Maximum
+	c.SpellBook.Slots.Level5.Current = c.SpellBook.Slots.Level5.Maximum
+	c.SpellBook.Slots.Level6.Current = c.SpellBook.Slots.Level6.Maximum
+	c.SpellBook.Slots.Level7.Current = c.SpellBook.Slots.Level7.Maximum
+	c.SpellBook.Slots.Level8.Current = c.SpellBook.Slots.Level8.Maximum
+	c.SpellBook.Slots.Level9.Current = c.SpellBook.Slots.Level9.Maximum
+	debug.Log("  All spell slots restored")
+
+	// Restore Psi Dice for Psi Warrior
+	if c.PsiDice.Max > 0 {
+		c.PsiDice.Current = c.PsiDice.Max
+		debug.Log("  Restored Psi Dice: %d/%d", c.PsiDice.Current, c.PsiDice.Max)
+	}
+
+	// Restore Superiority Dice for Battle Master
+	if c.SuperiorityDice.Max > 0 {
+		c.SuperiorityDice.Current = c.SuperiorityDice.Max
+		debug.Log("  Restored Superiority Dice: %d/%d", c.SuperiorityDice.Current, c.SuperiorityDice.Max)
+	}
+
+	// Restore Warrior Dice for Zealot
+	if c.WarriorDice.Max > 0 {
+		c.WarriorDice.Current = c.WarriorDice.Max
+		debug.Log("  Restored Warrior Dice: %d/%d", c.WarriorDice.Current, c.WarriorDice.Max)
+	}
+
+	debug.Log("=== LONG REST COMPLETE ===")
 }

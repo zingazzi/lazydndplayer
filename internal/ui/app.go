@@ -106,6 +106,7 @@ type Model struct {
 	maneuverSelector      *components.ManeuverSelector
 	levelUpSelector       *components.LevelUpSelector
 	deLevelSelector       *components.DeLevelSelector
+	restPopup             *components.RestPopup
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -140,6 +141,17 @@ type Model struct {
 
 // NewModel creates a new application model
 func NewModel(char *models.Character, store *storage.Storage) *Model {
+	// Initialize hit dice for the character
+	classData, err := models.LoadClassesFromJSON("data/classes")
+	if err == nil && classData != nil {
+		// Convert []Class to map[string]*Class
+		classMap := make(map[string]*models.Class)
+		for i := range classData.Classes {
+			classMap[classData.Classes[i].Name] = &classData.Classes[i]
+		}
+		char.InitializeHitDice(classMap)
+	}
+
 	return &Model{
 		character:           char,
 		storage:             store,
@@ -184,6 +196,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		maneuverSelector:      components.NewManeuverSelector(),
 		levelUpSelector:       components.NewLevelUpSelector(char),
 		deLevelSelector:       components.NewDeLevelSelector(char),
+		restPopup:             components.NewRestPopup(char, models.NewStandardDiceRoller()),
 		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:           panels.NewSkillsPanel(char),
 		inventoryPanel:        panels.NewInventoryPanel(char),
@@ -289,6 +302,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if ability roller is active (BEFORE tab handling)
 		if m.abilityRoller.IsVisible() {
 			return m.handleAbilityRollerKeys(msg)
+		}
+
+		// Check if rest popup is active (BEFORE tab handling)
+		if m.restPopup.IsVisible() {
+			return m.handleRestPopupKeys(msg)
 		}
 
 		// Check all popups/selectors BEFORE panel navigation (so Tab works in popups)
@@ -1704,8 +1722,13 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.characterStatsPanel.EditName()
 		m.message = "Editing name..."
 	case "r":
-		m.speciesSelector.Show()
-		m.message = "Select a species..."
+		// Short rest
+		m.restPopup.Show(components.ShortRestType)
+		m.message = "Taking a short rest..."
+	case "R":
+		// Long rest
+		m.restPopup.Show(components.LongRestType)
+		m.message = "Taking a long rest..."
 	case "h":
 		m.characterStatsPanel.EditHP()
 		m.message = "Enter HP change (+/- amount)..."
@@ -1857,6 +1880,29 @@ func (m *Model) handleAbilityRollerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.message = "Roll cancelled"
 	}
 	return m, nil
+}
+
+// handleRestPopupKeys handles rest popup specific keys
+func (m *Model) handleRestPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	cmd := m.restPopup.Update(msg)
+
+	// Check if rest was confirmed
+	if m.restPopup.IsConfirmed() {
+		healing := m.restPopup.GetHealing()
+		if healing > 0 {
+			m.message = fmt.Sprintf("Rest complete! Restored %d HP. HP: %d/%d",
+				healing, m.character.CurrentHP, m.character.MaxHP)
+		} else {
+			m.message = fmt.Sprintf("Rest complete! HP: %d/%d", m.character.CurrentHP, m.character.MaxHP)
+		}
+		m.storage.Save(m.character)
+		m.restPopup.Hide()
+	} else if m.restPopup.IsCancelled() {
+		m.message = "Rest cancelled"
+		m.restPopup.Hide()
+	}
+
+	return m, cmd
 }
 
 // handleSpeciesSelectorKeys handles species selector specific keys
@@ -3539,7 +3585,7 @@ func (m *Model) buildStatusBar() string {
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
-		contextHelp = "[n] Name • [r] Species • [h] HP • [+/-] ±1 • [i] Init"
+		contextHelp = "[n] Name • [h] HP • [r] Short Rest • [R] Long Rest • [+/-] ±1 • [i] Init"
 	case FocusActions:
 		panelName = "Actions"
 		contextHelp = "[↑/↓] Navigate • [Enter] Activate"
@@ -3975,6 +4021,11 @@ func (m *Model) View() string {
 	xpPopup := m.characterStatsPanel.RenderXPPopup(popupSmallWidth, popupSmallHeight)
 	if xpPopup != "" {
 		return xpPopup
+	}
+
+	// Rest popup overlay if active
+	if m.restPopup.IsVisible() {
+		return m.restPopup.View()
 	}
 
 	// Attack menu takes priority (shows as centered overlay)
