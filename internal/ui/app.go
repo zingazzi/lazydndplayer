@@ -1220,6 +1220,22 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.spellDetailPopup.Show(*spell)
 			m.message = "Viewing spell details..."
 		}
+	case "u":
+		// Consume spell slot
+		if m.spellsPanel.ConsumeSpellSlot() {
+			m.storage.Save(m.character)
+			m.message = "Spell slot consumed"
+		} else {
+			m.message = "Cannot consume spell slot (already at 0 or no slot selected)"
+		}
+	case "U":
+		// Restore spell slot
+		if m.spellsPanel.RestoreSpellSlot() {
+			m.storage.Save(m.character)
+			m.message = "Spell slot restored"
+		} else {
+			m.message = "Cannot restore spell slot (already at max or no slot selected)"
+		}
 	}
 	return m, nil
 }

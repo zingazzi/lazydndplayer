@@ -11,14 +11,29 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
+// SpellPanelItemType represents the type of selectable item in the spells panel
+type SpellPanelItemType int
+
+const (
+	SpellPanelItemSlot SpellPanelItemType = iota
+	SpellPanelItemSpell
+)
+
+// SpellPanelItem represents an item that can be selected in the spells panel
+type SpellPanelItem struct {
+	Type       SpellPanelItemType
+	SpellLevel int          // For spell slots, the spell level (1-9)
+	Spell      *models.Spell // For spells, pointer to the spell
+}
+
 // SpellsPanel displays character spells
 type SpellsPanel struct {
-	character        *models.Character
-	viewport         viewport.Model
-	ready            bool
-	allSpells        []models.Spell // All spells available to the class
-	selectableSpells []models.Spell // Cantrips + prepared spells for navigation
-	cursorIndex      int            // Current cursor position
+	character      *models.Character
+	viewport       viewport.Model
+	ready          bool
+	allSpells      []models.Spell     // All spells available to the class
+	selectableItems []SpellPanelItem  // Spell slots + cantrips + prepared spells for navigation
+	cursorIndex    int                // Current cursor position
 }
 
 // NewSpellsPanel creates a new spells panel
@@ -169,35 +184,82 @@ func (p *SpellsPanel) View(width, height int) string {
 		Foreground(lipgloss.Color("230")).
 		Background(lipgloss.Color("237"))
 
-	// Build selectable list (cantrips + prepared spells)
-	p.selectableSpells = []models.Spell{}
+	// Build selectable list (spell slots + cantrips + prepared spells)
+	p.selectableItems = []SpellPanelItem{}
+
+	// Add spell slots to selectable list
+	slotLevels := []struct {
+		level int
+		slot  *models.SpellSlot
+	}{
+		{1, &char.SpellBook.Slots.Level1},
+		{2, &char.SpellBook.Slots.Level2},
+		{3, &char.SpellBook.Slots.Level3},
+		{4, &char.SpellBook.Slots.Level4},
+		{5, &char.SpellBook.Slots.Level5},
+		{6, &char.SpellBook.Slots.Level6},
+		{7, &char.SpellBook.Slots.Level7},
+		{8, &char.SpellBook.Slots.Level8},
+		{9, &char.SpellBook.Slots.Level9},
+	}
+
+	for _, sl := range slotLevels {
+		if sl.slot.Maximum > 0 {
+			p.selectableItems = append(p.selectableItems, SpellPanelItem{
+				Type:       SpellPanelItemSlot,
+				SpellLevel: sl.level,
+			})
+		}
+	}
 
 	// Add cantrips to selectable list
+	// First, try to find the full spell data from allSpells
 	for _, cantripName := range char.SpellBook.Cantrips {
+		found := false
 		for _, spell := range p.allSpells {
 			if spell.Name == cantripName && spell.Level == 0 {
-				p.selectableSpells = append(p.selectableSpells, spell)
+				spellCopy := spell
+				p.selectableItems = append(p.selectableItems, SpellPanelItem{
+					Type:  SpellPanelItemSpell,
+					Spell: &spellCopy,
+				})
+				found = true
 				break
 			}
+		}
+		
+		// If not found in allSpells, create a minimal spell entry so it's still selectable
+		if !found {
+			minimalSpell := models.Spell{
+				Name:    cantripName,
+				Level:   0,
+				Classes: []string{char.Class},
+			}
+			p.selectableItems = append(p.selectableItems, SpellPanelItem{
+				Type:  SpellPanelItemSpell,
+				Spell: &minimalSpell,
+			})
 		}
 	}
 
 	// Add prepared spells to selectable list
-	for _, spell := range char.SpellBook.Spells {
+	for i := range char.SpellBook.Spells {
+		spell := &char.SpellBook.Spells[i]
 		if spell.Prepared && spell.Level > 0 {
-			p.selectableSpells = append(p.selectableSpells, spell)
+			p.selectableItems = append(p.selectableItems, SpellPanelItem{
+				Type:  SpellPanelItemSpell,
+				Spell: spell,
+			})
 		}
 	}
 
 	// Bounds check cursor
-	if p.cursorIndex >= len(p.selectableSpells) {
-		p.cursorIndex = len(p.selectableSpells) - 1
+	if p.cursorIndex >= len(p.selectableItems) {
+		p.cursorIndex = len(p.selectableItems) - 1
 	}
-	if p.cursorIndex < 0 && len(p.selectableSpells) > 0 {
+	if p.cursorIndex < 0 && len(p.selectableItems) > 0 {
 		p.cursorIndex = 0
 	}
-
-	currentIdx := 0 // Track position in selectable list
 
 	// Cantrips section with selection
 	lines = append(lines, headerStyle.Render("CANTRIPS"))
@@ -211,9 +273,16 @@ func (p *SpellsPanel) View(width, height int) string {
 		for _, cantripName := range char.SpellBook.Cantrips {
 			cursor := "  "
 			style := normalStyle
-			if currentIdx == p.cursorIndex {
-				cursor = "❯ "
-				style = selectedStyle
+
+			// Find this cantrip in selectableItems to check if it's selected
+			for i, item := range p.selectableItems {
+				if item.Type == SpellPanelItemSpell && item.Spell != nil && item.Spell.Name == cantripName {
+					if i == p.cursorIndex {
+						cursor = "❯ "
+						style = selectedStyle
+					}
+					break
+				}
 			}
 
 			// Find the spell to check for concentration and ritual
@@ -232,7 +301,6 @@ func (p *SpellsPanel) View(width, height int) string {
 
 			levelTag := levelStyle.Render("[0]")
 			lines = append(lines, style.Render(fmt.Sprintf("%s● %s %s%s", cursor, cantripName, levelTag, markers)))
-			currentIdx++
 		}
 	}
 	lines = append(lines, dimStyle.Render(fmt.Sprintf("  Press 'c' to change cantrips (%d known)", char.SpellBook.CantripsKnown)))
@@ -247,7 +315,7 @@ func (p *SpellsPanel) View(width, height int) string {
 		lines = append(lines, "")
 	}
 
-	spellLines, totalCount := p.renderPreparedSpellsByLevelWithSelection(&currentIdx)
+	spellLines, totalCount := p.renderPreparedSpellsByLevelWithSelection()
 	lines = append(lines, spellLines...)
 
 	if totalCount == 0 {
@@ -275,7 +343,7 @@ func (p *SpellsPanel) View(width, height int) string {
 		lines = append(lines, dimStyle.Render("Press 'v/b' to open spellbook editor"))
 		lines = append(lines, "")
 	}
-	lines = append(lines, dimStyle.Render("Keys: ↑/↓: Select • Enter: View Details • 'v/b': Spellbook • 'c': Cantrips • 'a': Add Spell • 's': Restore Slot • 'r': Rest"))
+	lines = append(lines, dimStyle.Render("Keys: ↑/↓: Select • Enter: View Details • 'u': Consume Slot • 'U': Restore Slot • 'v/b': Spellbook • 'c': Cantrips • 'r': Rest"))
 
 	content := strings.Join(lines, "\n")
 
@@ -291,7 +359,7 @@ func (p *SpellsPanel) View(width, height int) string {
 	return panelStyle.Render(p.viewport.View())
 }
 
-// renderSpellSlots renders the spell slots display
+// renderSpellSlots renders the spell slots display with selection support
 func (p *SpellsPanel) renderSpellSlots() []string {
 	char := p.character
 	var lines []string
@@ -311,13 +379,41 @@ func (p *SpellsPanel) renderSpellSlots() []string {
 		{9, &char.SpellBook.Slots.Level9},
 	}
 
+	selectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("230")).
+		Background(lipgloss.Color("237"))
+
+	normalStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	// Find which spell slot indexes are in the selectable list
+	slotIndexMap := make(map[int]int) // map[level]selectableIndex
+	for i, item := range p.selectableItems {
+		if item.Type == SpellPanelItemSlot {
+			slotIndexMap[item.SpellLevel] = i
+		}
+	}
+
 	hasSlots := false
 	for _, sl := range slotLevels {
 		if sl.slot.Maximum > 0 {
 			hasSlots = true
 			slots := strings.Repeat("●", sl.slot.Current) + strings.Repeat("○", sl.slot.Maximum-sl.slot.Current)
-			lines = append(lines, fmt.Sprintf("  Level %d: %s (%d/%d)",
-				sl.level, slots, sl.slot.Current, sl.slot.Maximum))
+
+			// Check if this slot level is selected
+			cursor := "  "
+			style := normalStyle
+			if selectableIdx, exists := slotIndexMap[sl.level]; exists {
+				if selectableIdx == p.cursorIndex {
+					cursor = "❯ "
+					style = selectedStyle
+				}
+			}
+
+			line := fmt.Sprintf("%sLevel %d: %s (%d/%d)",
+				cursor, sl.level, slots, sl.slot.Current, sl.slot.Maximum)
+			lines = append(lines, style.Render(line))
 		}
 	}
 
@@ -424,7 +520,7 @@ func (p *SpellsPanel) renderPreparedSpellsByLevel() ([]string, int) {
 }
 
 // renderPreparedSpellsByLevelWithSelection renders prepared spells with selection cursor
-func (p *SpellsPanel) renderPreparedSpellsByLevelWithSelection(currentIdx *int) ([]string, int) {
+func (p *SpellsPanel) renderPreparedSpellsByLevelWithSelection() ([]string, int) {
 	var lines []string
 	totalCount := 0
 
@@ -463,9 +559,15 @@ func (p *SpellsPanel) renderPreparedSpellsByLevelWithSelection(currentIdx *int) 
 			cursor := "  "
 			style := preparedStyle
 
-			if *currentIdx == p.cursorIndex {
-				cursor = "❯ "
-				style = selectedStyle
+			// Find this spell in selectableItems to check if it's selected
+			for i, item := range p.selectableItems {
+				if item.Type == SpellPanelItemSpell && item.Spell != nil && item.Spell.Name == spell.Name {
+					if i == p.cursorIndex {
+						cursor = "❯ "
+						style = selectedStyle
+					}
+					break
+				}
 			}
 
 			markers := ""
@@ -480,7 +582,6 @@ func (p *SpellsPanel) renderPreparedSpellsByLevelWithSelection(currentIdx *int) 
 			line := fmt.Sprintf("%s● %s %s%s", cursor, spell.Name, levelTag, markers)
 			lines = append(lines, style.Render(line))
 			totalCount++
-			*currentIdx++
 		}
 	lines = append(lines, "")
 	}
@@ -605,7 +706,7 @@ func (p *SpellsPanel) HandleKey(msg tea.KeyMsg) {
 
 // Next moves cursor to next spell
 func (p *SpellsPanel) Next() {
-	if p.cursorIndex < len(p.selectableSpells)-1 {
+	if p.cursorIndex < len(p.selectableItems)-1 {
 		p.cursorIndex++
 	}
 }
@@ -619,8 +720,105 @@ func (p *SpellsPanel) Prev() {
 
 // GetSelectedSpell returns the currently selected spell
 func (p *SpellsPanel) GetSelectedSpell() *models.Spell {
-	if p.cursorIndex >= 0 && p.cursorIndex < len(p.selectableSpells) {
-		return &p.selectableSpells[p.cursorIndex]
+	if p.cursorIndex >= 0 && p.cursorIndex < len(p.selectableItems) {
+		item := p.selectableItems[p.cursorIndex]
+		if item.Type == SpellPanelItemSpell {
+			return item.Spell
+		}
 	}
 	return nil
+}
+
+// GetSelectedItem returns the currently selected item
+func (p *SpellsPanel) GetSelectedItem() *SpellPanelItem {
+	if p.cursorIndex >= 0 && p.cursorIndex < len(p.selectableItems) {
+		return &p.selectableItems[p.cursorIndex]
+	}
+	return nil
+}
+
+// ConsumeSpellSlot consumes a spell slot of the selected level
+func (p *SpellsPanel) ConsumeSpellSlot() bool {
+	item := p.GetSelectedItem()
+	if item == nil || item.Type != SpellPanelItemSlot {
+		return false
+	}
+
+	level := item.SpellLevel
+	char := p.character
+
+	// Get the appropriate slot
+	var slot *models.SpellSlot
+	switch level {
+	case 1:
+		slot = &char.SpellBook.Slots.Level1
+	case 2:
+		slot = &char.SpellBook.Slots.Level2
+	case 3:
+		slot = &char.SpellBook.Slots.Level3
+	case 4:
+		slot = &char.SpellBook.Slots.Level4
+	case 5:
+		slot = &char.SpellBook.Slots.Level5
+	case 6:
+		slot = &char.SpellBook.Slots.Level6
+	case 7:
+		slot = &char.SpellBook.Slots.Level7
+	case 8:
+		slot = &char.SpellBook.Slots.Level8
+	case 9:
+		slot = &char.SpellBook.Slots.Level9
+	default:
+		return false
+	}
+
+	// Consume the slot
+	if slot.Current > 0 {
+		slot.Current--
+		return true
+	}
+	return false
+}
+
+// RestoreSpellSlot restores a spell slot of the selected level
+func (p *SpellsPanel) RestoreSpellSlot() bool {
+	item := p.GetSelectedItem()
+	if item == nil || item.Type != SpellPanelItemSlot {
+		return false
+	}
+
+	level := item.SpellLevel
+	char := p.character
+
+	// Get the appropriate slot
+	var slot *models.SpellSlot
+	switch level {
+	case 1:
+		slot = &char.SpellBook.Slots.Level1
+	case 2:
+		slot = &char.SpellBook.Slots.Level2
+	case 3:
+		slot = &char.SpellBook.Slots.Level3
+	case 4:
+		slot = &char.SpellBook.Slots.Level4
+	case 5:
+		slot = &char.SpellBook.Slots.Level5
+	case 6:
+		slot = &char.SpellBook.Slots.Level6
+	case 7:
+		slot = &char.SpellBook.Slots.Level7
+	case 8:
+		slot = &char.SpellBook.Slots.Level8
+	case 9:
+		slot = &char.SpellBook.Slots.Level9
+	default:
+		return false
+	}
+
+	// Restore the slot
+	if slot.Current < slot.Maximum {
+		slot.Current++
+		return true
+	}
+	return false
 }
