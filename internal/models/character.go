@@ -212,6 +212,27 @@ func NewCharacter() *Character {
 	return char
 }
 
+// GetBaseSpeed returns the base speed from the character's species
+func (c *Character) GetBaseSpeed() int {
+	species := GetSpeciesByName(c.Race)
+	if species == nil {
+		return 30 // Default speed if species not found
+	}
+
+	baseSpeed := species.Speed
+
+	// Check for subtype speed override
+	if species.HasSubtypes && c.Subtype != "" {
+		if props, ok := species.SubtypeProperties[c.Subtype]; ok {
+			if props.Speed > 0 {
+				baseSpeed = props.Speed
+			}
+		}
+	}
+
+	return baseSpeed
+}
+
 // UpdateDerivedStats updates calculated values based on ability scores
 func (c *Character) UpdateDerivedStats() {
 	// Sync multiclass data first
@@ -241,6 +262,9 @@ func (c *Character) UpdateDerivedStats() {
 	// Update AC based on equipped armor and shield
 	c.AC = CalculateAC(c)
 	c.ArmorClass = c.AC // Keep both for compatibility
+
+	// Reset speed to base species speed before applying bonuses
+	c.Speed = c.GetBaseSpeed()
 
 	// Apply Monk speed bonus if applicable
 	if c.IsMonk() && c.HasFeature("Unarmored Movement") {
