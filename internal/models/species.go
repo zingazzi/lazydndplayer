@@ -393,6 +393,8 @@ func ApplySpeciesWithSubtype(char *Character, speciesName string, subtypeName st
 				char.Languages = make([]string, len(species.Languages))
 				copy(char.Languages, species.Languages)
 			}
+			// Ensure Common is always included
+			ensureCommonLanguage(char)
 			if len(props.Resistances) > 0 {
 				char.Resistances = make([]string, len(props.Resistances))
 				copy(char.Resistances, props.Resistances)
@@ -411,6 +413,8 @@ func ApplySpeciesWithSubtype(char *Character, speciesName string, subtypeName st
 		// No subtype, use base values
 		char.Languages = make([]string, len(species.Languages))
 		copy(char.Languages, species.Languages)
+		// Ensure Common is always included
+		ensureCommonLanguage(char)
 		char.Resistances = make([]string, len(species.Resistances))
 		copy(char.Resistances, species.Resistances)
 	}
@@ -520,6 +524,9 @@ func ApplySpeciesToCharacterWithChoices(char *Character, speciesName string, cho
 
 	// Apply species HP bonuses (e.g., Dwarven Toughness)
 	ApplySpeciesHPBonus(char, species)
+
+	// Ensure Common is always included
+	ensureCommonLanguage(char)
 
 	// Update derived stats
 	char.UpdateDerivedStats()
@@ -941,4 +948,17 @@ func ApplySpeciesFeaturesWithTraits(char *Character, species *SpeciesInfo, trait
 			char.Features.AddFeature(feature)
 		}
 	}
+}
+
+// ensureCommonLanguage ensures that Common is always in the character's languages
+func ensureCommonLanguage(char *Character) {
+	// Check if Common is already in the languages list
+	for _, lang := range char.Languages {
+		if strings.EqualFold(lang, "Common") {
+			return // Common is already present
+		}
+	}
+
+	// Add Common to the beginning of the languages list
+	char.Languages = append([]string{"Common"}, char.Languages...)
 }
