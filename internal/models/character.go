@@ -419,6 +419,26 @@ func (c *Character) GetMonkMechanics() *MonkMechanics {
 	return NewMonkMechanics(c)
 }
 
+// IsRogue checks if character has Rogue levels
+func (c *Character) IsRogue() bool {
+	for _, classLevel := range c.Classes {
+		if classLevel.ClassName == "Rogue" {
+			return true
+		}
+	}
+	return false
+}
+
+// GetRogueLevel returns the Rogue level, or 0 if not a Rogue
+func (c *Character) GetRogueLevel() int {
+	return c.GetClassLevel("Rogue")
+}
+
+// GetRogueMechanics returns Rogue-specific mechanics handler
+func (c *Character) GetRogueMechanics() *RogueMechanics {
+	return NewRogueMechanics(c)
+}
+
 // HasFeature checks if character has a feature with the given name
 func (c *Character) HasFeature(featureName string) bool {
 	for _, feature := range c.Features.Features {

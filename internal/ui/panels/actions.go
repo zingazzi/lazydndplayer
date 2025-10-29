@@ -52,6 +52,13 @@ type BarbarianBonusAction struct {
 	DiceSize     string // e.g., "d12"
 }
 
+// RogueBonusAction represents a Rogue-specific bonus action
+type RogueBonusAction struct {
+	Name        string
+	Description string
+	ActionType  string // "Cunning Action" or "Steady Aim"
+}
+
 // ActionsPanel displays character actions
 type ActionsPanel struct {
 	character          *models.Character
@@ -67,6 +74,7 @@ type ActionsPanel struct {
 	fighterBonusActions   []FighterBonusAction   // Fighter bonus actions
 	fighterReactions      []FighterReaction      // Fighter reactions
 	barbarianBonusActions []BarbarianBonusAction // Barbarian bonus actions
+	rogueBonusActions     []RogueBonusAction     // Rogue bonus actions
 	totalItemCount        int                    // Total number of items (attacks + spells + actions)
 }
 
@@ -178,6 +186,38 @@ func (p *ActionsPanel) View(width, height int) string {
 		}
 	}
 
+	// Build Rogue bonus actions
+	p.rogueBonusActions = []RogueBonusAction{}
+	if char.IsRogue() {
+		// Cunning Action (level 2+)
+		if char.HasFeature("Cunning Action") {
+			p.rogueBonusActions = append(p.rogueBonusActions, RogueBonusAction{
+				Name:        "Dash (Cunning Action)",
+				Description: "Dash as a bonus action",
+				ActionType:  "Cunning Action",
+			})
+			p.rogueBonusActions = append(p.rogueBonusActions, RogueBonusAction{
+				Name:        "Disengage (Cunning Action)",
+				Description: "Disengage as a bonus action",
+				ActionType:  "Cunning Action",
+			})
+			p.rogueBonusActions = append(p.rogueBonusActions, RogueBonusAction{
+				Name:        "Hide (Cunning Action)",
+				Description: "Hide as a bonus action",
+				ActionType:  "Cunning Action",
+			})
+		}
+
+		// Steady Aim (level 3+)
+		if char.HasFeature("Steady Aim") {
+			p.rogueBonusActions = append(p.rogueBonusActions, RogueBonusAction{
+				Name:        "Steady Aim",
+				Description: "Gain advantage on next attack (can't move this turn)",
+				ActionType:  "Steady Aim",
+			})
+		}
+	}
+
 	// Build Monk reactions
 	p.monkReactions = []MonkReaction{}
 	if char.IsMonk() {
@@ -261,6 +301,22 @@ func (p *ActionsPanel) View(width, height int) string {
 			Foreground(lipgloss.Color("240")).
 			Italic(true).
 			Render("  No attacks available"))
+	}
+
+	// Show Sneak Attack for Rogues as a proper action
+	if char.IsRogue() && char.HasFeature("Sneak Attack") {
+		rogue := char.GetRogueMechanics()
+		sneakAttackDice := rogue.GetSneakAttackDamage()
+		sneakAttackStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("82")) // Green for Rogue features
+
+		line := fmt.Sprintf("%-20s %s (When you have advantage)", "Sneak Attack", sneakAttackDice)
+		if idx == p.selectedIndex {
+			lines = append(lines, selectedStyle.Render("▶ "+line))
+		} else {
+			lines = append(lines, sneakAttackStyle.Render("  "+line))
+		}
+		idx++
 	}
 
 	// Show action spells
@@ -377,6 +433,22 @@ func (p *ActionsPanel) View(width, height int) string {
 				} else {
 					lines = append(lines, barbarianActionStyle.Render("  "+line))
 				}
+			}
+			idx++
+		}
+	}
+
+	// Rogue bonus actions
+	rogueActionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("82")) // Green for Rogue actions
+
+	if len(p.rogueBonusActions) > 0 {
+		for _, action := range p.rogueBonusActions {
+			line := fmt.Sprintf("%-20s %s", action.Name, action.Description)
+			if idx == p.selectedIndex {
+				lines = append(lines, selectedStyle.Render("▶ "+line))
+			} else {
+				lines = append(lines, rogueActionStyle.Render("  "+line))
 			}
 			idx++
 		}
@@ -574,6 +646,22 @@ func (p *ActionsPanel) GetSelectedAttack() *models.Attack {
 // IsAttackSelected returns true if the selected item is an attack
 func (p *ActionsPanel) IsAttackSelected() bool {
 	return p.selectedIndex < len(p.attacks)
+}
+
+// IsSneakAttackSelected returns true if the selected item is Sneak Attack
+func (p *ActionsPanel) IsSneakAttackSelected() bool {
+	// Sneak Attack comes right after attacks
+	sneakAttackIndex := len(p.attacks)
+	return p.character.IsRogue() && p.character.HasFeature("Sneak Attack") && p.selectedIndex == sneakAttackIndex
+}
+
+// GetSneakAttackDice returns the Sneak Attack dice for rolling
+func (p *ActionsPanel) GetSneakAttackDice() string {
+	if p.character.IsRogue() && p.character.HasFeature("Sneak Attack") {
+		rogue := p.character.GetRogueMechanics()
+		return rogue.GetSneakAttackDamage()
+	}
+	return "0d6"
 }
 
 // GetSelectedSpell returns the currently selected spell (if any)

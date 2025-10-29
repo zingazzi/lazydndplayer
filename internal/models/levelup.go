@@ -387,6 +387,9 @@ func GrantLevelFeatures(char *Character, class *Class, level int) []string {
 					feature.Name, feature.CurrentUses, feature.MaxUses, feature.RestType)
 				char.Features.AddFeature(feature)
 				grantedFeatures = append(grantedFeatures, feature.Name)
+
+				// Apply special benefits for certain features
+				applyFeatureBenefits(char, feature.Name, class.Name)
 			}
 			break
 		}

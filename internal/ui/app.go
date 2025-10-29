@@ -104,6 +104,7 @@ type Model struct {
 	attackRoller          *components.AttackRoller
 	attackMenu            *components.AttackMenu
 	weaponMasterySelector *components.WeaponMasterySelector
+	expertiseSelector     *components.ExpertiseSelector
 	maneuverSelector      *components.ManeuverSelector
 	levelUpSelector       *components.LevelUpSelector
 	deLevelSelector       *components.DeLevelSelector
@@ -196,6 +197,7 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		attackRoller:          components.NewAttackRoller(),
 		attackMenu:            components.NewAttackMenu(),
 		weaponMasterySelector: components.NewWeaponMasterySelector(char),
+		expertiseSelector:     components.NewExpertiseSelector(char),
 		maneuverSelector:      components.NewManeuverSelector(),
 		levelUpSelector:       components.NewLevelUpSelector(char),
 		deLevelSelector:       components.NewDeLevelSelector(char),
@@ -412,6 +414,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if weapon mastery selector is active
 		if m.weaponMasterySelector.IsVisible() {
 			return m.handleWeaponMasterySelectorKeys(msg)
+		}
+		if m.expertiseSelector.IsVisible() {
+			return m.handleExpertiseSelectorKeys(msg)
 		}
 
 		// Check if maneuver selector is active
@@ -705,6 +710,11 @@ func (m *Model) handleActionsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.dicePanel.LastMessage = result
 				m.message = result
 			}
+		} else if m.actionsPanel.IsSneakAttackSelected() {
+			// Roll Sneak Attack damage
+			sneakAttackDice := m.actionsPanel.GetSneakAttackDice()
+			m.dicePanel.Roll(sneakAttackDice)
+			m.message = fmt.Sprintf("Sneak Attack damage: %s", m.dicePanel.LastMessage)
 		}
 	case "enter":
 		// Show attack menu if attack is selected
@@ -717,6 +727,11 @@ func (m *Model) handleActionsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				debug.Log("No attack selected (attack is nil)")
 			}
+		} else if m.actionsPanel.IsSneakAttackSelected() {
+			// Roll Sneak Attack damage directly
+			sneakAttackDice := m.actionsPanel.GetSneakAttackDice()
+			m.dicePanel.Roll(sneakAttackDice)
+			m.message = fmt.Sprintf("Sneak Attack damage: %s", m.dicePanel.LastMessage)
 		} else if m.actionsPanel.IsSpellSelected() {
 			// Cast spell if spell is selected
 			spell := m.actionsPanel.GetSelectedSpell()
@@ -1593,6 +1608,19 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			debug.Log("handleTraitsPanel: No weapon mastery feature found")
 			m.message = "You don't have the Weapon Mastery feature"
 		}
+	case "e":
+		// Manage expertise
+		debug.Log("handleTraitsPanel: 'e' key pressed - checking expertise")
+		expertiseCount := m.getExpertiseCount()
+		debug.Log("handleTraitsPanel: expertiseCount=%d", expertiseCount)
+		if expertiseCount > 0 {
+			debug.Log("handleTraitsPanel: Showing expertise selector")
+			m.expertiseSelector.Show(expertiseCount)
+			m.message = fmt.Sprintf("Select %d skill(s) for expertise...", expertiseCount)
+		} else {
+			debug.Log("handleTraitsPanel: No expertise feature found")
+			m.message = "You don't have the Expertise feature"
+		}
 	case "n":
 		// Manage Battle Master maneuvers (edit only, no Student of War benefits)
 		debug.Log("handleTraitsPanel: 'n' key pressed - checking Battle Master maneuvers")
@@ -2276,6 +2304,45 @@ func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 	return m, cmd
 }
 
+// handleExpertiseSelectorKeys handles expertise selector specific keys
+func (m *Model) handleExpertiseSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Delegate navigation and selection to the component's Update method
+	cmd := m.expertiseSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case " ":
+		// Check if toggle was successful and provide feedback
+		selectedCount := len(m.expertiseSelector.GetSelectedSkills())
+		maxCount := m.expertiseSelector.GetMaxExpertise()
+		if selectedCount > maxCount {
+			m.message = "Maximum skills already selected"
+		}
+	case "enter":
+		// Confirm selection
+		if m.expertiseSelector.CanConfirm() {
+			m.expertiseSelector.ApplySelections()
+			m.expertiseSelector.Hide()
+
+			// Clear pending changes and complete class setup
+			m.pendingChanges.Clear()
+			m.storage.Save(m.character)
+
+			debug.Log("Expertise selection complete: %d skills selected", len(m.expertiseSelector.GetSelectedSkills()))
+			m.message = fmt.Sprintf("Expertise complete! Selected %d skills. Class setup complete. (HP: %d/%d)",
+				len(m.expertiseSelector.GetSelectedSkills()), m.character.CurrentHP, m.character.MaxHP)
+		} else {
+			selectedCount := len(m.expertiseSelector.GetSelectedSkills())
+			maxCount := m.expertiseSelector.GetMaxExpertise()
+			m.message = fmt.Sprintf("Please select %d skill(s) for expertise (%d/%d selected)", maxCount, selectedCount, maxCount)
+		}
+	case "esc":
+		// Cancel selection
+		m.expertiseSelector.Hide()
+		m.message = "Expertise selection cancelled"
+	}
+	return m, cmd
+}
+
 // handleManeuverSelectorKeys handles maneuver selector specific keys
 func (m *Model) handleManeuverSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Delegate navigation and selection to the component's Update method
@@ -2798,11 +2865,22 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 						m.weaponMasterySelector.Show(masteryCount)
 						m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
 					} else {
-						// No fighting style, cantrips, weapon mastery, or subclass needed, complete class selection
-				debug.Log("Saving character and completing class selection")
-				m.pendingChanges.Clear() // Clear backup on successful completion
-				m.storage.Save(m.character)
-				m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+						// Check for expertise
+						expertiseCount := m.getExpertiseCount()
+						debug.Log("Class %s needs expertise: count=%d", selectedClassName, expertiseCount)
+
+						if expertiseCount > 0 {
+							// Show expertise selector
+							debug.Log("Showing expertise selector for %d skills", expertiseCount)
+							m.expertiseSelector.Show(expertiseCount)
+							m.message = fmt.Sprintf("Select %d skill(s) for expertise...", expertiseCount)
+						} else {
+							// No fighting style, cantrips, weapon mastery, expertise, or subclass needed, complete class selection
+							debug.Log("Saving character and completing class selection")
+							m.pendingChanges.Clear() // Clear backup on successful completion
+							m.storage.Save(m.character)
+							m.message = fmt.Sprintf("Class changed to: %s with %d skill proficiencies (HP: %d/%d)", selectedClassName, len(selectedSkills), m.character.CurrentHP, m.character.MaxHP)
+						}
 					}
 				}
 			}
@@ -4113,6 +4191,11 @@ func (m *Model) View() string {
 		return m.weaponMasterySelector.View()
 	}
 
+	// Expertise selector (Medium)
+	if m.expertiseSelector.IsVisible() {
+		return m.expertiseSelector.View(popupMediumWidth, popupMediumHeight)
+	}
+
 	// Maneuver selector (Medium)
 	if m.maneuverSelector.IsVisible() {
 		return m.maneuverSelector.View()
@@ -4244,6 +4327,36 @@ func (m *Model) getWeaponMasteryCount() int {
 		}
 	}
 	debug.Log("getWeaponMasteryCount: Weapon Mastery feature not found, returning 0")
+	return 0
+}
+
+// getExpertiseCount returns the number of skills the character can have expertise in
+func (m *Model) getExpertiseCount() int {
+	debug.Log("getExpertiseCount: Checking for Expertise feature")
+
+	// Check for Expertise feature
+	for _, feature := range m.character.Features.Features {
+		if feature.Name == "Expertise" && feature.Mechanics != nil {
+			if expertiseCount, ok := feature.Mechanics["expertise_count"].(float64); ok {
+				debug.Log("getExpertiseCount: Returning %d from feature mechanics", int(expertiseCount))
+				return int(expertiseCount)
+			}
+		}
+	}
+
+	// Default: Rogue gets 2 expertise at level 1, 4 at level 6
+	if m.character.IsRogue() {
+		rogueLevel := m.character.GetRogueLevel()
+		if rogueLevel >= 6 {
+			debug.Log("getExpertiseCount: Rogue level %d, returning 4", rogueLevel)
+			return 4
+		} else if rogueLevel >= 1 {
+			debug.Log("getExpertiseCount: Rogue level %d, returning 2", rogueLevel)
+			return 2
+		}
+	}
+
+	debug.Log("getExpertiseCount: No expertise feature found, returning 0")
 	return 0
 }
 

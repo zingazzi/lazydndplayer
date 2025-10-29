@@ -441,6 +441,9 @@ func GrantClassFeatures(char *Character, class *Class) {
 					feature.Name, feature.CurrentUses, feature.MaxUses, feature.RestType)
 
 				char.Features.AddFeature(feature)
+
+				// Apply special benefits for certain features
+				applyFeatureBenefits(char, feature.Name, class.Name)
 			}
 			break
 		}
@@ -689,4 +692,20 @@ func CalculateMaxPreparedSpells(char *Character, formula string) int {
 	}
 
 	return total
+}
+
+// applyFeatureBenefits applies special benefits for certain class features
+func applyFeatureBenefits(char *Character, featureName string, className string) {
+	switch featureName {
+	case "Thieves' Cant":
+		// Add Thieves' Cant language
+		debug.Log("applyFeatureBenefits: Adding Thieves' Cant language")
+		applier := NewBenefitApplier(char)
+		source := BenefitSource{
+			Type: "class",
+			Name: className,
+		}
+		applier.AddLanguage(source, "Thieves' Cant")
+		debug.Log("applyFeatureBenefits: Thieves' Cant language added")
+	}
 }
