@@ -646,18 +646,35 @@ func applySubclassFeatureBenefits(char *Character, featureName string, subclassN
 
 	case "Psionic Power":
 		// Psi Warrior: Initialize Psi Dice
-		debug.Log("  Applying Psionic Power benefits - Initializing Psi Dice")
-		fighterLevel := char.GetFighterLevel()
+		if subclassName == "Psi Warrior" {
+			debug.Log("  Applying Psionic Power benefits - Initializing Psi Dice")
+			fighterLevel := char.GetFighterLevel()
 
-		// Get psi dice count and size from scaling tables
-		psiDiceCount := GetFeatureScaling("Psi Warrior", "Psionic Power", fighterLevel)
-		psiDiceSize := GetPsiDiceSize(fighterLevel)
+			// Get psi dice count and size from scaling tables
+			psiDiceCount := GetFeatureScaling("Psi Warrior", "Psionic Power", fighterLevel)
+			psiDiceSize := GetPsiDiceSize(fighterLevel)
 
-		char.PsiDice.Max = psiDiceCount
-		char.PsiDice.Current = psiDiceCount // Start fully charged
-		char.PsiDice.Size = psiDiceSize
+			char.PsiDice.Max = psiDiceCount
+			char.PsiDice.Current = psiDiceCount // Start fully charged
+			char.PsiDice.Size = psiDiceSize
 
-		debug.Log("  Initialized Psi Dice: %d%s (%d/%d)", psiDiceCount, psiDiceSize, char.PsiDice.Current, char.PsiDice.Max)
+			debug.Log("  Initialized Psi Dice: %d%s (%d/%d)", psiDiceCount, psiDiceSize, char.PsiDice.Current, char.PsiDice.Max)
+		}
+		// Soulknife: Initialize Psionic Dice
+		if subclassName == "Soulknife" {
+			debug.Log("  Applying Soulknife Psionic Power benefits - Initializing Psionic Dice")
+			rogueLevel := char.GetRogueLevel()
+
+			// Get psi dice count and size from scaling tables
+			psiDiceCount := GetFeatureScaling("Soulknife", "Psionic Power", rogueLevel)
+			psiDiceSize := GetSoulknifePsiDiceSize(rogueLevel)
+
+			char.SoulknifePsiDice.Max = psiDiceCount
+			char.SoulknifePsiDice.Current = psiDiceCount // Start fully charged
+			char.SoulknifePsiDice.Size = psiDiceSize
+
+			debug.Log("  Initialized Soulknife Psionic Dice: %d%s (%d/%d)", psiDiceCount, psiDiceSize, char.SoulknifePsiDice.Current, char.SoulknifePsiDice.Max)
+		}
 
 	case "Combat Superiority":
 		// Battle Master: Initialize Superiority Dice
@@ -694,11 +711,66 @@ func applySubclassFeatureBenefits(char *Character, featureName string, subclassN
 				// Note: Cantrip and spell selection will be prompted in the UI
 			}
 		}
+		// Arcane Trickster: Set up spellcasting
+		if subclassName == "Arcane Trickster" {
+			debug.Log("  Applying Arcane Trickster Spellcasting benefits")
+			rogueLevel := char.GetRogueLevel()
+
+			// Initialize spell slots for level 3
+			if rogueLevel == 3 {
+				// Set spellcasting ability
+				char.SpellBook.SpellcastingMod = Intelligence
+
+				// Grant 2 level 1 spell slots (third caster)
+				char.SpellBook.Slots.Level1.Maximum = 2
+				char.SpellBook.Slots.Level1.Current = 2
+
+				// Set cantrips known
+				char.SpellBook.CantripsKnown = 3
+
+				// Set up spellbook functionality (prepare from known spells)
+				char.SpellBook.IsPreparedCaster = true
+				char.SpellBook.IsSpellbookCaster = true
+				char.SpellBook.PreparationFormula = "intelligence+rogue_level" // Third caster uses Intelligence + Rogue level
+
+				// Auto-grant Mage Hand cantrip
+				mageHandSpell := GetSpellByName("Mage Hand")
+				if mageHandSpell != nil && mageHandSpell.Level == 0 {
+					char.SpellBook.Cantrips = append(char.SpellBook.Cantrips, mageHandSpell.Name)
+					debug.Log("  Auto-granted Mage Hand cantrip")
+				} else {
+					debug.Log("  Warning: Mage Hand cantrip not found")
+				}
+
+				debug.Log("  Set up Arcane Trickster spellcasting: 2x 1st level slots, Intelligence ability, 3 cantrips known, spellbook caster")
+			}
+		}
 
 	case "Student of War":
 		// Battle Master: This will be handled in the UI to prompt for tool/skill selection
 		debug.Log("  Student of War benefits will be handled in UI")
+
+	// === ROGUE SUBCLASS FEATURES ===
+	case "Assassin's Tools":
+		// Assassin: Grant tool proficiencies
+		debug.Log("  Applying Assassin's Tools benefits")
+
+		// Add Disguise Kit proficiency
+		if err := applier.AddToolProficiency(source, "Disguise Kit"); err != nil {
+			debug.Log("  Error adding Disguise Kit proficiency: %v", err)
+		} else {
+			debug.Log("  Granted Disguise Kit proficiency")
+		}
+
+		// Add Poisoner's Kit proficiency
+		if err := applier.AddToolProficiency(source, "Poisoner's Kit"); err != nil {
+			debug.Log("  Error adding Poisoner's Kit proficiency: %v", err)
+		} else {
+			debug.Log("  Granted Poisoner's Kit proficiency")
+		}
+
 	}
+
 }
 
 // removeSubclassFeatureBenefits removes special benefits for specific subclass features

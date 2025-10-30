@@ -371,6 +371,113 @@
           }
         ]
       }
+    },
+    {
+      "name": "Arcane Trickster",
+      "description": "Some rogues enhance their fine-honed skills of stealth and agility with magic, learning tricks of enchantment and illusion. These rogues include pickpockets and burglars, but also pranksters, mischief-makers, and a significant number of adventurers.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Spellcasting",
+            "description": "You augment your martial prowess with the ability to cast spells. You learn three cantrips of your choice from the wizard spell list (Mage Hand is automatically granted). You know three 1st-level wizard spells of your choice and prepare spells from your spellbook. You have two 1st-level spell slots. Your spellcasting ability is Intelligence.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "cantrips_known": 3,
+              "spells_known": 3,
+              "spell_slots_1": 2,
+              "spellcasting_ability": "Intelligence",
+              "spell_list": "Wizard",
+              "auto_grant_cantrip": "Mage Hand"
+            }
+          },
+          {
+            "name": "Mage Hand Legerdemain",
+            "description": "You can use the bonus action granted by your Cunning Action to control the hand created by your Mage Hand cantrip. You can also use the hand to make a Dexterity (Sleight of Hand) check, pick locks, or disarm traps at range. The hand is invisible when you use this feature.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          }
+        ],
+        "4": [
+          {
+            "name": "Spellcasting (4th level)",
+            "description": "You learn one more 1st-level wizard spell and gain one more 1st-level spell slot.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "spells_known": 4,
+              "spell_slots_1": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Assassin",
+      "description": "You focus your training on the grim art of death. Those who adhere to this archetype are diverse: hired killers, spies, bounty hunters, and even specially anointed priests trained to exterminate the enemies of their deity.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Assassinate",
+            "description": "You are at your deadliest when you get the drop on your enemies. You have advantage on attack rolls against any creature that hasn't taken a turn in the combat yet. In addition, any hit you score against a creature that is surprised is a critical hit.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "advantage_on_surprised": true,
+              "critical_hit_on_surprised": true
+            }
+          },
+          {
+            "name": "Assassin's Tools",
+            "description": "You gain proficiency with the Disguise Kit and the Poisoner's Kit.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "tool_proficiencies": ["Disguise Kit", "Poisoner's Kit"]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Soulknife",
+      "description": "Most folk think that psionic power is the exclusive purview of mind flayers and other alien entities. However, some rogues discover that they can tap into the same psionic energy that flows through the mind flayers' collective consciousness.",
+      "subclass_level": 3,
+      "source": "Tasha's Cauldron of Everything",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Psionic Power",
+            "description": "You harbor a wellspring of psionic energy within yourself. This energy is represented by your Psionic Energy dice, which are each a d6. You have a number of these dice equal to twice your proficiency bonus, and they fuel various psionic powers. You regain all expended Psionic Energy dice when you finish a long rest. You regain one expended Psionic Energy die when you finish a short rest.",
+            "uses_formula": "psi_dice_scaling",
+            "rest_type": "Short Rest",
+            "mechanics": {
+              "psi_dice_count": 4,
+              "psi_dice_size": "d6",
+              "psi_bolstered_knack": true,
+              "psychic_whispers": true
+            }
+          },
+          {
+            "name": "Psychic Blades",
+            "description": "You can manifest your psionic power as shimmering blades of psychic energy. Whenever you take the Attack action, you can manifest a psychic blade from your free hand and make the attack with that blade. This magic blade is a simple melee weapon with the finesse and thrown properties. It has a normal range of 60 feet and a long range of 120 feet, and it deals 1d6 psychic damage on a hit. The blade vanishes immediately after it hits or misses its target, and it leaves no mark on its target if it deals damage. After you attack with the blade, you can make a melee or ranged weapon attack with a second psychic blade as a bonus action, provided you can see your target and it is within 60 feet of you. This blade deals 1d4 psychic damage on a hit. The blade vanishes immediately after it hits or misses its target.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "main_hand_damage": "1d6",
+              "off_hand_damage": "1d4",
+              "range": "60/120",
+              "damage_type": "psychic",
+              "properties": ["finesse", "thrown"],
+              "mastery": "Vex"
+            }
+          }
+        ]
+      }
     }
   ]
 }

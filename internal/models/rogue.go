@@ -85,5 +85,30 @@ func (r *RogueMechanics) GetCunningActionOptions() []string {
 		options = append(options, "Steady Aim")
 	}
 
+	// Add Mage Hand Legerdemain if Arcane Trickster
+	if r.character.IsArcaneTrickster() && r.character.HasFeature("Mage Hand Legerdemain") {
+		options = append(options, "Mage Hand")
+	}
+
 	return options
+}
+
+// GetRogueSubclass returns the Rogue subclass name, or empty string if none
+func (r *RogueMechanics) GetRogueSubclass() string {
+	return r.character.GetRogueSubclass()
+}
+
+// IsSoulknife checks if character is a Soulknife Rogue
+func (r *RogueMechanics) IsSoulknife() bool {
+	return r.character.IsSoulknife()
+}
+
+// IsArcaneTrickster checks if character is an Arcane Trickster Rogue
+func (r *RogueMechanics) IsArcaneTrickster() bool {
+	return r.character.IsArcaneTrickster()
+}
+
+// IsAssassin checks if character is an Assassin Rogue
+func (r *RogueMechanics) IsAssassin() bool {
+	return r.character.IsAssassin()
 }

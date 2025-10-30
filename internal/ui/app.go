@@ -1198,7 +1198,7 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.character.SpellBook.IsPreparedCaster)
 		debug.Log("=== Current spells in spellbook: %d", len(m.character.SpellBook.Spells))
 
-		if m.character.SpellBook.IsSpellbookCaster && m.character.HasClass("Wizard") {
+		if m.character.SpellBook.IsSpellbookCaster && (m.character.HasClass("Wizard") || m.character.IsArcaneTrickster()) {
 			debug.Log("=== OPENING SPELLBOOK EDITOR")
 			m.spellbookEditor.Show()
 			m.message = "Managing spellbook... (Space: Prepare | a: Add | d/x: Remove | c: Cantrips | 0-9: Filter)"
@@ -1226,20 +1226,26 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.character.SpellBook.IsSpellbookCaster,
 			m.character.HasClass("Wizard"))
 
-		if m.character.SpellBook.IsSpellbookCaster && m.character.HasClass("Wizard") {
-			wizardLevel := m.character.GetClassLevel("Wizard")
-			maxSpellLevel := (wizardLevel + 1) / 2
+		if m.character.SpellBook.IsSpellbookCaster && (m.character.HasClass("Wizard") || m.character.IsArcaneTrickster()) {
+			var maxSpellLevel int
+			if m.character.HasClass("Wizard") {
+				wizardLevel := m.character.GetClassLevel("Wizard")
+				maxSpellLevel = (wizardLevel + 1) / 2
+			} else if m.character.IsArcaneTrickster() {
+				rogueLevel := m.character.GetRogueLevel()
+				maxSpellLevel = (rogueLevel + 2) / 3 // Third caster progression
+			}
 			if maxSpellLevel > 9 {
 				maxSpellLevel = 9
 			}
-			debug.Log("=== SHOWING SPELLBOOK EDITOR: WizardLevel=%d, MaxSpellLevel=%d", wizardLevel, maxSpellLevel)
+			debug.Log("=== SHOWING SPELLBOOK EDITOR: MaxSpellLevel=%d", maxSpellLevel)
 			// Open spellbook editor to add spells
 			m.spellbookEditor.Show()
 			m.message = fmt.Sprintf("Add new spells to your spellbook (up to level %d)...", maxSpellLevel)
 			debug.Log("=== Spellbook editor visible: %v", m.spellbookEditor.IsVisible())
 		} else {
-			debug.Log("=== Not a Wizard spellbook caster")
-			m.message = "Only Wizards can add spells to their spellbook"
+			debug.Log("=== Not a spellbook caster")
+			m.message = "Only spellbook casters can add spells to their spellbook"
 		}
 	case "enter":
 		// View spell details

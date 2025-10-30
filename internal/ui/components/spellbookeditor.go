@@ -11,11 +11,11 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
-// SpellbookEditor allows managing wizard spellbook (known spells and preparation)
+// SpellbookEditor allows managing spellbook for spellbook casters (Wizards and Arcane Tricksters)
 type SpellbookEditor struct {
 	visible       bool
 	character     *models.Character
-	allWizardSpells []models.Spell // All wizard spells from data file
+	allWizardSpells []models.Spell // All wizard spells from data file (used by Wizards and Arcane Tricksters)
 	filteredSpells  []models.Spell // Filtered based on current filter
 	selectedIndex   int
 	filterLevel     int  // 0 = all, 1-9 = specific level, -1 = cantrips

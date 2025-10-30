@@ -216,6 +216,24 @@ func (p *ActionsPanel) View(width, height int) string {
 				ActionType:  "Steady Aim",
 			})
 		}
+
+		// Arcane Trickster: Mage Hand Legerdemain
+		if char.IsArcaneTrickster() && char.HasFeature("Mage Hand Legerdemain") {
+			p.rogueBonusActions = append(p.rogueBonusActions, RogueBonusAction{
+				Name:        "Mage Hand",
+				Description: "Control Mage Hand as bonus action (invisible)",
+				ActionType:  "Mage Hand Legerdemain",
+			})
+		}
+
+		// Soulknife: Psychic Blade Off-Hand
+		if char.IsSoulknife() && char.HasFeature("Psychic Blades") {
+			p.rogueBonusActions = append(p.rogueBonusActions, RogueBonusAction{
+				Name:        "Psychic Blade (Off-Hand)",
+				Description: "Attack with second psychic blade (1d4 psychic)",
+				ActionType:  "Psychic Blades",
+			})
+		}
 	}
 
 	// Build Monk reactions
@@ -454,6 +472,30 @@ func (p *ActionsPanel) View(width, height int) string {
 		}
 	}
 
+	// Soulknife Psionic Dice resource
+	if char.IsSoulknife() && char.SoulknifePsiDice.Max > 0 {
+		psiDiceStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("82")) // Green for Rogue resources
+
+		usesStr := lipgloss.NewStyle().Foreground(lipgloss.Color("82")).Render(fmt.Sprintf(" [%d/%d %s]", char.SoulknifePsiDice.Current, char.SoulknifePsiDice.Max, char.SoulknifePsiDice.Size))
+
+		var line string
+		if char.SoulknifePsiDice.Current == 0 {
+			line = fmt.Sprintf("%-20s%s", "Psionic Energy", usesStr)
+			lines = append(lines, lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Render("  "+line+" (No dice left)"))
+		} else {
+			line = fmt.Sprintf("%-20s%s", "Psionic Energy", usesStr)
+			if idx == p.selectedIndex {
+				lines = append(lines, selectedStyle.Render("▶ "+line))
+			} else {
+				lines = append(lines, psiDiceStyle.Render("  "+line))
+			}
+		}
+		idx++
+	}
+
 	// Bonus action spells
 	if len(p.bonusSpells) > 0 {
 	for _, spell := range p.bonusSpells {
@@ -481,7 +523,7 @@ func (p *ActionsPanel) View(width, height int) string {
 	}
 
 	// Show "no bonus actions" only if there are no class actions and no spells
-	if len(p.fighterBonusActions) == 0 && len(p.monkBonusActions) == 0 && len(p.barbarianBonusActions) == 0 && len(p.bonusSpells) == 0 {
+	if len(p.fighterBonusActions) == 0 && len(p.monkBonusActions) == 0 && len(p.barbarianBonusActions) == 0 && len(p.rogueBonusActions) == 0 && len(p.bonusSpells) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true).

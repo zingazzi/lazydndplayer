@@ -142,6 +142,21 @@ func GetClassCasterInfo(className string) *ClassSpellcastingInfo {
 				11: 7, 12: 7, 13: 8, 14: 8, 15: 9, 16: 9, 17: 10, 18: 10, 19: 11, 20: 11,
 			},
 		},
+		"Arcane Trickster": {
+			ClassName:           "Arcane Trickster",
+			CasterType:          ThirdCaster,
+			Method:              SpellbookCaster,
+			SpellcastingAbility: Intelligence,
+			RitualCasting:       false,
+			CantripsKnownByLevel: map[int]int{
+				3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 3,
+				11: 3, 12: 3, 13: 3, 14: 3, 15: 3, 16: 3, 17: 3, 18: 3, 19: 3, 20: 3,
+			},
+			SpellsKnownByLevel: map[int]int{
+				3: 3, 4: 4, 5: 4, 6: 4, 7: 5, 8: 6, 9: 6, 10: 7,
+				11: 8, 12: 8, 13: 9, 14: 10, 15: 10, 16: 11, 17: 11, 18: 11, 19: 12, 20: 13,
+			},
+		},
 	}
 
 	if info, exists := casterInfo[className]; exists {
@@ -160,6 +175,12 @@ func CalculateMulticlassSpellSlots(classes []ClassLevel) SpellSlots {
 
 	// Sum up caster levels by type
 	for _, cl := range classes {
+		// Check for Arcane Trickster subclass
+		if cl.ClassName == "Rogue" && cl.Subclass == "Arcane Trickster" {
+			thirdCasterLevels += cl.Level
+			continue
+		}
+
 		info := GetClassCasterInfo(cl.ClassName)
 		if info == nil {
 			continue
@@ -307,6 +328,17 @@ func CanCastRituals(classes []ClassLevel) bool {
 func GetMaxCantripsKnown(classes []ClassLevel) int {
 	maxCantrips := 0
 	for _, cl := range classes {
+		// Check for Arcane Trickster subclass
+		if cl.ClassName == "Rogue" && cl.Subclass == "Arcane Trickster" {
+			info := GetClassCasterInfo("Arcane Trickster")
+			if info != nil && info.CantripsKnownByLevel != nil {
+				if cantrips, exists := info.CantripsKnownByLevel[cl.Level]; exists {
+					maxCantrips += cantrips
+				}
+			}
+			continue
+		}
+
 		info := GetClassCasterInfo(cl.ClassName)
 		if info != nil && info.CantripsKnownByLevel != nil {
 			if cantrips, exists := info.CantripsKnownByLevel[cl.Level]; exists {

@@ -82,6 +82,38 @@ func GenerateAttacks(char *Character) AttackList {
 		Properties:   []string{},
 	})
 
+	// Add Soulknife Psychic Blade attacks
+	if char.IsSoulknife() && char.HasFeature("Psychic Blades") {
+		// Main hand Psychic Blade (1d6)
+		psychicAttackMod := dexMod
+		if strMod > dexMod {
+			psychicAttackMod = strMod
+		}
+
+		attacks.Attacks = append(attacks.Attacks, Attack{
+			Name:         "Psychic Blade",
+			AttackBonus:  psychicAttackMod + profBonus,
+			DamageDice:   "1d6",
+			DamageBonus:  psychicAttackMod,
+			DamageType:   "psychic",
+			IsWeapon:     false,
+			Range:        "60/120 ft.",
+			Properties:   []string{"finesse", "thrown"},
+		})
+
+		// Off-hand Psychic Blade (1d4) - this will be handled as a bonus action
+		attacks.Attacks = append(attacks.Attacks, Attack{
+			Name:         "Psychic Blade (Off-Hand)",
+			AttackBonus:  psychicAttackMod + profBonus,
+			DamageDice:   "1d4",
+			DamageBonus:  psychicAttackMod,
+			DamageType:   "psychic",
+			IsWeapon:     false,
+			Range:        "60 ft.",
+			Properties:   []string{"finesse", "thrown", "bonus_action"},
+		})
+	}
+
 	// Add attacks from equipped weapons
 	for i := range char.Inventory.Items {
 		item := &char.Inventory.Items[i]

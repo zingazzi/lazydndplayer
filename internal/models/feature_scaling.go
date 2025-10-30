@@ -116,6 +116,16 @@ var FeatureScaling = map[string]map[string]map[int]int{
 	"Rogue": {
 		// Sneak Attack is per-turn, not limited use
 	},
+	"Soulknife": {
+		"Psionic Power": {
+			3: 4, 4: 4,           // 4d6
+			5: 6, 6: 6, 7: 6, 8: 6, // 6d8
+			9: 8, 10: 8,          // 8d8
+			11: 8, 12: 8,         // 8d10
+			13: 10, 14: 10, 15: 10, 16: 10, // 10d10
+			17: 12, 18: 12, 19: 12, 20: 12, // 12d12
+		},
+	},
 }
 
 // GetFeatureScaling looks up the scaled value for a feature at a specific level
@@ -185,4 +195,18 @@ func GetRageDamageBonus(characterLevel int) int {
 // GetWarriorDiceSize returns the die size for Path of the Zealot (always d12)
 func GetWarriorDiceSize(barbarianLevel int) string {
 	return "d12" // Warrior Dice are always d12 for Zealot
+}
+
+// GetSoulknifePsiDiceSize returns the die size for Soulknife at a given Rogue level
+func GetSoulknifePsiDiceSize(rogueLevel int) string {
+	switch {
+	case rogueLevel >= 17:
+		return "d12"
+	case rogueLevel >= 11:
+		return "d10"
+	case rogueLevel >= 5:
+		return "d8"
+	default:
+		return "d6"
+	}
 }

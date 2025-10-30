@@ -102,6 +102,13 @@ type Character struct {
 		Size    string `json:"size"` // Always "d12" for Zealot
 	} `json:"warrior_dice,omitempty"` // Path of the Zealot
 
+	// Rogue Subclass Resources
+	SoulknifePsiDice struct {
+		Current int    `json:"current"`
+		Max     int    `json:"max"`
+		Size    string `json:"size"` // "d6", "d8", "d10", "d12"
+	} `json:"soulknife_psi_dice,omitempty"` // Soulknife Psionic Energy dice
+
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
 
@@ -439,6 +446,31 @@ func (c *Character) GetRogueMechanics() *RogueMechanics {
 	return NewRogueMechanics(c)
 }
 
+// GetRogueSubclass returns the Rogue subclass name, or empty string if none
+func (c *Character) GetRogueSubclass() string {
+	for _, classLevel := range c.Classes {
+		if classLevel.ClassName == "Rogue" {
+			return classLevel.Subclass
+		}
+	}
+	return ""
+}
+
+// IsSoulknife checks if character is a Soulknife Rogue
+func (c *Character) IsSoulknife() bool {
+	return c.GetRogueSubclass() == "Soulknife"
+}
+
+// IsArcaneTrickster checks if character is an Arcane Trickster Rogue
+func (c *Character) IsArcaneTrickster() bool {
+	return c.GetRogueSubclass() == "Arcane Trickster"
+}
+
+// IsAssassin checks if character is an Assassin Rogue
+func (c *Character) IsAssassin() bool {
+	return c.GetRogueSubclass() == "Assassin"
+}
+
 // HasFeature checks if character has a feature with the given name
 func (c *Character) HasFeature(featureName string) bool {
 	for _, feature := range c.Features.Features {
@@ -729,6 +761,12 @@ func (c *Character) PerformShortRest(diceSpent int, roller DiceRoller) int {
 		debug.Log("  Restored 1 Warrior Die: %d/%d", c.WarriorDice.Current, c.WarriorDice.Max)
 	}
 
+	// Restore Soulknife Psionic Dice (1 die on short rest)
+	if c.SoulknifePsiDice.Max > 0 && c.SoulknifePsiDice.Current < c.SoulknifePsiDice.Max {
+		c.SoulknifePsiDice.Current++
+		debug.Log("  Restored 1 Soulknife Psionic Die: %d/%d", c.SoulknifePsiDice.Current, c.SoulknifePsiDice.Max)
+	}
+
 	debug.Log("=== SHORT REST COMPLETE ===")
 	return healing
 }
@@ -808,6 +846,12 @@ func (c *Character) PerformLongRest() {
 	if c.WarriorDice.Max > 0 {
 		c.WarriorDice.Current = c.WarriorDice.Max
 		debug.Log("  Restored Warrior Dice: %d/%d", c.WarriorDice.Current, c.WarriorDice.Max)
+	}
+
+	// Restore Soulknife Psionic Dice
+	if c.SoulknifePsiDice.Max > 0 {
+		c.SoulknifePsiDice.Current = c.SoulknifePsiDice.Max
+		debug.Log("  Restored Soulknife Psionic Dice: %d/%d", c.SoulknifePsiDice.Current, c.SoulknifePsiDice.Max)
 	}
 
 	// Roll new Portent dice for Diviner
