@@ -36,6 +36,7 @@ type Spell struct {
 	CantripUpgrade string      `json:"cantripUpgrade"` // Cantrip scaling info
 	Prepared       bool        `json:"prepared"`       // For prepared casters
 	Known          bool        `json:"known"`          // For known casters
+	AlwaysPrepared bool        `json:"always_prepared"` // For domain spells and similar (doesn't count toward prepared limit)
 	Ritual         bool        `json:"ritual"`
 	Classes        []string    `json:"classes"` // Classes that can learn this spell
 }
@@ -182,4 +183,25 @@ func (sb *SpellBook) GetPreparedSpells() []Spell {
 		}
 	}
 	return prepared
+}
+
+// GetPreparedCount returns the count of prepared spells, excluding always-prepared spells
+func (sb *SpellBook) GetPreparedCount() int {
+	count := 0
+	for _, spell := range sb.Spells {
+		if spell.Prepared && !spell.AlwaysPrepared && spell.Level > 0 {
+			count++
+		}
+	}
+	return count
+}
+
+// CalculateHealingWithDiscipleOfLife calculates healing with Disciple of Life bonus
+// If character has Disciple of Life feature, adds 2 + spell level to healing
+func CalculateHealingWithDiscipleOfLife(char *Character, spellLevel int, baseHealing int) int {
+	if char.HasFeature("Disciple of Life") && spellLevel >= 1 {
+		bonus := 2 + spellLevel
+		return baseHealing + bonus
+	}
+	return baseHealing
 }

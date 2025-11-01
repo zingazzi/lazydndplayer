@@ -96,6 +96,15 @@ func (fd *FeatureDefinition) ToFeature(char *Character, source string) Feature {
 		currentUses = 0 // Passive features stay at 0
 	}
 
+	// Store the formula if it's not a fixed number
+	usesFormula := ""
+	if fd.UsesFormula != "" {
+		usesFormula = fd.UsesFormula
+	} else if fd.MaxUses != "" && fd.MaxUses != fmt.Sprintf("%d", maxUses) {
+		// Store MaxUses as formula if it's not just a number
+		usesFormula = fd.MaxUses
+	}
+
 	return Feature{
 		Name:        fd.Name,
 		Description: fd.Description,
@@ -104,5 +113,6 @@ func (fd *FeatureDefinition) ToFeature(char *Character, source string) Feature {
 		RestType:    fd.RestType,
 		Source:      source,
 		Mechanics:   fd.Mechanics,
+		UsesFormula: usesFormula,
 	}
 }

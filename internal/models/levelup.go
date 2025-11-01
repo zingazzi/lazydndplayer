@@ -416,9 +416,10 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 	// Parse subclasses
 	var classWithSubclasses struct {
 		Subclasses []struct {
-			Name             string `json:"name"`
-			SubclassLevel    int    `json:"subclass_level"`
+			Name             string              `json:"name"`
+			SubclassLevel    int                 `json:"subclass_level"`
 			FeaturesByLevel  map[string][]FeatureDefinition `json:"features_by_level"`
+			DomainSpells     map[string][]string `json:"domain_spells,omitempty"`
 		} `json:"subclasses"`
 	}
 
@@ -431,6 +432,13 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 	for _, subclass := range classWithSubclasses.Subclasses {
 		if subclass.Name == subclassName {
 			debug.Log("GrantSubclassFeatures: Found subclass %s", subclassName)
+
+			// Grant domain spells if applicable (Cleric subclasses)
+			if className == "Cleric" && subclass.DomainSpells != nil {
+				// Get current cleric level to determine which domain spells to grant
+				clericLevel := char.GetClassLevel("Cleric")
+				grantDomainSpells(char, subclass.DomainSpells, clericLevel)
+			}
 
 			// Grant features for the specified level
 			levelKey := fmt.Sprintf("%d", level)
@@ -518,6 +526,74 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 
 	debug.Log("GrantSubclassFeatures: Granted %d subclass features", len(grantedFeatures))
 	return grantedFeatures
+}
+
+// grantDomainSpells grants domain spells to a cleric character, marking them as always prepared
+func grantDomainSpells(char *Character, domainSpells map[string][]string, clericLevel int) {
+	debug.Log("grantDomainSpells: Granting domain spells for cleric level %d", clericLevel)
+
+	// Load all spells from JSON
+	allSpells, err := LoadSpellsFromJSON("data/spells.json")
+	if err != nil {
+		debug.Log("grantDomainSpells: Error loading spells: %v", err)
+		return
+	}
+
+	// Iterate through domain spells by cleric level
+	// Domain spells are granted at cleric levels 3, 5, 7, 9
+	levelsToGrant := []int{3, 5, 7, 9}
+	for _, grantLevel := range levelsToGrant {
+		if clericLevel < grantLevel {
+			continue // Don't grant spells for levels not reached yet
+		}
+
+		levelKey := fmt.Sprintf("%d", grantLevel)
+		spellNames, ok := domainSpells[levelKey]
+		if !ok {
+			continue
+		}
+
+		debug.Log("grantDomainSpells: Granting domain spells for cleric level %d: %v", grantLevel, spellNames)
+
+		for _, spellName := range spellNames {
+			// Find the spell in the allSpells list
+			var foundSpell *Spell
+			for i := range allSpells {
+				if allSpells[i].Name == spellName {
+					foundSpell = &allSpells[i]
+					break
+				}
+			}
+
+			if foundSpell == nil {
+				debug.Log("grantDomainSpells: Warning - spell '%s' not found in spell database", spellName)
+				continue
+			}
+
+			// Check if spell already exists in spellbook
+			spellExists := false
+			for i := range char.SpellBook.Spells {
+				if char.SpellBook.Spells[i].Name == spellName {
+					// Spell exists - mark as always prepared
+					char.SpellBook.Spells[i].AlwaysPrepared = true
+					char.SpellBook.Spells[i].Prepared = true
+					spellExists = true
+					debug.Log("grantDomainSpells: Marked existing spell '%s' as always prepared", spellName)
+					break
+				}
+			}
+
+			if !spellExists {
+				// Add spell to spellbook as always prepared
+				newSpell := *foundSpell
+				newSpell.AlwaysPrepared = true
+				newSpell.Prepared = true
+				newSpell.Known = true // All cleric spells are known
+				char.SpellBook.Spells = append(char.SpellBook.Spells, newSpell)
+				debug.Log("grantDomainSpells: Added domain spell '%s' as always prepared", spellName)
+			}
+		}
+	}
 }
 
 // applySubclassFeatureBenefits applies special benefits for specific subclass features

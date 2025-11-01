@@ -339,6 +339,10 @@ func (sps *SpellPrepSelector) TogglePrepared() {
 
 	if spellIndex >= 0 {
 		// Spell exists in spellbook - toggle prepared
+		// Don't allow toggling if spell is always prepared (domain spell)
+		if sps.character.SpellBook.Spells[spellIndex].AlwaysPrepared {
+			return // Domain spells are always prepared, can't be unprepared
+		}
 		sps.character.SpellBook.Spells[spellIndex].Prepared = !sps.character.SpellBook.Spells[spellIndex].Prepared
 	} else {
 		// Spell not in spellbook yet - add it as known and prepared
@@ -377,7 +381,7 @@ func (sps *SpellPrepSelector) IsSpellPrepared(spellName string) bool {
 func (sps *SpellPrepSelector) getPreparedCount() int {
 	count := 0
 	for _, spell := range sps.character.SpellBook.Spells {
-		if spell.Prepared && spell.Level > 0 {
+		if spell.Prepared && !spell.AlwaysPrepared && spell.Level > 0 {
 			count++
 		}
 	}
@@ -402,7 +406,7 @@ func (sps *SpellPrepSelector) GetKnownCountByLevel(level int) int {
 func (sps *SpellPrepSelector) GetPreparedCountByLevel(level int) int {
 	count := 0
 	for _, spell := range sps.character.SpellBook.Spells {
-		if spell.Level == level && spell.Prepared {
+		if spell.Level == level && spell.Prepared && !spell.AlwaysPrepared {
 			count++
 		}
 	}
@@ -546,7 +550,21 @@ func (sps *SpellPrepSelector) View() string {
 			} else {
 				// Spell level tab - all spells are "known" for clerics
 				if sps.IsSpellKnown(spell.Name) {
-					if sps.IsSpellPrepared(spell.Name) {
+					// Check if spell is always prepared (domain spell)
+					isAlwaysPrepared := false
+					for _, sbSpell := range sps.character.SpellBook.Spells {
+						if sbSpell.Name == spell.Name && sbSpell.AlwaysPrepared {
+							isAlwaysPrepared = true
+							break
+						}
+					}
+
+					if isAlwaysPrepared {
+						prefix = "★ " // Star for always-prepared (domain spells)
+						if i != sps.selectedIndex {
+							style = preparedStyle
+						}
+					} else if sps.IsSpellPrepared(spell.Name) {
 						prefix = "✓ "
 						if i != sps.selectedIndex {
 							style = preparedStyle

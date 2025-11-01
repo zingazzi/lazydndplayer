@@ -59,6 +59,17 @@ type RogueBonusAction struct {
 	ActionType  string // "Cunning Action" or "Steady Aim"
 }
 
+// ClericReaction represents a Cleric-specific reaction
+type ClericReaction struct {
+	Name         string
+	Description  string
+	Trigger      string
+	Cost         string // e.g., "Channel Divinity", "1 use"
+	CurrentUses  int
+	MaxUses      int
+	FeatureName  string // Name of the feature this reaction comes from
+}
+
 // ActionsPanel displays character actions
 type ActionsPanel struct {
 	character          *models.Character
@@ -75,6 +86,7 @@ type ActionsPanel struct {
 	fighterReactions      []FighterReaction      // Fighter reactions
 	barbarianBonusActions []BarbarianBonusAction // Barbarian bonus actions
 	rogueBonusActions     []RogueBonusAction     // Rogue bonus actions
+	clericReactions       []ClericReaction       // Cleric reactions
 	totalItemCount        int                    // Total number of items (attacks + spells + actions)
 }
 
@@ -270,6 +282,51 @@ func (p *ActionsPanel) View(width, height int) string {
 				Trigger:     "When you or ally within 30 ft takes damage",
 				Cost:        "1 Psi Die",
 			})
+		}
+	}
+
+	// Build Cleric reactions
+	p.clericReactions = []ClericReaction{}
+	if char.GetClassLevel("Cleric") > 0 {
+		// Warding Flare (Light Domain)
+		for _, feature := range char.Features.Features {
+			if feature.Name == "Warding Flare" {
+				if feature.Mechanics != nil {
+					if actionType, ok := feature.Mechanics["action_type"].(string); ok && actionType == "reaction" {
+						p.clericReactions = append(p.clericReactions, ClericReaction{
+							Name:        "Warding Flare",
+							Description: "Impose disadvantage on attack roll against you",
+							Trigger:     "When attacked within 30 feet",
+							Cost:        fmt.Sprintf("%d/%d uses", feature.CurrentUses, feature.MaxUses),
+							CurrentUses: feature.CurrentUses,
+							MaxUses:     feature.MaxUses,
+							FeatureName: "Warding Flare",
+						})
+					}
+				}
+			}
+		}
+		// Guided Strike (War Domain)
+		for _, feature := range char.Features.Features {
+			if feature.Name == "Guided Strike" {
+				if feature.Mechanics != nil {
+					if actionType, ok := feature.Mechanics["action_type"].(string); ok && actionType == "reaction" {
+						costStr := "Channel Divinity"
+						if char.ChannelDivinity.Current > 0 {
+							costStr = fmt.Sprintf("Channel Divinity (%d/%d)", char.ChannelDivinity.Current, char.ChannelDivinity.Max)
+						}
+						p.clericReactions = append(p.clericReactions, ClericReaction{
+							Name:        "Guided Strike",
+							Description: "Give +10 bonus to attack roll",
+							Trigger:     "When you or ally within 30 ft makes attack roll",
+							Cost:        costStr,
+							CurrentUses: char.ChannelDivinity.Current,
+							MaxUses:     char.ChannelDivinity.Max,
+							FeatureName: "Guided Strike",
+						})
+					}
+				}
+			}
 		}
 	}
 
@@ -606,6 +663,41 @@ func (p *ActionsPanel) View(width, height int) string {
 		}
 	}
 
+	// Cleric reactions
+	if len(p.clericReactions) > 0 {
+		clericReactionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+		for _, reaction := range p.clericReactions {
+			// Format cost
+			costStr := lipgloss.NewStyle().Foreground(lipgloss.Color("135")).Render(fmt.Sprintf(" [%s]", reaction.Cost))
+			line := fmt.Sprintf("%-20s%s", reaction.Name, costStr)
+
+			// Add trigger info
+			triggerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+			fullLine := line + " " + triggerStyle.Render("("+reaction.Trigger+")")
+
+			// Check if enough uses
+			hasUses := false
+			if reaction.FeatureName == "Warding Flare" {
+				hasUses = reaction.CurrentUses > 0
+			} else if reaction.FeatureName == "Guided Strike" {
+				hasUses = char.ChannelDivinity.Current > 0
+			}
+
+			if !hasUses {
+				lines = append(lines, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render("  "+fullLine+" (No uses available)"))
+			} else {
+				if idx == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render("▶ "+fullLine))
+				} else {
+					lines = append(lines, clericReactionStyle.Render("  "+fullLine))
+				}
+			}
+			idx++
+		}
+	}
+
 	// Reaction spells
 	if len(p.reactionSpells) > 0 {
 	for _, spell := range p.reactionSpells {
@@ -633,7 +725,7 @@ func (p *ActionsPanel) View(width, height int) string {
 	}
 
 	// Show "no reactions" only if there are none
-	if len(p.monkReactions) == 0 && len(p.fighterReactions) == 0 && len(p.reactionSpells) == 0 {
+	if len(p.monkReactions) == 0 && len(p.fighterReactions) == 0 && len(p.clericReactions) == 0 && len(p.reactionSpells) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true).

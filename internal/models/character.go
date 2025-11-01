@@ -109,6 +109,12 @@ type Character struct {
 		Size    string `json:"size"` // "d6", "d8", "d10", "d12"
 	} `json:"soulknife_psi_dice,omitempty"` // Soulknife Psionic Energy dice
 
+	// Cleric/Paladin Resources
+	ChannelDivinity struct {
+		Current int `json:"current"`
+		Max     int `json:"max"`
+	} `json:"channel_divinity,omitempty"` // Channel Divinity uses for Cleric/Paladin
+
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
 
@@ -289,6 +295,46 @@ func (c *Character) UpdateDerivedStats() {
 			c.Speed += monk.GetUnarmoredMovementBonus()
 		}
 	}
+
+	// Update Channel Divinity uses for Cleric/Paladin
+	clericLevel := c.GetClassLevel("Cleric")
+	paladinLevel := c.GetClassLevel("Paladin")
+	if clericLevel >= 2 {
+		// Cleric Channel Divinity scaling
+		maxUses := GetFeatureScaling("Cleric", "Channel Divinity", clericLevel)
+		if maxUses > 0 {
+			c.ChannelDivinity.Max = maxUses
+			// Initialize Current if it's 0 (first time gaining feature)
+			if c.ChannelDivinity.Current == 0 {
+				c.ChannelDivinity.Current = maxUses
+			}
+			// Don't exceed max
+			if c.ChannelDivinity.Current > maxUses {
+				c.ChannelDivinity.Current = maxUses
+			}
+		}
+	} else if paladinLevel >= 3 {
+		// Paladin Channel Divinity scaling
+		maxUses := GetFeatureScaling("Paladin", "Channel Divinity", paladinLevel)
+		if maxUses > 0 {
+			c.ChannelDivinity.Max = maxUses
+			// Initialize Current if it's 0 (first time gaining feature)
+			if c.ChannelDivinity.Current == 0 {
+				c.ChannelDivinity.Current = maxUses
+			}
+			// Don't exceed max
+			if c.ChannelDivinity.Current > maxUses {
+				c.ChannelDivinity.Current = maxUses
+			}
+		}
+	} else {
+		// No Channel Divinity, reset to 0
+		c.ChannelDivinity.Max = 0
+		c.ChannelDivinity.Current = 0
+	}
+
+	// Update features with formula-based uses (e.g., wisdom_mod, proficiency)
+	c.Features.UpdateFormulaBasedFeatures(c)
 }
 
 // CalculateMaxPreparedSpells calculates the maximum number of spells that can be prepared
@@ -767,6 +813,22 @@ func (c *Character) PerformShortRest(diceSpent int, roller DiceRoller) int {
 		debug.Log("  Restored 1 Soulknife Psionic Die: %d/%d", c.SoulknifePsiDice.Current, c.SoulknifePsiDice.Max)
 	}
 
+	// Restore Channel Divinity (1 use on short rest for Cleric)
+	// Check if character has Channel Divinity feature with regain_one_on_short_rest mechanic
+	for i := range c.Features.Features {
+		if c.Features.Features[i].Name == "Channel Divinity" {
+			if c.Features.Features[i].Mechanics != nil {
+				if regainOne, ok := c.Features.Features[i].Mechanics["regain_one_on_short_rest"].(bool); ok && regainOne {
+					if c.ChannelDivinity.Current < c.ChannelDivinity.Max {
+						c.ChannelDivinity.Current++
+						debug.Log("  Restored 1 Channel Divinity use: %d/%d", c.ChannelDivinity.Current, c.ChannelDivinity.Max)
+					}
+					break
+				}
+			}
+		}
+	}
+
 	debug.Log("=== SHORT REST COMPLETE ===")
 	return healing
 }
@@ -817,6 +879,20 @@ func (c *Character) PerformLongRest() {
 	}
 
 	// Note: Actions don't track uses separately, they're tied to features
+
+	// Restore Channel Divinity (all uses on long rest)
+	// Check if character has Channel Divinity feature with regain_all_on_long_rest mechanic
+	for i := range c.Features.Features {
+		if c.Features.Features[i].Name == "Channel Divinity" {
+			if c.Features.Features[i].Mechanics != nil {
+				if regainAll, ok := c.Features.Features[i].Mechanics["regain_all_on_long_rest"].(bool); ok && regainAll {
+					c.ChannelDivinity.Current = c.ChannelDivinity.Max
+					debug.Log("  Restored all Channel Divinity uses: %d/%d", c.ChannelDivinity.Current, c.ChannelDivinity.Max)
+					break
+				}
+			}
+		}
+	}
 
 	// Restore all spell slots
 	c.SpellBook.Slots.Level1.Current = c.SpellBook.Slots.Level1.Maximum

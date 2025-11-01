@@ -127,6 +127,37 @@ func (p *FeaturesPanel) buildConsumablesList() []ConsumableItem {
 		})
 	}
 
+	// Add Channel Divinity for Cleric/Paladin
+	if p.character.ChannelDivinity.Max > 0 {
+		// Determine rest type from Channel Divinity feature
+		restType := models.ShortRest // Default
+		desc := "Channel Divinity allows you to channel divine energy to fuel magical effects. "
+
+		// Check if character has Channel Divinity feature to get details
+		for i := range p.character.Features.Features {
+			if p.character.Features.Features[i].Name == "Channel Divinity" {
+				feature := &p.character.Features.Features[i]
+				desc = feature.Description
+				if feature.Mechanics != nil {
+					if regainOne, ok := feature.Mechanics["regain_one_on_short_rest"].(bool); ok && regainOne {
+						desc += " Regain 1 use on short rest, all uses on long rest."
+					}
+				}
+				break
+			}
+		}
+
+		shortRest = append(shortRest, ConsumableItem{
+			ItemType:     "resource",
+			ResourceType: "channel_divinity",
+			Name:         "Channel Divinity",
+			Current:      p.character.ChannelDivinity.Current,
+			Max:          p.character.ChannelDivinity.Max,
+			RestType:     restType,
+			Description:  desc,
+		})
+	}
+
 	// Add all consumable features (MaxUses > 0)
 	// Skip features that are already represented as resources
 	for i := range p.character.Features.Features {
@@ -143,6 +174,9 @@ func (p *FeaturesPanel) buildConsumablesList() []ConsumableItem {
 				skipFeature = true
 			case "Combat Superiority":
 				// Managed via SuperiorityDice
+				skipFeature = true
+			case "Channel Divinity":
+				// Managed via ChannelDivinity resource
 				skipFeature = true
 			}
 
