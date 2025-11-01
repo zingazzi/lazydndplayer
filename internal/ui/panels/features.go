@@ -114,6 +114,19 @@ func (p *FeaturesPanel) buildConsumablesList() []ConsumableItem {
 		})
 	}
 
+	// Add Psionic Dice for Soulknife
+	if p.character.IsSoulknife() && p.character.SoulknifePsiDice.Max > 0 {
+		shortRest = append(shortRest, ConsumableItem{
+			ItemType:     "resource",
+			ResourceType: "soulknife_psi_dice",
+			Name:         fmt.Sprintf("Psionic Energy 1%s", p.character.SoulknifePsiDice.Size),
+			Current:      p.character.SoulknifePsiDice.Current,
+			Max:          p.character.SoulknifePsiDice.Max,
+			RestType:     models.ShortRest,
+			Description:  "Psionic energy dice used by Soulknife Rogues. Fuel various psionic powers like Psi-Bolstered Knack and Psychic Whispers. Regain 1 on short rest, all on long rest.",
+		})
+	}
+
 	// Add all consumable features (MaxUses > 0)
 	// Skip features that are already represented as resources
 	for i := range p.character.Features.Features {

@@ -20,7 +20,9 @@
   ],
   "spellcasting": {
     "ability": "Wisdom",
-    "ritual_casting": true
+    "ritual_casting": true,
+    "spells_known_formula": "all",
+    "preparation_formula": "wisdom+level"
   },
   "level_progression": [
     {
@@ -29,16 +31,30 @@
       "features": [
         {
           "name": "Spellcasting",
-          "description": "As a conduit for divine power, you can cast cleric spells. Wisdom is your spellcasting ability for your cleric spells.",
+          "description": "As a conduit for divine power, you can cast cleric spells. You know all cleric spells of 1st level and higher that are available to you. You prepare a number of spells equal to your Wisdom modifier + your cleric level. Wisdom is your spellcasting ability for your cleric spells.",
           "uses_formula": "0",
-          "rest_type": "None"
+          "rest_type": "None",
+          "mechanics": {
+            "type": "spellcasting",
+            "know_all_spells": true
+          }
+        },
+        {
+          "name": "Divine Order",
+          "description": "At 1st level, you choose a divine order that shapes how you channel your faith. Choose Protector or Thaumaturgic.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "type": "divine_order_choice",
+            "choices": ["Protector", "Thaumaturgic"],
+            "must_complete_before": "cantrip_selection"
+          }
         },
         {
           "name": "Divine Domain",
-          "description": "At 1st level, you choose a domain shaped by your deity or spiritual path. Your choice grants you domain spells and other features when you choose it at 1st level and additional benefits at 2nd, 6th, 8th, and 17th levels.",
+          "description": "At 3rd level, you choose a domain shaped by your deity or spiritual path. Your choice grants you domain spells and other features when you choose it at 3rd level and additional benefits at 6th, 8th, and 17th levels.",
           "uses_formula": "0",
-          "rest_type": "None",
-          "subclass_choice": true
+          "rest_type": "None"
         }
       ],
       "spellcasting_info": {
@@ -56,9 +72,46 @@
       "features": [
         {
           "name": "Channel Divinity",
-          "description": "At 2nd level, you gain the ability to channel divine energy directly from your deity, using that energy to fuel magical effects. You start with two such effects: Turn Undead and an effect determined by your domain. You can use Channel Divinity once, and regain the ability after a short or long rest.",
+          "description": "At 2nd level, you gain the ability to channel divine energy directly from your deity. You start with two Channel Divinity effects: Divine Spark and Turn Undead. You can use Channel Divinity a number of times based on your cleric level: 2 uses at levels 2-5, 3 uses at levels 6-17, and 4 uses at levels 18-20. You regain one expended use when you finish a short rest and all expended uses when you finish a long rest.",
           "uses_formula": "channel_divinity_scaling",
-          "rest_type": "Short Rest"
+          "rest_type": "Short Rest",
+          "mechanics": {
+            "type": "channel_divinity",
+            "regain_one_on_short_rest": true,
+            "regain_all_on_long_rest": true
+          }
+        },
+        {
+          "name": "Divine Spark",
+          "description": "As an action, you unleash divine energy. A creature of your choice that you can see within 30 feet of you regains hit points equal to 1d8 + your Wisdom modifier, or if the creature is an enemy, it takes radiant or necrotic damage (your choice) equal to the same amount. At 7th level, this damage increases to 2d8, at 13th level to 3d8, and at 18th level to 4d8.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "type": "channel_divinity_effect",
+            "action_type": "action",
+            "range": "30",
+            "base_damage": "1d8+wisdom_mod",
+            "scaling": {
+              "7": "2d8+wisdom_mod",
+              "13": "3d8+wisdom_mod",
+              "18": "4d8+wisdom_mod"
+            },
+            "damage_types": ["radiant", "necrotic"]
+          }
+        },
+        {
+          "name": "Turn Undead",
+          "description": "As an action, you present your holy symbol and speak a prayer censuring the undead. Each undead that can see or hear you within 30 feet of you must make a Wisdom saving throw. If the creature fails its saving throw, it is turned for 1 minute or until it takes any damage. A turned creature must spend its turns trying to move as far away from you as it can, and it can't willingly move to a space within 30 feet of you. It also can't take reactions. For its action, it can use only the Dash action or try to escape from an effect that prevents it from moving. If there's nowhere to move, the creature can use the Dodge action.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "type": "channel_divinity_effect",
+            "action_type": "action",
+            "range": "30",
+            "saving_throw": "Wisdom",
+            "effect": "turned",
+            "duration": "1 minute"
+          }
         },
         {
           "name": "Divine Domain Feature",
@@ -80,7 +133,15 @@
     {
       "level": 3,
       "proficiency_bonus": 2,
-      "features": [],
+      "features": [
+        {
+          "name": "Divine Domain",
+          "description": "At 3rd level, you choose a domain shaped by your deity or spiritual path. Your choice grants you domain spells and other features when you choose it at 3rd level and additional benefits at 6th, 8th, and 17th levels.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "subclass_choice": true
+        }
+      ],
       "spellcasting_info": {
         "cantrips_known": 3,
         "spells_prepared": "Wis mod + level",
@@ -516,6 +577,7 @@
       "name": "Life Domain",
       "description": "The Life domain focuses on the vibrant positive energy that sustains all life. Clerics of this domain are masters of healing, using divine magic to cure the wounded and restore life to the fallen.",
       "source": "Player's Handbook",
+      "subclass_level": 3,
       "domain_spells": {
         "1": ["Bless", "Cure Wounds"],
         "3": ["Lesser Restoration", "Spiritual Weapon"],
@@ -524,7 +586,7 @@
         "9": ["Mass Cure Wounds", "Raise Dead"]
       },
       "features_by_level": {
-        "1": [
+        "3": [
           {
             "name": "Bonus Proficiency",
             "description": "You gain proficiency with heavy armor.",
@@ -544,6 +606,7 @@
       "name": "Light Domain",
       "description": "Gods of light promote the ideals of rebirth and renewal, truth, vigilance, and beauty, often using the symbol of the sun. Clerics of a god of light are enlightened souls infused with radiance and the power of their gods' discerning vision.",
       "source": "Player's Handbook",
+      "subclass_level": 3,
       "domain_spells": {
         "1": ["Burning Hands", "Faerie Fire"],
         "3": ["Flaming Sphere", "Scorching Ray"],
@@ -552,7 +615,7 @@
         "9": ["Flame Strike", "Scrying"]
       },
       "features_by_level": {
-        "1": [
+        "3": [
           {
             "name": "Bonus Cantrip",
             "description": "You gain the Light cantrip if you don't already know it.",
@@ -572,6 +635,7 @@
       "name": "Trickery Domain",
       "description": "Gods of trickery are mischief-makers and instigators who stand as a constant challenge to the accepted order among both gods and mortals. Clerics of these gods are a disruptive force in the world, puncturing pride, mocking tyrants, stealing from the rich, and freeing the downtrodden.",
       "source": "Player's Handbook",
+      "subclass_level": 3,
       "domain_spells": {
         "1": ["Charm Person", "Disguise Self"],
         "3": ["Mirror Image", "Pass without Trace"],
@@ -580,7 +644,7 @@
         "9": ["Dominate Person", "Modify Memory"]
       },
       "features_by_level": {
-        "1": [
+        "3": [
           {
             "name": "Blessing of the Trickster",
             "description": "You can use your action to touch a willing creature other than yourself to give it advantage on Dexterity (Stealth) checks. This blessing lasts for 1 hour or until you use this feature again.",
@@ -594,6 +658,7 @@
       "name": "War Domain",
       "description": "War has many manifestations. It can make heroes of ordinary people. It can be desperate and horrific, with acts of cruelty and cowardice eclipsing instances of excellence and courage. In either case, the gods of war watch over warriors and reward them for their great deeds.",
       "source": "Player's Handbook",
+      "subclass_level": 3,
       "domain_spells": {
         "1": ["Divine Favor", "Shield of Faith"],
         "3": ["Magic Weapon", "Spiritual Weapon"],
@@ -602,7 +667,7 @@
         "9": ["Flame Strike", "Hold Monster"]
       },
       "features_by_level": {
-        "1": [
+        "3": [
           {
             "name": "Bonus Proficiency",
             "description": "You gain proficiency with martial weapons and heavy armor.",

@@ -135,6 +135,9 @@ type Model struct {
 	quitting           bool
 	pendingFeat        *models.Feat   // Temporarily store feat while choosing ability
 	pendingOrigin      *models.Origin // Temporarily store origin while choosing ability
+	pendingDivineOrder string         // Temporarily store divine order choice ("Protector" or "Thaumaturgic")
+	pendingDivineOrderSkill string    // For Thaumaturgic: chosen skill (Arcana or Religion)
+	divineOrderSelectorVisible bool   // Flag for showing divine order selection
 	pendingChanges     *models.PendingChanges // Transaction system for rollback support
 	eldritchKnightSpellsSelected int   // Counter for Eldritch Knight spell selection (0-3)
 	eldritchKnightSpells []models.Spell // Temporarily store selected spells
@@ -437,6 +440,37 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if item selector is active
 		if m.itemSelector.IsVisible() {
 			return m.handleItemSelectorKeys(msg)
+		}
+
+		// Check if divine order selector is active (for Cleric level 1, before cantrip selection)
+		// But allow tab navigation to pass through
+		if m.divineOrderSelectorVisible {
+			// Check if Divine Order has already been applied (in case selector wasn't properly hidden)
+			divineOrderApplied := false
+			if m.character.BenefitTracker != nil {
+				for _, benefit := range m.character.BenefitTracker.Benefits {
+					if benefit.Source.Type == "class_feature" && benefit.Source.Name == "Divine Order" {
+						divineOrderApplied = true
+						break
+					}
+				}
+			}
+
+			// If already applied, hide selector and allow navigation
+			if divineOrderApplied {
+				m.divineOrderSelectorVisible = false
+				m.pendingDivineOrder = ""
+				// Continue to tab navigation below
+			} else {
+				// Allow tab navigation to pass through even when selector is visible
+				if msg.String() == "tab" || msg.String() == "shift+tab" {
+					// Tab navigation - let it pass through to panel navigation check below
+					// Don't intercept tab keys
+				} else {
+					// Handle other keys in selector
+					return m.handleDivineOrderSelectorKeys(msg)
+				}
+			}
 		}
 
 		// Check if fighting style selector is active (highest priority in class flow)
@@ -1206,7 +1240,7 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else if m.character.SpellBook.IsPreparedCaster {
 			debug.Log("=== OPENING SPELL PREP SELECTOR")
 			m.spellPrepSelector.Show()
-			m.message = "Select spells to prepare..."
+			m.message = "Managing spellbook... (Tab: Switch tabs • Space: Prepare/Add • a/d: Add/Remove cantrips)"
 		} else {
 			debug.Log("=== Not a prepared caster - showing error message")
 			m.message = "Only prepared casters can prepare spells"
@@ -1364,6 +1398,9 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "warrior_dice":
 				m.character.WarriorDice.Current--
 				m.message = fmt.Sprintf("Warrior Die spent. Current: %d/%d", m.character.WarriorDice.Current, m.character.WarriorDice.Max)
+			case "soulknife_psi_dice":
+				m.character.SoulknifePsiDice.Current--
+				m.message = fmt.Sprintf("Psionic Energy die spent. Current: %d/%d", m.character.SoulknifePsiDice.Current, m.character.SoulknifePsiDice.Max)
 			}
 			m.storage.Save(m.character)
 		case "feature":
@@ -1426,6 +1463,9 @@ func (m *Model) handleFeaturesPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "warrior_dice":
 				m.character.WarriorDice.Current++
 				m.message = fmt.Sprintf("Warrior Die restored. Current: %d/%d", m.character.WarriorDice.Current, m.character.WarriorDice.Max)
+			case "soulknife_psi_dice":
+				m.character.SoulknifePsiDice.Current++
+				m.message = fmt.Sprintf("Psionic Energy die restored. Current: %d/%d", m.character.SoulknifePsiDice.Current, m.character.SoulknifePsiDice.Max)
 			}
 			m.storage.Save(m.character)
 		case "feature":
@@ -2840,6 +2880,53 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 				m.subclassSelector.Show(selectedClassName, 1)
 				m.message = fmt.Sprintf("Select subclass for %s...", selectedClassName)
 			} else {
+				// Check for Divine Order choice (Cleric level 1 - must be before cantrip selection)
+				if selectedClassName == "Cleric" {
+					clericLevel := m.character.GetClassLevel("Cleric")
+					if clericLevel == 1 {
+						// Check if Divine Order has already been applied by checking BenefitTracker
+						divineOrderApplied := false
+						if m.character.BenefitTracker != nil {
+							for _, benefit := range m.character.BenefitTracker.Benefits {
+								if benefit.Source.Type == "class_feature" && benefit.Source.Name == "Divine Order" {
+									divineOrderApplied = true
+									debug.Log("Divine Order already applied (found in BenefitTracker)")
+									break
+								}
+							}
+						}
+
+						// Also check if feature exists with divine_order_choice mechanics
+						needsDivineOrder := false
+						for _, feature := range m.character.Features.Features {
+							if feature.Name == "Divine Order" {
+								if feature.Mechanics != nil {
+									if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "divine_order_choice" {
+										needsDivineOrder = true
+										debug.Log("Found Divine Order feature with divine_order_choice mechanics")
+										break
+									}
+								}
+							}
+						}
+
+						// Only show selector if Divine Order hasn't been applied yet AND feature exists
+						if !divineOrderApplied && needsDivineOrder && m.pendingDivineOrder == "" {
+							debug.Log("Cleric level 1: Showing Divine Order selector")
+							m.divineOrderSelectorVisible = true
+							m.message = "Select Divine Order: [1] Protector (Martial weapons + Heavy armor, 3 cantrips) or [2] Thaumaturgic (Extra cantrip + Arcana/Religion expertise, 4 cantrips)"
+							return m, cmd
+						} else if divineOrderApplied {
+							// Divine Order already applied, make sure selector is hidden
+							debug.Log("Divine Order already applied, hiding selector")
+							m.divineOrderSelectorVisible = false
+							m.pendingDivineOrder = ""
+						} else if !needsDivineOrder {
+							debug.Log("Divine Order feature not found in character features")
+						}
+					}
+				}
+
 				// No subclass at level 1, check for fighting style or cantrips
 			needsFightingStyle := selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger"
 			debug.Log("=== Class %s needs fighting style: %v", selectedClassName, needsFightingStyle)
@@ -3083,8 +3170,7 @@ func (m *Model) handleSchoolSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 	debug.Log("handleSchoolSpellSelectorKeys: key=%s", msg.String())
 
 	// Delegate navigation and selection to the component's Update method
-	var cmd tea.Cmd
-	cmd = m.schoolSpellSelector.Update(tea.KeyMsg(msg))
+	cmd := m.schoolSpellSelector.Update(tea.KeyMsg(msg))
 
 	switch msg.String() {
 	case "enter":
@@ -3197,6 +3283,112 @@ func (m *Model) handleSlotRestorerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleFightingStyleSelectorKeys handles fighting style selector specific keys
+// handleDivineOrderSelectorKeys handles keyboard input for Divine Order selection
+func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	// Allow number keys 3-7 for tab navigation to pass through
+	// Only handle keys specifically for Divine Order selection
+	switch msg.String() {
+	case "3", "4", "5", "6", "7":
+		// Tab navigation keys - always allow these to pass through
+		// (handled in main Update function's tab navigation check)
+		// Return empty to allow fall-through to tab navigation
+		return m, cmd
+	case "1":
+		// Protector selected
+		m.pendingDivineOrder = "Protector"
+		debug.Log("Divine Order selected: Protector")
+		err := models.ApplyDivineOrderBenefits(m.character, "Protector", "")
+		if err != nil {
+			m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
+			return m, cmd
+		}
+		m.divineOrderSelectorVisible = false
+		m.message = "Divine Order: Protector selected (Martial weapons + Heavy armor, 3 cantrips)"
+
+		// Check if cantrip selection is needed next
+		needsCantrips := m.character.SpellBook.CantripsKnown > 0
+		if needsCantrips {
+			debug.Log("After Divine Order, showing cantrip selector for %d cantrips", m.character.SpellBook.CantripsKnown)
+			m.cantripSelector.Show("Cleric", m.character.SpellBook.CantripsKnown)
+			m.message = fmt.Sprintf("Select %d cantrips for Cleric...", m.character.SpellBook.CantripsKnown)
+		} else {
+			m.pendingChanges.Clear()
+			m.storage.Save(m.character)
+		}
+	case "2":
+		// Thaumaturgic selected - need to choose skill first
+		m.pendingDivineOrder = "Thaumaturgic"
+		debug.Log("Divine Order selected: Thaumaturgic - prompting for skill choice")
+		m.message = "Choose skill for Thaumaturgic: [a] Arcana or [r] Religion"
+	case "a":
+		// Arcana chosen for Thaumaturgic
+		if m.pendingDivineOrder == "Thaumaturgic" {
+			m.pendingDivineOrderSkill = "Arcana"
+			debug.Log("Thaumaturgic skill selected: Arcana")
+			err := models.ApplyDivineOrderBenefits(m.character, "Thaumaturgic", "Arcana")
+			if err != nil {
+				m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
+				return m, cmd
+			}
+			m.divineOrderSelectorVisible = false
+			m.message = "Divine Order: Thaumaturgic selected (Extra cantrip + Arcana expertise)"
+
+			// Check if cantrip selection is needed next (Thaumaturgic gets +1 cantrip)
+			cantripsKnown := m.character.SpellBook.CantripsKnown
+			if cantripsKnown > 0 {
+				// Thaumaturgic gets one extra cantrip
+				cantripsKnown++
+				debug.Log("Thaumaturgic: increasing cantrips from %d to %d", m.character.SpellBook.CantripsKnown, cantripsKnown)
+				m.character.SpellBook.CantripsKnown = cantripsKnown
+				m.cantripSelector.Show("Cleric", cantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for Cleric (Thaumaturgic: +1 extra)...", cantripsKnown)
+			} else {
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+			}
+		}
+	case "r":
+		// Religion chosen for Thaumaturgic
+		if m.pendingDivineOrder == "Thaumaturgic" {
+			m.pendingDivineOrderSkill = "Religion"
+			debug.Log("Thaumaturgic skill selected: Religion")
+			err := models.ApplyDivineOrderBenefits(m.character, "Thaumaturgic", "Religion")
+			if err != nil {
+				m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
+				return m, cmd
+			}
+			m.divineOrderSelectorVisible = false
+			m.message = "Divine Order: Thaumaturgic selected (Extra cantrip + Religion expertise)"
+
+			// Check if cantrip selection is needed next (Thaumaturgic gets +1 cantrip)
+			cantripsKnown := m.character.SpellBook.CantripsKnown
+			if cantripsKnown > 0 {
+				// Thaumaturgic gets one extra cantrip
+				cantripsKnown++
+				debug.Log("Thaumaturgic: increasing cantrips from %d to %d", m.character.SpellBook.CantripsKnown, cantripsKnown)
+				m.character.SpellBook.CantripsKnown = cantripsKnown
+				m.cantripSelector.Show("Cleric", cantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for Cleric (Thaumaturgic: +1 extra)...", cantripsKnown)
+			} else {
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+			}
+		}
+	case "esc":
+		debug.Log("Divine Order selection cancelled")
+		m.divineOrderSelectorVisible = false
+		m.pendingDivineOrder = ""
+		m.pendingDivineOrderSkill = ""
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
+		m.storage.Save(m.character)
+		m.message = "Divine Order selection cancelled - restored previous state"
+	}
+	return m, cmd
+}
+
 func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleFightingStyleSelectorKeys: key=%s", msg.String())
 
@@ -4272,6 +4464,11 @@ func (m *Model) View() string {
 		return m.subclassSelector.View()
 	}
 
+	// Divine Order selector (for Cleric level 1) - show as popup (Medium)
+	if m.divineOrderSelectorVisible {
+		return m.renderDivineOrderSelector()
+	}
+
 	// Class selector takes seventh priority (Medium)
 	if m.classSelector.IsVisible() {
 		return m.classSelector.View(popupMediumWidth, popupMediumHeight)
@@ -4517,6 +4714,73 @@ func (m *Model) handleInputPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.inputPopup.Update(msg)
 	}
 	return m, nil
+}
+
+// renderDivineOrderSelector renders the Divine Order selection popup
+func (m *Model) renderDivineOrderSelector() string {
+	popupMediumWidth := int(float64(m.width) * 0.60)
+	popupMediumHeight := int(float64(m.height) * 0.50)
+	if popupMediumWidth < 70 {
+		popupMediumWidth = 70
+	}
+	if popupMediumHeight < 20 {
+		popupMediumHeight = 20
+	}
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("205")).
+		Align(lipgloss.Center).
+		MarginBottom(1)
+
+	optionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		MarginBottom(1)
+
+	highlightStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205")).
+		Bold(true)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true).
+		Align(lipgloss.Center).
+		MarginTop(1)
+
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("205")).
+		Padding(2, 4).
+		Width(popupMediumWidth - 8).
+		Align(lipgloss.Center)
+
+	var optionsText string
+	if m.pendingDivineOrder == "Thaumaturgic" {
+		// Show skill selection for Thaumaturgic
+		optionsText = optionStyle.Render("Choose skill for Thaumaturgic:") + "\n\n" +
+			highlightStyle.Render("[a]") + " Arcana\n" +
+			highlightStyle.Render("[r]") + " Religion\n\n" +
+			hintStyle.Render("Press 'a' for Arcana or 'r' for Religion")
+	} else {
+		// Show Divine Order selection
+		optionsText = titleStyle.Render("Select Divine Order") + "\n\n" +
+			optionStyle.Render("Choose how you channel your divine faith:") + "\n\n" +
+			highlightStyle.Render("[1]") + " Protector\n" +
+			"   Proficiency with martial weapons and heavy armor\n" +
+			"   3 cantrips\n\n" +
+			highlightStyle.Render("[2]") + " Thaumaturgic\n" +
+			"   Extra cantrip (+1, for 4 total)\n" +
+			"   Expertise in Arcana or Religion (your choice)\n\n" +
+			hintStyle.Render("Press 1 for Protector or 2 for Thaumaturgic • ESC to cancel")
+	}
+
+	box := boxStyle.Render(optionsText)
+
+	return lipgloss.Place(
+		m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		box,
+	)
 }
 
 // Run runs the application

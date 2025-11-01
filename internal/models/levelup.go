@@ -676,6 +676,19 @@ func applySubclassFeatureBenefits(char *Character, featureName string, subclassN
 			debug.Log("  Initialized Soulknife Psionic Dice: %d%s (%d/%d)", psiDiceCount, psiDiceSize, char.SoulknifePsiDice.Current, char.SoulknifePsiDice.Max)
 		}
 
+	case "Psi-Bolstered Knack":
+		// Soulknife: Passive ability, no special benefits to apply
+		debug.Log("  Applying Psi-Bolstered Knack benefits - passive ability")
+
+	case "Psychic Whispers":
+		// Soulknife: Telepathy ability, no special benefits to apply
+		debug.Log("  Applying Psychic Whispers benefits - telepathy ability")
+
+	case "Psychic Blades":
+		// Soulknife: Psychic Blades are handled dynamically in attack generation
+		// No special benefits needed here - attacks are generated based on feature presence
+		debug.Log("  Applying Soulknife Psychic Blades benefits - attacks will be generated dynamically")
+
 	case "Combat Superiority":
 		// Battle Master: Initialize Superiority Dice
 		debug.Log("  Applying Combat Superiority benefits - Initializing Superiority Dice")
@@ -841,11 +854,32 @@ func removeSubclassFeatureBenefits(char *Character, featureName string, subclass
 
 	case "Psionic Power":
 		// Psi Warrior: Clear Psi Dice
-		debug.Log("  Removing Psionic Power benefits - Clearing Psi Dice")
-		char.PsiDice.Max = 0
-		char.PsiDice.Current = 0
-		char.PsiDice.Size = ""
-		debug.Log("  Cleared Psi Dice")
+		if subclassName == "Psi Warrior" {
+			debug.Log("  Removing Psionic Power benefits - Clearing Psi Dice")
+			char.PsiDice.Max = 0
+			char.PsiDice.Current = 0
+			char.PsiDice.Size = ""
+			debug.Log("  Cleared Psi Dice")
+		}
+		// Soulknife: Clear Psionic Dice
+		if subclassName == "Soulknife" {
+			debug.Log("  Removing Soulknife Psionic Power benefits - Clearing Psionic Dice")
+			char.SoulknifePsiDice.Max = 0
+			char.SoulknifePsiDice.Current = 0
+			char.SoulknifePsiDice.Size = ""
+			debug.Log("  Cleared Soulknife Psionic Dice")
+		}
+
+	case "Psi-Bolstered Knack":
+		debug.Log("  Removing Psi-Bolstered Knack benefits")
+
+	case "Psychic Whispers":
+		debug.Log("  Removing Psychic Whispers benefits")
+
+	case "Psychic Blades":
+		// Soulknife: Psychic Blades are handled dynamically in attack generation
+		// No special cleanup needed here - attacks are generated based on feature presence
+		debug.Log("  Removing Soulknife Psychic Blades benefits - attacks will be removed dynamically")
 
 	case "Combat Superiority":
 		// Battle Master: Clear Superiority Dice and Maneuvers
@@ -873,6 +907,28 @@ func removeSubclassFeatureBenefits(char *Character, featureName string, subclass
 			char.SpellBook.Spells = []Spell{}
 
 			debug.Log("  Cleared Eldritch Knight spellcasting")
+		}
+		// Arcane Trickster: Remove spellcasting (if this is level 3 Rogue removal)
+		if subclassName == "Arcane Trickster" {
+			debug.Log("  Removing Arcane Trickster Spellcasting benefits")
+
+			// Clear spell slots
+			char.SpellBook.Slots.Level1.Maximum = 0
+			char.SpellBook.Slots.Level1.Current = 0
+
+			// Remove Arcane Trickster cantrips and spells
+			// Note: This is a simplified approach. In a real implementation,
+			// you might want to track which spells came from Arcane Trickster specifically
+			char.SpellBook.Cantrips = []string{}
+			char.SpellBook.CantripsKnown = 0
+			char.SpellBook.Spells = []Spell{}
+
+			// Clear spellbook caster flags
+			char.SpellBook.IsPreparedCaster = false
+			char.SpellBook.IsSpellbookCaster = false
+			char.SpellBook.PreparationFormula = ""
+
+			debug.Log("  Cleared Arcane Trickster spellcasting")
 		}
 
 	case "Student of War":
@@ -1039,7 +1095,7 @@ func RequiresSubclassAtLevel(class *Class, level int) bool {
 	}
 
 	// Classes that get subclass at level 1
-	level1Subclasses := []string{"Cleric", "Sorcerer", "Warlock"}
+	level1Subclasses := []string{"Sorcerer", "Warlock"}
 	for _, name := range level1Subclasses {
 		if class.Name == name && level == 1 {
 			return true
@@ -1055,7 +1111,7 @@ func RequiresSubclassAtLevel(class *Class, level int) bool {
 	}
 
 	// Classes that get subclass at level 3
-	level3Subclasses := []string{"Bard", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Barbarian", "Wizard"}
+	level3Subclasses := []string{"Bard", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Barbarian", "Wizard", "Cleric"}
 	for _, name := range level3Subclasses {
 		if class.Name == name && level == 3 {
 			return true

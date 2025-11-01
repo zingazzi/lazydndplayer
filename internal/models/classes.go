@@ -502,6 +502,49 @@ func RemoveAllClassFeatures(char *Character) {
 	char.Features.Features = newFeatures
 }
 
+// ApplyDivineOrderBenefits applies the benefits of a chosen Divine Order to a cleric
+func ApplyDivineOrderBenefits(char *Character, order string, chosenSkill string) error {
+	source := BenefitSource{
+		Type: "class_feature",
+		Name: "Divine Order",
+	}
+	applier := NewBenefitApplier(char)
+
+	if order == "Protector" {
+		// Protector: proficiency with martial weapons and heavy armor
+		applier.AddWeaponProficiency(source, "Martial")
+		applier.AddArmorProficiency(source, "Heavy")
+		debug.Log("Applied Protector Divine Order benefits: Martial weapons, Heavy armor")
+	} else if order == "Thaumaturgic" {
+		// Thaumaturgic: extra cantrip (handled separately), expertise in Arcana or Religion
+		if chosenSkill == "Arcana" || chosenSkill == "Religion" {
+			// Grant expertise (double proficiency) in the chosen skill
+			skill := char.Skills.GetSkill(SkillType(chosenSkill))
+			if skill != nil {
+				if skill.Proficiency < Proficient {
+					skill.Proficiency = Proficient
+				}
+				if skill.Proficiency == Proficient {
+					skill.Proficiency = Expertise
+				}
+				// Track the benefit
+				char.BenefitTracker.AddBenefit(GrantedBenefit{
+					Source:      source,
+					Type:        BenefitSkill,
+					Target:      chosenSkill,
+					Value:       int(Expertise),
+					Description: fmt.Sprintf("Expertise in %s (Divine Order: Thaumaturgic)", chosenSkill),
+				})
+				debug.Log("Applied Thaumaturgic Divine Order benefits: Expertise in %s", chosenSkill)
+			}
+		}
+		// Note: Extra cantrip will be handled when cantrips are selected
+	}
+
+	char.UpdateDerivedStats()
+	return nil
+}
+
 // InitializeSpellcasting sets up spellcasting for a class
 func InitializeSpellcasting(char *Character, class *Class) {
 	if class.Spellcasting == nil {

@@ -306,6 +306,56 @@ func (ba *BenefitApplier) AddToolProficiency(source BenefitSource, toolName stri
 	return nil
 }
 
+// AddWeaponProficiency adds a weapon proficiency and tracks it
+func (ba *BenefitApplier) AddWeaponProficiency(source BenefitSource, weaponType string) error {
+	// Check if already proficient
+	for _, weapon := range ba.char.WeaponProficiencies {
+		if weapon == weaponType {
+			// Already have this proficiency, don't add duplicate
+			return nil
+		}
+	}
+
+	// Add weapon proficiency
+	ba.char.WeaponProficiencies = append(ba.char.WeaponProficiencies, weaponType)
+
+	// Track the benefit
+	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+		Source:      source,
+		Type:        BenefitProficiency,
+		Target:      weaponType,
+		Value:       1,
+		Description: fmt.Sprintf("Weapon proficiency: %s", weaponType),
+	})
+
+	return nil
+}
+
+// AddArmorProficiency adds an armor proficiency and tracks it
+func (ba *BenefitApplier) AddArmorProficiency(source BenefitSource, armorType string) error {
+	// Check if already proficient
+	for _, armor := range ba.char.ArmorProficiencies {
+		if armor == armorType {
+			// Already have this proficiency, don't add duplicate
+			return nil
+		}
+	}
+
+	// Add armor proficiency
+	ba.char.ArmorProficiencies = append(ba.char.ArmorProficiencies, armorType)
+
+	// Track the benefit
+	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{
+		Source:      source,
+		Type:        BenefitProficiency,
+		Target:      armorType,
+		Value:       1,
+		Description: fmt.Sprintf("Armor proficiency: %s", armorType),
+	})
+
+	return nil
+}
+
 // AddItem adds an item to inventory and tracks it
 func (ba *BenefitApplier) AddItem(source BenefitSource, itemName string, quantity int) error {
 	// Check if item is gold

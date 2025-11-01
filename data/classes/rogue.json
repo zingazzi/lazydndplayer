@@ -452,14 +452,28 @@
         "3": [
           {
             "name": "Psionic Power",
-            "description": "You harbor a wellspring of psionic energy within yourself. This energy is represented by your Psionic Energy dice, which are each a d6. You have a number of these dice equal to twice your proficiency bonus, and they fuel various psionic powers. You regain all expended Psionic Energy dice when you finish a long rest. You regain one expended Psionic Energy die when you finish a short rest.",
+            "description": "You harbor a wellspring of psionic energy within yourself. This energy is represented by your Psionic Energy dice. You have a number of these dice equal to twice your proficiency bonus, and they fuel various psionic powers. The dice start as d6s at 3rd level. You regain one expended Psionic Energy die when you finish a short rest, and you regain all expended dice when you finish a long rest.",
             "uses_formula": "psi_dice_scaling",
             "rest_type": "Short Rest",
             "mechanics": {
               "psi_dice_count": 4,
               "psi_dice_size": "d6",
-              "psi_bolstered_knack": true,
-              "psychic_whispers": true
+              "psi_dice_scaling": true
+            }
+          },
+          {
+            "name": "Psi-Bolstered Knack",
+            "description": "When your nonpsionic training fails you, your psionic power can help. If you fail an ability check using a skill or tool with which you have proficiency, you can roll one Psionic Energy die and add the number rolled to the check, potentially turning failure into success. You expend the die only if the roll succeeds.",
+            "uses_formula": "0",
+            "rest_type": "None"
+          },
+          {
+            "name": "Psychic Whispers",
+            "description": "You can establish telepathic communication between yourself and others. As an action, choose one or more creatures you can see, up to a number of creatures equal to your proficiency bonus, and then roll one Psionic Energy die. For a number of hours equal to the number rolled, the chosen creatures can speak telepathically with you, and you can speak telepathically with them. To send or receive a message (no action required), you and the other creature must be within 1 mile of each other. A creature can't use this telepathy if it can't speak any languages, and a creature can end the telepathic connection at any time (no action required). You and the creature don't need to speak a common language to understand each other. The first time you use this ability after each long rest, you don't expend the Psionic Energy die. All other times you use the ability, you expend the die.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "free_use_per_long_rest": 1
             }
           },
           {
