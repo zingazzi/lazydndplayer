@@ -1237,7 +1237,20 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.spellbookEditor.Show()
 			m.message = "Managing spellbook... (Space: Prepare | a: Add | d/x: Remove | c: Cantrips | 0-9: Filter)"
 			debug.Log("=== Spellbook editor visible: %v", m.spellbookEditor.IsVisible())
-		} else if m.character.SpellBook.IsPreparedCaster {
+		} else if m.character.SpellBook.IsPreparedCaster || m.character.HasClass("Paladin") {
+			// Paladins are prepared casters (like Clerics)
+			// Check if Paladin has spellcasting (level 1+)
+			if m.character.HasClass("Paladin") && m.character.GetClassLevel("Paladin") >= 1 {
+				// Ensure spellcasting is initialized
+				if !m.character.SpellBook.IsPreparedCaster {
+					// Re-initialize spellcasting if needed
+					class := models.GetClassByName("Paladin")
+					if class != nil {
+						models.InitializeSpellcasting(m.character, class)
+						m.character.UpdateDerivedStats() // Recalculate prepared spell limit
+					}
+				}
+			}
 			debug.Log("=== OPENING SPELL PREP SELECTOR")
 			m.spellPrepSelector.Show()
 			m.message = "Managing spellbook... (Tab: Switch tabs • Space: Prepare/Add • a/d: Add/Remove cantrips)"
@@ -3064,21 +3077,29 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
-			// Check for weapon mastery
-			masteryCount := m.getWeaponMasteryCount()
-			debug.Log("After cantrips, checking weapon mastery: count=%d", masteryCount)
-
-			if masteryCount > 0 {
-				// Show weapon mastery selector
-				debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
-				m.weaponMasterySelector.Show(masteryCount)
-				m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+			// Check if this was Blessed Warrior cantrip selection
+			if m.character.FightingStyle == "Blessed Warrior" && len(selectedCantrips) == 2 {
+				// Blessed Warrior cantrip selection complete
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Blessed Warrior complete! Selected %d cantrips. Class setup complete.", len(selectedCantrips))
 			} else {
-			// Complete class selection
-			debug.Log("Saving character and completing class selection")
-			m.pendingChanges.Clear() // Clear backup on successful completion
-			m.storage.Save(m.character)
-			m.message = fmt.Sprintf("Class selection complete! Selected %d cantrips", len(selectedCantrips))
+				// Check for weapon mastery
+				masteryCount := m.getWeaponMasteryCount()
+				debug.Log("After cantrips, checking weapon mastery: count=%d", masteryCount)
+
+				if masteryCount > 0 {
+					// Show weapon mastery selector
+					debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+					m.weaponMasterySelector.Show(masteryCount)
+					m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+				} else {
+					// Complete class selection
+					debug.Log("Saving character and completing class selection")
+					m.pendingChanges.Clear() // Clear backup on successful completion
+					m.storage.Save(m.character)
+					m.message = fmt.Sprintf("Class selection complete! Selected %d cantrips", len(selectedCantrips))
+				}
 			}
 		} else {
 			needed := m.cantripSelector.GetMaxCantrips() - m.cantripSelector.GetSelectedCount()
@@ -3412,21 +3433,29 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 				// Update the choice record with fighting style
 				m.character.Choices.Class.FightingStyle = selectedStyle
 
-				// Check if character also needs weapon mastery selection
-				masteryCount := m.getWeaponMasteryCount()
-				debug.Log("After fighting style, checking weapon mastery: count=%d", masteryCount)
-
-				if masteryCount > 0 {
-					// Show weapon mastery selector
-					debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
-					m.weaponMasterySelector.Show(masteryCount)
-					m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+				// Check if Blessed Warrior was selected (needs 2 cantrips)
+				if selectedStyle == "Blessed Warrior" {
+					debug.Log("Blessed Warrior selected - showing cantrip selector for 2 cantrips")
+					m.cantripSelector.Show("Cleric", 2) // Blessed Warrior learns from cleric spell list
+					m.message = "Select 2 cantrips from the cleric spell list for Blessed Warrior..."
 					m.fightingStyleSelector.Hide()
 				} else {
-					// No weapon mastery needed, class setup complete
-				m.pendingChanges.Clear() // Clear backup on successful completion
-				m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
-					m.fightingStyleSelector.Hide()
+					// Check if character also needs weapon mastery selection
+					masteryCount := m.getWeaponMasteryCount()
+					debug.Log("After fighting style, checking weapon mastery: count=%d", masteryCount)
+
+					if masteryCount > 0 {
+						// Show weapon mastery selector
+						debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+						m.weaponMasterySelector.Show(masteryCount)
+						m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+						m.fightingStyleSelector.Hide()
+					} else {
+						// No weapon mastery needed, class setup complete
+						m.pendingChanges.Clear() // Clear backup on successful completion
+						m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
+						m.fightingStyleSelector.Hide()
+					}
 				}
 			}
 			m.storage.Save(m.character)

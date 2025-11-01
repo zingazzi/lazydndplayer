@@ -13,7 +13,7 @@ import (
 
 type SpellPrepSelector struct {
 	visible         bool
-	allClericSpells []models.Spell // All cleric spells from data file
+	allClericSpells []models.Spell // All cleric/paladin spells from data file
 	filteredSpells  []models.Spell // Filtered based on current tab
 	selectedIndex   int
 	filterLevel     int  // -1 = cantrips, 1-9 = specific level
@@ -38,7 +38,7 @@ func (sps *SpellPrepSelector) Show() {
 	sps.selectedIndex = 0
 	sps.currentTab = 0    // Start on cantrip tab
 	sps.filterLevel = -1  // Filter to cantrips
-	sps.loadClericSpells()
+	sps.loadPreparedCasterSpells()
 	sps.applyFilter()
 }
 
@@ -50,7 +50,7 @@ func (sps *SpellPrepSelector) IsVisible() bool {
 	return sps.visible
 }
 
-func (sps *SpellPrepSelector) loadClericSpells() {
+func (sps *SpellPrepSelector) loadPreparedCasterSpells() {
 	if sps.character.Class == "" {
 		sps.allClericSpells = []models.Spell{}
 		return
@@ -65,18 +65,41 @@ func (sps *SpellPrepSelector) loadClericSpells() {
 
 	sps.allClericSpells = []models.Spell{}
 
-	// Filter by Cleric class
+	// Determine which classes to filter for (Cleric, Paladin, Druid)
+	classNamesToCheck := []string{}
+	if sps.character.HasClass("Cleric") {
+		classNamesToCheck = append(classNamesToCheck, "cleric")
+	}
+	if sps.character.HasClass("Paladin") {
+		classNamesToCheck = append(classNamesToCheck, "paladin")
+	}
+	if sps.character.HasClass("Druid") {
+		classNamesToCheck = append(classNamesToCheck, "druid")
+	}
+
+	// Default to Cleric if no specific class detected
+	if len(classNamesToCheck) == 0 {
+		classNamesToCheck = []string{"cleric"}
+	}
+
+	// Filter by class(es)
 	for _, spell := range allSpells {
-		// Check if this spell is for Cleric
-		isForCleric := false
+		// Check if this spell is for any of the classes
+		isForClass := false
 		for _, spellClass := range spell.Classes {
-			if strings.ToLower(spellClass) == "cleric" {
-				isForCleric = true
+			spellClassLower := strings.ToLower(spellClass)
+			for _, checkClass := range classNamesToCheck {
+				if spellClassLower == checkClass {
+					isForClass = true
+					break
+				}
+			}
+			if isForClass {
 				break
 			}
 		}
 
-		if !isForCleric {
+		if !isForClass {
 			continue
 		}
 

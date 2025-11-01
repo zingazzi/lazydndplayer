@@ -82,6 +82,14 @@
         "unarmed_damage": "1d6 (1d8 if no weapons/shield)",
         "special": "1d4 damage to grappled creatures"
       }
+    },
+    {
+      "name": "Blessed Warrior",
+      "description": "You learn two cantrips from the cleric spell list. They count as paladin spells for you, and Charisma is your spellcasting ability for them.",
+      "requirements": [],
+      "benefits": {
+        "special": "Learn 2 cantrips from cleric spell list"
+      }
     }
   ]
 }

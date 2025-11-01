@@ -115,6 +115,12 @@ type Character struct {
 		Max     int `json:"max"`
 	} `json:"channel_divinity,omitempty"` // Channel Divinity uses for Cleric/Paladin
 
+	// Paladin Resources
+	LayOnHands struct {
+		Current int `json:"current"` // Current HP in pool
+		Max     int `json:"max"`     // Max HP (5 × paladin level)
+	} `json:"lay_on_hands,omitempty"` // Lay on Hands pool for Paladin
+
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
 
@@ -335,11 +341,33 @@ func (c *Character) UpdateDerivedStats() {
 
 	// Update features with formula-based uses (e.g., wisdom_mod, proficiency)
 	c.Features.UpdateFormulaBasedFeatures(c)
+
+	// Update Lay on Hands pool for Paladin
+	paladinLevelForLoH := c.GetClassLevel("Paladin")
+	if paladinLevelForLoH >= 1 {
+		maxPool := GetFeatureScaling("Paladin", "Lay on Hands", paladinLevelForLoH)
+		if maxPool > 0 {
+			c.LayOnHands.Max = maxPool
+			// Initialize Current if it's 0 (first time gaining feature)
+			if c.LayOnHands.Current == 0 {
+				c.LayOnHands.Current = maxPool
+			}
+			// Don't exceed max
+			if c.LayOnHands.Current > maxPool {
+				c.LayOnHands.Current = maxPool
+			}
+		}
+	} else {
+		// No Lay on Hands, reset to 0
+		c.LayOnHands.Max = 0
+		c.LayOnHands.Current = 0
+	}
 }
 
 // CalculateMaxPreparedSpells calculates the maximum number of spells that can be prepared
 func (c *Character) CalculateMaxPreparedSpells(formula string) int {
-	parts := strings.Split(strings.ToLower(formula), "+")
+	formulaLower := strings.ToLower(formula)
+	parts := strings.Split(formulaLower, "+")
 	total := 0
 
 	for _, part := range parts {
@@ -347,6 +375,12 @@ func (c *Character) CalculateMaxPreparedSpells(formula string) int {
 		switch part {
 		case "level":
 			total += c.Level
+		case "half_level", "halflevel":
+			// For half-casters like Paladin and Ranger
+			paladinLevel := c.GetClassLevel("Paladin")
+			rangerLevel := c.GetClassLevel("Ranger")
+			halfLevel := (paladinLevel + rangerLevel) / 2 // Round down
+			total += halfLevel
 		case "wisdom", "wis":
 			total += c.AbilityScores.GetModifier("Wisdom")
 		case "intelligence", "int":
@@ -892,6 +926,12 @@ func (c *Character) PerformLongRest() {
 				}
 			}
 		}
+	}
+
+	// Restore Lay on Hands pool (all HP on long rest)
+	if c.LayOnHands.Max > 0 {
+		c.LayOnHands.Current = c.LayOnHands.Max
+		debug.Log("  Restored Lay on Hands pool: %d/%d", c.LayOnHands.Current, c.LayOnHands.Max)
 	}
 
 	// Restore all spell slots

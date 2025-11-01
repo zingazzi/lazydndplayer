@@ -158,6 +158,19 @@ func (p *FeaturesPanel) buildConsumablesList() []ConsumableItem {
 		})
 	}
 
+	// Add Lay on Hands pool for Paladin
+	if p.character.LayOnHands.Max > 0 {
+		longRest = append(longRest, ConsumableItem{
+			ItemType:     "resource",
+			ResourceType: "lay_on_hands",
+			Name:         "Lay on Hands (HP Pool)",
+			Current:      p.character.LayOnHands.Current,
+			Max:          p.character.LayOnHands.Max,
+			RestType:     models.LongRest,
+			Description:  "A pool of healing power that replenishes when you take a long rest. As a bonus action, you can touch a creature and restore a number of hit points from the pool, up to the creature's maximum hit points. Pool size: 5 × paladin level.",
+		})
+	}
+
 	// Add all consumable features (MaxUses > 0)
 	// Skip features that are already represented as resources
 	for i := range p.character.Features.Features {

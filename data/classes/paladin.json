@@ -19,7 +19,9 @@
   ],
   "spellcasting": {
     "ability": "Charisma",
-    "half_caster": true
+    "ritual_casting": false,
+    "spells_known_formula": "all",
+    "preparation_formula": "charisma+half_level"
   },
   "level_progression": [
     {
@@ -34,11 +36,41 @@
         },
         {
           "name": "Lay on Hands",
-          "description": "Your blessed touch can heal wounds. You have a pool of healing power that replenishes when you take a long rest. With that pool, you can restore a total number of hit points equal to your paladin level × 5.",
+          "description": "Your blessed touch can heal wounds. You have a pool of healing power that replenishes when you take a long rest. With that pool, you can restore a total number of hit points equal to your paladin level × 5. As a bonus action, you can touch a creature and restore a number of hit points from the pool, up to the creature's maximum hit points.",
           "uses_formula": "lay_on_hands_scaling",
-          "rest_type": "Long Rest"
+          "rest_type": "Long Rest",
+          "mechanics": {
+            "type": "hp_pool",
+            "action_type": "bonus action"
+          }
+        },
+        {
+          "name": "Weapon Mastery",
+          "description": "Your training with weapons allows you to use the mastery properties of two kinds of weapons of your choice with which you have proficiency.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "type": "weapon_mastery",
+            "weapons_mastered": 2
+          }
+        },
+        {
+          "name": "Spellcasting",
+          "description": "You have learned to draw on divine magic through meditation and prayer to cast spells. You know all paladin spells available to you and prepare a number of spells equal to your Charisma modifier + half your paladin level (rounded down). Charisma is your spellcasting ability for your paladin spells. You regain all expended spell slots when you finish a long rest.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "type": "spellcasting",
+            "know_all_spells": true
+          }
         }
       ],
+      "spellcasting_info": {
+        "spells_prepared": "Half level (rounded down) + Cha mod",
+        "spell_slots": {
+          "1": 2
+        }
+      },
       "ability_score_improvement": false
     },
     {
@@ -47,21 +79,34 @@
       "features": [
         {
           "name": "Fighting Style",
-          "description": "You adopt a particular style of fighting as your specialty. Choose one fighting style option.",
+          "description": "You adopt a particular style of fighting as your specialty. Choose one fighting style option. You may choose Blessed Warrior, which allows you to learn 2 cantrips from the cleric spell list instead of the standard fighting style benefits.",
           "uses_formula": "0",
-          "rest_type": "None"
+          "rest_type": "None",
+          "mechanics": {
+            "type": "fighting_style_choice",
+            "allows_blessed_warrior": true
+          }
         },
         {
           "name": "Spellcasting",
-          "description": "By 2nd level, you have learned to draw on divine magic through meditation and prayer to cast spells. Charisma is your spellcasting ability for your paladin spells.",
+          "description": "By 2nd level, you have learned to draw on divine magic through meditation and prayer to cast spells. You know all paladin spells available to you and prepare a number of spells equal to your Charisma modifier + half your paladin level (rounded down). Charisma is your spellcasting ability for your paladin spells. You regain all expended spell slots when you finish a long rest.",
           "uses_formula": "0",
-          "rest_type": "None"
+          "rest_type": "None",
+          "mechanics": {
+            "type": "spellcasting",
+            "know_all_spells": true
+          }
         },
         {
-          "name": "Divine Smite",
-          "description": "Starting at 2nd level, when you hit a creature with a melee weapon attack, you can expend one spell slot to deal radiant damage to the target, in addition to the weapon's damage.",
-          "uses_formula": "0",
-          "rest_type": "None"
+          "name": "Paladin Smite",
+          "description": "Starting at 2nd level, you always have Divine Smite prepared (it doesn't count toward your number of prepared spells). When you hit a creature with a melee weapon attack, you can expend one spell slot to deal radiant damage to the target, in addition to the weapon's damage. Once per long rest, you can use Divine Smite without expending a spell slot.",
+          "uses_formula": "1",
+          "rest_type": "Long Rest",
+          "mechanics": {
+            "type": "paladin_smite",
+            "always_prepared": true,
+            "free_use_per_long_rest": true
+          }
         }
       ],
       "spellcasting_info": {

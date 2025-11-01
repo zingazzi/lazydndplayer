@@ -557,10 +557,11 @@ func InitializeSpellcasting(char *Character, class *Class) {
 	debug.Log("  class.Spellcasting.RitualCasting: %v", class.Spellcasting.RitualCasting)
 
 	// Check if this class gets spells at level 1
-	// Ranger and Paladin don't get spells until level 2
+	// Ranger doesn't get spells until level 2
+	// Paladin gets spells at level 1
 	currentClassLevel := char.GetClassLevel(class.Name)
-	if (class.Name == "Ranger" || class.Name == "Paladin") && currentClassLevel < 2 {
-		debug.Log("  %s does not get spells until level 2. Skipping spell initialization.", class.Name)
+	if class.Name == "Ranger" && currentClassLevel < 2 {
+		debug.Log("  Ranger does not get spells until level 2. Skipping spell initialization.")
 		return
 	}
 

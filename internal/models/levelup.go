@@ -390,6 +390,11 @@ func GrantLevelFeatures(char *Character, class *Class, level int) []string {
 
 				// Apply special benefits for certain features
 				applyFeatureBenefits(char, feature.Name, class.Name)
+
+				// Grant Divine Smite for Paladin at level 2
+				if class.Name == "Paladin" && level == 2 && feature.Name == "Paladin Smite" {
+					grantDivineSmite(char)
+				}
 			}
 			break
 		}
@@ -454,6 +459,11 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 
 					// Apply special benefits for certain subclass features
 					applySubclassFeatureBenefits(char, feature.Name, subclassName)
+
+					// Grant Divine Smite for Paladin at level 2
+					if className == "Paladin" && level == 2 && feature.Name == "Paladin Smite" {
+						grantDivineSmite(char)
+					}
 
 					// Check if feature has mechanics that require user choices
 					if featureDef.Mechanics != nil {
@@ -526,6 +536,55 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 
 	debug.Log("GrantSubclassFeatures: Granted %d subclass features", len(grantedFeatures))
 	return grantedFeatures
+}
+
+// grantDivineSmite grants Divine Smite to a paladin character, marking it as always prepared
+func grantDivineSmite(char *Character) {
+	debug.Log("grantDivineSmite: Granting Divine Smite for paladin")
+
+	// Load all spells from JSON
+	allSpells, err := LoadSpellsFromJSON("data/spells.json")
+	if err != nil {
+		debug.Log("grantDivineSmite: Error loading spells: %v", err)
+		return
+	}
+
+	// Find Divine Smite spell
+	var divineSmiteSpell *Spell
+	for i := range allSpells {
+		if allSpells[i].Name == "Divine Smite" {
+			divineSmiteSpell = &allSpells[i]
+			break
+		}
+	}
+
+	if divineSmiteSpell == nil {
+		debug.Log("grantDivineSmite: Warning - Divine Smite spell not found in spell database")
+		return
+	}
+
+	// Check if spell already exists in spellbook
+	spellExists := false
+	for i := range char.SpellBook.Spells {
+		if char.SpellBook.Spells[i].Name == "Divine Smite" {
+			// Spell exists - mark as always prepared
+			char.SpellBook.Spells[i].AlwaysPrepared = true
+			char.SpellBook.Spells[i].Prepared = true
+			spellExists = true
+			debug.Log("grantDivineSmite: Marked existing Divine Smite as always prepared")
+			break
+		}
+	}
+
+	if !spellExists {
+		// Add spell to spellbook as always prepared
+		newSpell := *divineSmiteSpell
+		newSpell.AlwaysPrepared = true
+		newSpell.Prepared = true
+		newSpell.Known = true
+		char.SpellBook.Spells = append(char.SpellBook.Spells, newSpell)
+		debug.Log("grantDivineSmite: Added Divine Smite as always prepared")
+	}
 }
 
 // grantDomainSpells grants domain spells to a cleric character, marking them as always prepared
