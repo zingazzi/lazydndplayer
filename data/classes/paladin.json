@@ -529,6 +529,109 @@
           }
         ]
       }
+    },
+    {
+      "name": "Oath of Glory",
+      "description": "The Oath of Glory calls to paladins who seek adventure to prove themselves worthy of legends. These paladins are faithful to the gods of bravery, competition, and achievement, seeking to become great heroes of legend.",
+      "subclass_level": 3,
+      "source": "Tasha's Cauldron of Everything",
+      "oath_spells": {
+        "3": ["Guiding Bolt", "Heroism"],
+        "5": ["Enhance Ability", "Magic Weapon"],
+        "9": ["Haste", "Protection from Energy"],
+        "13": ["Champion", "Freedom of Movement"],
+        "17": ["Legendary Lore", "Yolande's Regal Presence"]
+      },
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Inspiring Smite",
+            "description": "When you use Divine Smite, you can use one of your Channel Divinity to distribute temporary hit points equal to 2d8 + your paladin level, divided as you choose among any number of creatures within 30 feet of you.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "channel_divinity_effect": true,
+              "damage_formula": "2d8+paladin_level",
+              "temp_hp": true,
+              "range": "30"
+            }
+          },
+          {
+            "name": "Peerless Athlete",
+            "description": "As a bonus action, you can use your Channel Divinity to augment your athleticism. For 1 hour, you have advantage on Strength and Dexterity saving throws. In addition, you gain a bonus to your jump distance equal to 10 feet.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "action_type": "bonus action",
+              "channel_divinity_effect": true,
+              "duration": "1 hour",
+              "advantage_on_saves": ["Strength", "Dexterity"],
+              "jump_bonus": 10
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Oath of the Ancients",
+      "description": "The Oath of the Ancients is as old as the race of elves and the rituals of the druids. Sometimes called fey knights, green knights, or horned knights, paladins who swear this oath cast their lot with the side of the light in the cosmic struggle against darkness because they love the beautiful and life-giving things of the world, not necessarily because they believe in principles of honor, courage, and justice.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "oath_spells": {
+        "3": ["Ensnaring Strike", "Speak with Animals"],
+        "5": ["Misty Step", "Moonbeam"],
+        "9": ["Plant Growth", "Protection from Energy"],
+        "13": ["Ice Storm", "Stoneskin"],
+        "17": ["Commune with Nature", "True Strider"]
+      },
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Nature's Wrath",
+            "description": "You can use your Channel Divinity to invoke primeval forces to ensnare a foe. Each creature of your choice that you can see within 30 feet of you must make a Strength saving throw. On a failed save, a creature is restrained for 1 minute or until it takes damage. A creature restrained by this feature can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "action_type": "action",
+              "channel_divinity_effect": true,
+              "range": "30",
+              "saving_throw": "Strength",
+              "effect": "restrained",
+              "duration": "1 minute"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Oath of Vengeance",
+      "description": "The Oath of Vengeance is a solemn commitment to punish those who have committed a grievous sin. When evil forces slaughter helpless villagers, when an entire people turns against the will of the gods, when a thief robs the church of a holy relic, these paladins seek to set things right, even if doing so requires bringing great wrath down upon the wrongdoers.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "oath_spells": {
+        "3": ["Bane", "Hunter's Mark"],
+        "5": ["Hold Person", "Misty Step"],
+        "9": ["Haste", "Protection from Energy"],
+        "13": ["Banishment", "Dimension Door"],
+        "17": ["Hold Monster", "Scrying"]
+      },
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Vow of Enmity",
+            "description": "As a bonus action, you can utter a vow of enmity against a creature you can see within 10 feet of you, using your Channel Divinity. You gain advantage on attack rolls against the creature for 1 minute or until it drops to 0 hit points or falls unconscious.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "action_type": "bonus action",
+              "channel_divinity_effect": true,
+              "range": "10",
+              "duration": "1 minute",
+              "effect": "advantage_on_attacks"
+            }
+          }
+        ]
+      }
     }
   ]
 }

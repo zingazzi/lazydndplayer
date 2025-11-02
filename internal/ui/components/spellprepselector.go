@@ -90,7 +90,7 @@ func (sps *SpellPrepSelector) loadPreparedCasterSpells() {
 			spellClassLower := strings.ToLower(spellClass)
 			for _, checkClass := range classNamesToCheck {
 				if spellClassLower == checkClass {
-					isForClass = true
+				isForClass = true
 					break
 				}
 			}
@@ -133,6 +133,26 @@ func (sps *SpellPrepSelector) applyFilter() {
 }
 
 func (sps *SpellPrepSelector) getMaxSpellLevel() int {
+	// For half-casters like Paladin, use half-level (rounded down)
+	paladinLevel := sps.character.GetClassLevel("Paladin")
+	if paladinLevel > 0 {
+		// Half-caster progression: level/2 rounded down
+		halfLevel := paladinLevel / 2
+		if halfLevel >= 9 {
+			return 5
+		} else if halfLevel >= 7 {
+			return 4
+		} else if halfLevel >= 5 {
+			return 3
+		} else if halfLevel >= 3 {
+			return 2
+		} else if halfLevel >= 1 {
+			return 1
+		}
+		return 0
+	}
+
+	// Full casters use full level progression
 	level := sps.character.Level
 	if level >= 17 {
 		return 9
@@ -360,7 +380,7 @@ func (sps *SpellPrepSelector) TogglePrepared() {
 		}
 	}
 
-	if spellIndex >= 0 {
+		if spellIndex >= 0 {
 		// Spell exists in spellbook - toggle prepared
 		// Don't allow toggling if spell is always prepared (domain spell)
 		if sps.character.SpellBook.Spells[spellIndex].AlwaysPrepared {
@@ -375,9 +395,9 @@ func (sps *SpellPrepSelector) TogglePrepared() {
 			return // Can't prepare more
 		}
 
-		selectedSpell.Prepared = true
+			selectedSpell.Prepared = true
 		selectedSpell.Known = true
-		sps.character.SpellBook.Spells = append(sps.character.SpellBook.Spells, selectedSpell)
+			sps.character.SpellBook.Spells = append(sps.character.SpellBook.Spells, selectedSpell)
 	}
 }
 
@@ -590,7 +610,7 @@ func (sps *SpellPrepSelector) View() string {
 					} else if sps.IsSpellPrepared(spell.Name) {
 						prefix = "✓ "
 						if i != sps.selectedIndex {
-							style = preparedStyle
+					style = preparedStyle
 						}
 					} else {
 						prefix = "● "
@@ -664,7 +684,7 @@ func (sps *SpellPrepSelector) View() string {
 		rightLines = append(rightLines, "")
 		wrappedDesc := wrapSpellbookText(spell.Description, rightWidth-4)
 		for _, line := range wrappedDesc {
-			rightLines = append(rightLines, normalStyle.Render(line))
+				rightLines = append(rightLines, normalStyle.Render(line))
 		}
 
 		// Components

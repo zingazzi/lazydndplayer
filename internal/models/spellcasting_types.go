@@ -131,8 +131,8 @@ func GetClassCasterInfo(className string) *ClassSpellcastingInfo {
 			SpellcastingAbility: Charisma,
 			RitualCasting:       false,
 			PreparedSpellsByLevel: map[int]int{
-				1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 6, 7: 7, 8: 7, 9: 8, 10: 8,
-				11: 10, 12: 10, 13: 11, 14: 11, 15: 12, 16: 12, 17: 14, 18: 14, 19: 15, 20: 15,
+				1: 2, 2: 3, 3: 3, 4: 4, 5: 5, 6: 5, 7: 6, 8: 6, 9: 7, 10: 7,
+				11: 9, 12: 9, 13: 10, 14: 10, 15: 11, 16: 11, 17: 13, 18: 13, 19: 14, 20: 14,
 			},
 		},
 		"Ranger": {

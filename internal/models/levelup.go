@@ -1246,14 +1246,22 @@ func UpdateSpellcasting(char *Character, class *Class, classLevel int) {
 		debug.Log("Total cantrips known (multiclass): %d", totalCantrips)
 	}
 
-	// Update spell slots based on MULTICLASS calculation
-	// This automatically handles:
-	// - Full casters: level 1:1 (Bard, Cleric, Druid, Sorcerer, Wizard)
-	// - Half casters: level/2 (Paladin, Ranger)
-	// - Third casters: level/3 (Eldritch Knight, Arcane Trickster)
-	// - Excludes Warlock Pact Magic
-	char.SpellBook.Slots = CalculateMulticlassSpellSlots(char.Classes)
-	debug.Log("Multiclass spell slots calculated for total level %d", char.TotalLevel)
+	// For single-class characters, use class-specific spell slots from JSON
+	// For multiclass characters, use multiclass calculation
+	if len(char.Classes) == 1 {
+		// Single class - load slots from JSON file (respects class-specific progression)
+		LoadSpellSlotsForLevel(char, class, classLevel)
+		debug.Log("Single-class %s level %d: loaded spell slots from JSON", class.Name, classLevel)
+	} else {
+		// Multiclass - use multiclass calculation
+		// This automatically handles:
+		// - Full casters: level 1:1 (Bard, Cleric, Druid, Sorcerer, Wizard)
+		// - Half casters: level/2 (Paladin, Ranger)
+		// - Third casters: level/3 (Eldritch Knight, Arcane Trickster)
+		// - Excludes Warlock Pact Magic
+		char.SpellBook.Slots = CalculateMulticlassSpellSlots(char.Classes)
+		debug.Log("Multiclass spell slots calculated for total level %d", char.TotalLevel)
+	}
 
 	// Warlock Pact Magic handled separately - doesn't combine!
 	warlockLevel := char.GetClassLevel("Warlock")
