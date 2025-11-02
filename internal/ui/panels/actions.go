@@ -70,6 +70,17 @@ type ClericReaction struct {
 	FeatureName  string // Name of the feature this reaction comes from
 }
 
+// PaladinAction represents a Paladin-specific action (Channel Divinity effects)
+type PaladinAction struct {
+	Name         string
+	Description  string
+	ActionType   string // "action" or "bonus action"
+	Cost         string // e.g., "Channel Divinity"
+	CurrentUses  int
+	MaxUses      int
+	FeatureName  string // Name of the feature
+}
+
 // ActionsPanel displays character actions
 type ActionsPanel struct {
 	character          *models.Character
@@ -87,6 +98,8 @@ type ActionsPanel struct {
 	barbarianBonusActions []BarbarianBonusAction // Barbarian bonus actions
 	rogueBonusActions     []RogueBonusAction     // Rogue bonus actions
 	clericReactions       []ClericReaction       // Cleric reactions
+	paladinActions        []PaladinAction        // Paladin actions (Channel Divinity)
+	paladinBonusActions   []PaladinAction        // Paladin bonus actions (Channel Divinity)
 	totalItemCount        int                    // Total number of items (attacks + spells + actions)
 }
 
@@ -330,6 +343,37 @@ func (p *ActionsPanel) View(width, height int) string {
 		}
 	}
 
+	// Build Paladin actions and bonus actions (Channel Divinity effects)
+	p.paladinActions = []PaladinAction{}
+	p.paladinBonusActions = []PaladinAction{}
+	if char.GetClassLevel("Paladin") > 0 {
+		for _, feature := range char.Features.Features {
+			if feature.Mechanics != nil {
+				if channelDivinity, ok := feature.Mechanics["channel_divinity_effect"].(bool); ok && channelDivinity {
+					actionType, _ := feature.Mechanics["action_type"].(string)
+					costStr := "Channel Divinity"
+					if char.ChannelDivinity.Current > 0 {
+						costStr = fmt.Sprintf("Channel Divinity (%d/%d)", char.ChannelDivinity.Current, char.ChannelDivinity.Max)
+					}
+					paladinAction := PaladinAction{
+						Name:         feature.Name,
+						Description:  feature.Description,
+						ActionType:   actionType,
+						Cost:         costStr,
+						CurrentUses:  char.ChannelDivinity.Current,
+						MaxUses:      char.ChannelDivinity.Max,
+						FeatureName:  feature.Name,
+					}
+					if actionType == "bonus action" {
+						p.paladinBonusActions = append(p.paladinBonusActions, paladinAction)
+					} else if actionType == "action" {
+						p.paladinActions = append(p.paladinActions, paladinAction)
+					}
+				}
+			}
+		}
+	}
+
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("205")).
@@ -392,6 +436,31 @@ func (p *ActionsPanel) View(width, height int) string {
 			lines = append(lines, sneakAttackStyle.Render("  "+line))
 		}
 		idx++
+	}
+
+	// Show Paladin actions (Channel Divinity effects)
+	paladinActionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("220")) // Gold/Yellow for Paladin actions
+
+	if len(p.paladinActions) > 0 {
+		for _, action := range p.paladinActions {
+			costStr := lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render(fmt.Sprintf(" [%s]", action.Cost))
+			var line string
+			if action.CurrentUses == 0 {
+				line = fmt.Sprintf("%-20s%s", action.Name, costStr)
+				lines = append(lines, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render("  "+line+" (No Channel Divinity uses left)"))
+			} else {
+				line = fmt.Sprintf("%-20s%s", action.Name, costStr)
+				if idx == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render("▶ "+line))
+				} else {
+					lines = append(lines, paladinActionStyle.Render("  "+line))
+				}
+			}
+			idx++
+		}
 	}
 
 	// Show action spells
@@ -553,6 +622,28 @@ func (p *ActionsPanel) View(width, height int) string {
 		idx++
 	}
 
+	// Show Paladin bonus actions (Channel Divinity effects)
+	if len(p.paladinBonusActions) > 0 {
+		for _, action := range p.paladinBonusActions {
+			costStr := lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render(fmt.Sprintf(" [%s]", action.Cost))
+			var line string
+			if action.CurrentUses == 0 {
+				line = fmt.Sprintf("%-20s%s", action.Name, costStr)
+				lines = append(lines, lipgloss.NewStyle().
+					Foreground(lipgloss.Color("240")).
+					Render("  "+line+" (No Channel Divinity uses left)"))
+			} else {
+				line = fmt.Sprintf("%-20s%s", action.Name, costStr)
+				if idx == p.selectedIndex {
+					lines = append(lines, selectedStyle.Render("▶ "+line))
+				} else {
+					lines = append(lines, paladinActionStyle.Render("  "+line))
+				}
+			}
+			idx++
+		}
+	}
+
 	// Bonus action spells
 	if len(p.bonusSpells) > 0 {
 	for _, spell := range p.bonusSpells {
@@ -580,7 +671,7 @@ func (p *ActionsPanel) View(width, height int) string {
 	}
 
 	// Show "no bonus actions" only if there are no class actions and no spells
-	if len(p.fighterBonusActions) == 0 && len(p.monkBonusActions) == 0 && len(p.barbarianBonusActions) == 0 && len(p.rogueBonusActions) == 0 && len(p.bonusSpells) == 0 {
+	if len(p.fighterBonusActions) == 0 && len(p.monkBonusActions) == 0 && len(p.barbarianBonusActions) == 0 && len(p.rogueBonusActions) == 0 && len(p.paladinBonusActions) == 0 && len(p.bonusSpells) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true).

@@ -425,6 +425,7 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 			SubclassLevel    int                 `json:"subclass_level"`
 			FeaturesByLevel  map[string][]FeatureDefinition `json:"features_by_level"`
 			DomainSpells     map[string][]string `json:"domain_spells,omitempty"`
+			OathSpells       map[string][]string `json:"oath_spells,omitempty"`
 		} `json:"subclasses"`
 	}
 
@@ -443,6 +444,13 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 				// Get current cleric level to determine which domain spells to grant
 				clericLevel := char.GetClassLevel("Cleric")
 				grantDomainSpells(char, subclass.DomainSpells, clericLevel)
+			}
+
+			// Grant oath spells if applicable (Paladin subclasses)
+			if className == "Paladin" && subclass.OathSpells != nil {
+				// Get current paladin level to determine which oath spells to grant
+				paladinLevel := char.GetClassLevel("Paladin")
+				grantOathSpells(char, subclass.OathSpells, paladinLevel)
 			}
 
 			// Grant features for the specified level
@@ -650,6 +658,74 @@ func grantDomainSpells(char *Character, domainSpells map[string][]string, cleric
 				newSpell.Known = true // All cleric spells are known
 				char.SpellBook.Spells = append(char.SpellBook.Spells, newSpell)
 				debug.Log("grantDomainSpells: Added domain spell '%s' as always prepared", spellName)
+			}
+		}
+	}
+}
+
+// grantOathSpells grants oath spells to a paladin character, marking them as always prepared
+func grantOathSpells(char *Character, oathSpells map[string][]string, paladinLevel int) {
+	debug.Log("grantOathSpells: Granting oath spells for paladin level %d", paladinLevel)
+
+	// Load all spells from JSON
+	allSpells, err := LoadSpellsFromJSON("data/spells.json")
+	if err != nil {
+		debug.Log("grantOathSpells: Error loading spells: %v", err)
+		return
+	}
+
+	// Iterate through oath spells by paladin level
+	// Oath spells are granted at paladin levels 3, 5, 9, 13, 17
+	levelsToGrant := []int{3, 5, 9, 13, 17}
+	for _, grantLevel := range levelsToGrant {
+		if paladinLevel < grantLevel {
+			continue // Don't grant spells for levels not reached yet
+		}
+
+		levelKey := fmt.Sprintf("%d", grantLevel)
+		spellNames, ok := oathSpells[levelKey]
+		if !ok {
+			continue
+		}
+
+		debug.Log("grantOathSpells: Granting oath spells for paladin level %d: %v", grantLevel, spellNames)
+
+		for _, spellName := range spellNames {
+			// Find the spell in the allSpells list
+			var foundSpell *Spell
+			for i := range allSpells {
+				if allSpells[i].Name == spellName {
+					foundSpell = &allSpells[i]
+					break
+				}
+			}
+
+			if foundSpell == nil {
+				debug.Log("grantOathSpells: Warning - spell '%s' not found in spell database", spellName)
+				continue
+			}
+
+			// Check if spell already exists in spellbook
+			spellExists := false
+			for i := range char.SpellBook.Spells {
+				if char.SpellBook.Spells[i].Name == spellName {
+					// Spell exists - mark as always prepared
+					char.SpellBook.Spells[i].AlwaysPrepared = true
+					char.SpellBook.Spells[i].Prepared = true
+					spellExists = true
+					debug.Log("grantOathSpells: Marked existing spell '%s' as always prepared", spellName)
+					break
+				}
+			}
+
+			if !spellExists {
+				// Add spell to spellbook as always prepared
+				newSpell := *foundSpell
+				newSpell.AlwaysPrepared = true
+				newSpell.Prepared = true
+				newSpell.Known = true // All paladin spells are known
+				char.SpellBook.Spells = append(char.SpellBook.Spells, newSpell)
+				debug.Log("grantOathSpells: Added oath spell '%s' as always prepared", spellName)
 			}
 		}
 	}

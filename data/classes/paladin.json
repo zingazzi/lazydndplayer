@@ -29,9 +29,14 @@
       "features": [
         {
           "name": "Divine Sense",
-          "description": "The presence of strong evil registers on your senses like a noxious odor, and powerful good rings like heavenly music in your ears. You can detect the location of any celestial, fiend, or undead within 60 feet. You can use this feature a number of times equal to 1 + your Charisma modifier.",
-          "uses_formula": "charisma_mod",
-          "rest_type": "Long Rest"
+          "description": "As a bonus action, you can expend one use of your Channel Divinity to know for 10 minutes the position of all creatures within 60 feet of you.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "action_type": "bonus action",
+            "channel_divinity_effect": true,
+            "duration": "10 minutes"
+          }
         },
         {
           "name": "Lay on Hands",
@@ -135,9 +140,13 @@
         },
         {
           "name": "Channel Divinity",
-          "description": "Your oath allows you to channel divine energy to fuel magical effects. You start with two effects determined by your oath.",
-          "uses_formula": "1",
-          "rest_type": "Short Rest"
+          "description": "Your oath allows you to channel divine energy to fuel magical effects. You have 2 uses at 3rd level, increasing to 3 uses at 11th level. You regain 1 expended use when you finish a short rest, and all expended uses when you finish a long rest. You start with effects determined by your oath.",
+          "uses_formula": "channel_divinity_scaling",
+          "rest_type": "Long Rest",
+          "mechanics": {
+            "regain_one_on_short_rest": true,
+            "regain_all_on_long_rest": true
+          }
         }
       ],
       "spellcasting_info": {
@@ -486,8 +495,8 @@
       "subclass_level": 3,
       "source": "Player's Handbook",
       "oath_spells": {
-        "3": ["Protection from Evil and Good", "Sanctuary"],
-        "5": ["Lesser Restoration", "Zone of Truth"],
+        "3": ["Protection from Evil and Good", "Shield of Faith"],
+        "5": ["Aid", "Zone of Truth"],
         "9": ["Beacon of Hope", "Dispel Magic"],
         "13": ["Freedom of Movement", "Guardian of Faith"],
         "17": ["Commune", "Flame Strike"]
@@ -496,15 +505,27 @@
         "3": [
           {
             "name": "Sacred Weapon",
-            "description": "As an action, you can imbue one weapon that you are holding with positive energy, using your Channel Divinity. For 1 minute, you add your Charisma modifier to attack rolls made with that weapon (minimum bonus of +1). The weapon also emits bright light in a 20-foot radius and dim light 20 feet beyond that. If the weapon is not already magical, it becomes magical for the duration.",
+            "description": "As an action, you can imbue one weapon that you are holding with positive energy, using your Channel Divinity. For 1 minute, you add your Charisma modifier to attack rolls made with that weapon (minimum bonus of +1). You can choose whether the weapon deals its normal damage type or radiant damage. The weapon produces dim light in a 20-foot radius. If the weapon is not already magical, it becomes magical for the duration.",
             "uses_formula": "0",
-            "rest_type": "None"
+            "rest_type": "None",
+            "mechanics": {
+              "action_type": "action",
+              "channel_divinity_effect": true,
+              "duration": "1 minute",
+              "adds_charisma_to_attack": true,
+              "damage_type_choice": ["normal", "radiant"],
+              "dim_light_radius": 20
+            }
           },
           {
             "name": "Turn the Unholy",
             "description": "As an action, you present your holy symbol and speak a prayer censuring fiends and undead, using your Channel Divinity. Each fiend or undead that can see or hear you within 30 feet of you must make a Wisdom saving throw. If the creature fails its saving throw, it is turned for 1 minute or until it takes damage.",
             "uses_formula": "0",
-            "rest_type": "None"
+            "rest_type": "None",
+            "mechanics": {
+              "action_type": "action",
+              "channel_divinity_effect": true
+            }
           }
         ]
       }
