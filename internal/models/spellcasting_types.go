@@ -36,7 +36,8 @@ type ClassSpellcastingInfo struct {
 	CantripsKnownByLevel map[int]int // level -> cantrips known
 	SpellsKnownByLevel   map[int]int // level -> spells known
 	// For prepared casters
-	PreparationFormula string // e.g., "wisdom+level"
+	PreparationFormula    string         // e.g., "wisdom+level"
+	PreparedSpellsByLevel map[int]int    // level -> fixed number of prepared spells (overrides formula)
 }
 
 // GetClassCasterInfo returns spellcasting info for a class
@@ -129,7 +130,10 @@ func GetClassCasterInfo(className string) *ClassSpellcastingInfo {
 			Method:              PreparedCaster,
 			SpellcastingAbility: Charisma,
 			RitualCasting:       false,
-			PreparationFormula:  "charisma+(level/2)",
+			PreparedSpellsByLevel: map[int]int{
+				1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 6, 7: 7, 8: 7, 9: 8, 10: 8,
+				11: 10, 12: 10, 13: 11, 14: 11, 15: 12, 16: 12, 17: 14, 18: 14, 19: 15, 20: 15,
+			},
 		},
 		"Ranger": {
 			ClassName:           "Ranger",

@@ -1217,7 +1217,13 @@ func UpdateSpellcasting(char *Character, class *Class, classLevel int) {
 	// Update prepared spells limit for prepared casters
 	if casterInfo.Method == PreparedCaster {
 		char.SpellBook.IsPreparedCaster = true
-		char.SpellBook.PreparationFormula = casterInfo.PreparationFormula
+		// Use fixed table if available (Paladin), otherwise use formula
+		if len(casterInfo.PreparedSpellsByLevel) > 0 {
+			// Fixed table system (Paladin)
+			char.SpellBook.PreparationFormula = "" // Clear formula
+		} else {
+			char.SpellBook.PreparationFormula = casterInfo.PreparationFormula
+		}
 		// Max prepared will be calculated in UpdateDerivedStats
 	}
 }

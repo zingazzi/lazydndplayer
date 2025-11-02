@@ -273,8 +273,20 @@ func (c *Character) UpdateDerivedStats() {
 		c.SpellBook.SpellAttackBonus = c.ProficiencyBonus + mod
 
 		// Update max prepared spells if prepared caster
-		if c.SpellBook.IsPreparedCaster && c.SpellBook.PreparationFormula != "" {
-			c.SpellBook.MaxPreparedSpells = c.CalculateMaxPreparedSpells(c.SpellBook.PreparationFormula)
+		if c.SpellBook.IsPreparedCaster {
+			// Check if Paladin (uses fixed table)
+			if c.HasClass("Paladin") {
+				casterInfo := GetClassCasterInfo("Paladin")
+				if casterInfo != nil && len(casterInfo.PreparedSpellsByLevel) > 0 {
+					paladinLevel := c.GetClassLevel("Paladin")
+					if maxPrepared, ok := casterInfo.PreparedSpellsByLevel[paladinLevel]; ok {
+						c.SpellBook.MaxPreparedSpells = maxPrepared
+					}
+				}
+			} else if c.SpellBook.PreparationFormula != "" {
+				// Use formula for other classes
+				c.SpellBook.MaxPreparedSpells = c.CalculateMaxPreparedSpells(c.SpellBook.PreparationFormula)
+			}
 		}
 	}
 

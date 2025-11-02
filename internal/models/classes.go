@@ -596,8 +596,17 @@ func InitializeSpellcasting(char *Character, class *Class) {
 
 	// Calculate max prepared spells if this is a prepared caster
 	if char.SpellBook.IsPreparedCaster {
-		if class.Spellcasting.PreparationFormula != "" {
-			// Store the formula so it can be recalculated when stats change
+		casterInfo := GetClassCasterInfo(class.Name)
+		if casterInfo != nil && len(casterInfo.PreparedSpellsByLevel) > 0 {
+			// Use fixed table if available (Paladin)
+			paladinLevel := char.GetClassLevel("Paladin")
+			if maxPrepared, ok := casterInfo.PreparedSpellsByLevel[paladinLevel]; ok {
+				char.SpellBook.MaxPreparedSpells = maxPrepared
+				char.SpellBook.PreparationFormula = "" // Clear formula since we're using fixed table
+				debug.Log("  MaxPreparedSpells: %d (fixed table for level %d)", maxPrepared, paladinLevel)
+			}
+		} else if class.Spellcasting.PreparationFormula != "" {
+			// Use formula if no fixed table
 			char.SpellBook.PreparationFormula = class.Spellcasting.PreparationFormula
 			maxPrepared := char.CalculateMaxPreparedSpells(class.Spellcasting.PreparationFormula)
 			char.SpellBook.MaxPreparedSpells = maxPrepared
