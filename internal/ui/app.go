@@ -12,7 +12,10 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 	"github.com/marcozingoni/lazydndplayer/internal/storage"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/components"
+	"github.com/marcozingoni/lazydndplayer/internal/ui/handlers"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/panels"
+	"github.com/marcozingoni/lazydndplayer/internal/ui/state"
+	"github.com/marcozingoni/lazydndplayer/internal/ui/view"
 )
 
 // PanelType represents the current active main panel
@@ -125,6 +128,10 @@ type Model struct {
 	characterStatsPanel *panels.CharacterStatsPanel
 	actionsPanel        *panels.ActionsPanel // Bottom panel for quick actions
 
+	// Component Management
+	componentManager *ComponentManager
+	stateMachine     *state.StateMachine
+
 	// State
 	currentPanel       PanelType
 	focusArea          FocusArea
@@ -133,6 +140,8 @@ type Model struct {
 	ready              bool
 	message            string
 	quitting           bool
+	// Legacy state fields (will be replaced by StateMachine in Phase 2)
+	// Keeping for now to maintain compatibility
 	pendingFeat        *models.Feat   // Temporarily store feat while choosing ability
 	pendingOrigin      *models.Origin // Temporarily store origin while choosing ability
 	pendingDivineOrder string         // Temporarily store divine order choice ("Protector" or "Thaumaturgic")
@@ -158,54 +167,151 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		char.InitializeHitDice(classMap)
 	}
 
+	// Create component manager and state machine
+	componentManager := NewComponentManager()
+	stateMachine := state.NewStateMachine()
+
+	// Create components
+	tabs := components.NewTabs()
+	help := components.NewHelp()
+	speciesSelector := components.NewSpeciesSelector()
+	subtypeSelector := components.NewSubtypeSelector()
+	languageSelector := components.NewLanguageSelector()
+	skillSelector := components.NewSkillSelector()
+	spellSelector := components.NewSpellSelector()
+	featSelector := components.NewFeatSelector()
+	featDetailPopup := components.NewFeatDetailPopup()
+	featureDetailPopup := components.NewFeatureDetailPopup()
+	itemDetailPopup := components.NewItemDetailPopup()
+	masteryDetailPopup := components.NewMasteryDetailPopup()
+	maneuverDetailPopup := components.NewManeuverDetailPopup()
+	consumableDetailPopup := components.NewConsumableDetailPopup()
+	spellDetailPopup := components.NewSpellDetailPopup()
+	originSelector := components.NewOriginSelector()
+	alignmentSelector := components.NewAlignmentSelector()
+	traitSelector := components.NewTraitSelector()
+	backstoryEditor := components.NewBackstoryEditor()
+	originDetailPopup := components.NewOriginDetailPopup()
+	inputPopup := components.NewInputPopup()
+	toolSelector := components.NewToolSelector()
+	itemSelector := components.NewItemSelector()
+	classSelector := components.NewClassSelector(char)
+	classSkillSelector := components.NewClassSkillSelector()
+	subclassSelector := components.NewSubclassSelector(char)
+	fightingStyleSelector := components.NewFightingStyleSelector()
+	cantripSelector := components.NewCantripSelector(char)
+	leveledSpellSelector := components.NewLeveledSpellSelector(char)
+	schoolSpellSelector := components.NewSchoolSpellSelector(char)
+	spellbookEditor := components.NewSpellbookEditor(char)
+	spellPrepSelector := components.NewSpellPrepSelector(char)
+	slotRestorer := components.NewSlotRestorer(char)
+	statGenerator := components.NewStatGenerator()
+	abilityRoller := components.NewAbilityRoller()
+	abilityChoiceSelector := components.NewAbilityChoiceSelector()
+	attackRoller := components.NewAttackRoller()
+	attackMenu := components.NewAttackMenu()
+	weaponMasterySelector := components.NewWeaponMasterySelector(char)
+	expertiseSelector := components.NewExpertiseSelector(char)
+	maneuverSelector := components.NewManeuverSelector()
+	levelUpSelector := components.NewLevelUpSelector(char)
+	deLevelSelector := components.NewDeLevelSelector(char)
+	restPopup := components.NewRestPopup(char, models.NewStandardDiceRoller())
+	messagePopup := components.NewMessagePopup()
+
+	// Register components with priorities (higher number = higher priority)
+	// Highest priority components first
+	componentManager.Register(statGenerator, 100, "statGenerator")
+	componentManager.Register(abilityRoller, 99, "abilityRoller")
+	componentManager.Register(attackRoller, 98, "attackRoller")
+	componentManager.Register(messagePopup, 97, "messagePopup")
+	componentManager.Register(spellSelector, 96, "spellSelector")
+	componentManager.Register(featSelector, 95, "featSelector")
+	componentManager.Register(featDetailPopup, 94, "featDetailPopup")
+	componentManager.Register(masteryDetailPopup, 93, "masteryDetailPopup")
+	componentManager.Register(maneuverDetailPopup, 92, "maneuverDetailPopup")
+	componentManager.Register(consumableDetailPopup, 91, "consumableDetailPopup")
+	componentManager.Register(featureDetailPopup, 90, "featureDetailPopup")
+	componentManager.Register(itemDetailPopup, 89, "itemDetailPopup")
+	componentManager.Register(spellDetailPopup, 88, "spellDetailPopup")
+	componentManager.Register(originSelector, 87, "originSelector")
+	componentManager.Register(alignmentSelector, 86, "alignmentSelector")
+	componentManager.Register(traitSelector, 85, "traitSelector")
+	componentManager.Register(backstoryEditor, 84, "backstoryEditor")
+	componentManager.Register(originDetailPopup, 83, "originDetailPopup")
+	componentManager.Register(inputPopup, 82, "inputPopup")
+	componentManager.Register(abilityChoiceSelector, 81, "abilityChoiceSelector")
+	componentManager.Register(subtypeSelector, 80, "subtypeSelector")
+	componentManager.Register(skillSelector, 79, "skillSelector")
+	componentManager.Register(languageSelector, 78, "languageSelector")
+	componentManager.Register(toolSelector, 77, "toolSelector")
+	componentManager.Register(weaponMasterySelector, 76, "weaponMasterySelector")
+	componentManager.Register(expertiseSelector, 75, "expertiseSelector")
+	componentManager.Register(maneuverSelector, 74, "maneuverSelector")
+	componentManager.Register(levelUpSelector, 73, "levelUpSelector")
+	componentManager.Register(deLevelSelector, 72, "deLevelSelector")
+	componentManager.Register(itemSelector, 71, "itemSelector")
+	componentManager.Register(fightingStyleSelector, 70, "fightingStyleSelector")
+	componentManager.Register(cantripSelector, 69, "cantripSelector")
+	componentManager.Register(leveledSpellSelector, 68, "leveledSpellSelector")
+	componentManager.Register(schoolSpellSelector, 67, "schoolSpellSelector")
+	componentManager.Register(spellbookEditor, 66, "spellbookEditor")
+	componentManager.Register(spellPrepSelector, 65, "spellPrepSelector")
+	componentManager.Register(slotRestorer, 64, "slotRestorer")
+	componentManager.Register(classSkillSelector, 63, "classSkillSelector")
+	componentManager.Register(subclassSelector, 62, "subclassSelector")
+	componentManager.Register(classSelector, 61, "classSelector")
+	componentManager.Register(speciesSelector, 60, "speciesSelector")
+	componentManager.Register(restPopup, 59, "restPopup")
+	componentManager.Register(attackMenu, 58, "attackMenu")
+
 	return &Model{
 		character:           char,
 		storage:             store,
-		tabs:                components.NewTabs(),
-		help:                components.NewHelp(),
-		speciesSelector:     components.NewSpeciesSelector(),
-		subtypeSelector:     components.NewSubtypeSelector(),
-		languageSelector:    components.NewLanguageSelector(),
-		skillSelector:       components.NewSkillSelector(),
-		spellSelector:       components.NewSpellSelector(),
-		featSelector:          components.NewFeatSelector(),
-		featDetailPopup:       components.NewFeatDetailPopup(),
-		featureDetailPopup:    components.NewFeatureDetailPopup(),
-		itemDetailPopup:       components.NewItemDetailPopup(),
-		masteryDetailPopup:    components.NewMasteryDetailPopup(),
-		maneuverDetailPopup:   components.NewManeuverDetailPopup(),
-		consumableDetailPopup: components.NewConsumableDetailPopup(),
-		spellDetailPopup:      components.NewSpellDetailPopup(),
-		originSelector:        components.NewOriginSelector(),
-		alignmentSelector:     components.NewAlignmentSelector(),
-		traitSelector:         components.NewTraitSelector(),
-		backstoryEditor:       components.NewBackstoryEditor(),
-		originDetailPopup:     components.NewOriginDetailPopup(),
-		inputPopup:            components.NewInputPopup(),
-		toolSelector:          components.NewToolSelector(),
-		itemSelector:           components.NewItemSelector(),
-		classSelector:          components.NewClassSelector(char),
-		classSkillSelector:     components.NewClassSkillSelector(),
-		subclassSelector:       components.NewSubclassSelector(char),
-		fightingStyleSelector:  components.NewFightingStyleSelector(),
-		cantripSelector:        components.NewCantripSelector(char),
-		leveledSpellSelector:   components.NewLeveledSpellSelector(char),
-		schoolSpellSelector:    components.NewSchoolSpellSelector(char),
-		spellbookEditor:        components.NewSpellbookEditor(char),
-		spellPrepSelector:      components.NewSpellPrepSelector(char),
-		slotRestorer:           components.NewSlotRestorer(char),
-		statGenerator:          components.NewStatGenerator(),
-		abilityRoller:         components.NewAbilityRoller(),
-		abilityChoiceSelector: components.NewAbilityChoiceSelector(),
-		attackRoller:          components.NewAttackRoller(),
-		attackMenu:            components.NewAttackMenu(),
-		weaponMasterySelector: components.NewWeaponMasterySelector(char),
-		expertiseSelector:     components.NewExpertiseSelector(char),
-		maneuverSelector:      components.NewManeuverSelector(),
-		levelUpSelector:       components.NewLevelUpSelector(char),
-		deLevelSelector:       components.NewDeLevelSelector(char),
-		restPopup:             components.NewRestPopup(char, models.NewStandardDiceRoller()),
-		messagePopup:          components.NewMessagePopup(),
+		tabs:                tabs,
+		help:                help,
+		speciesSelector:     speciesSelector,
+		subtypeSelector:     subtypeSelector,
+		languageSelector:    languageSelector,
+		skillSelector:       skillSelector,
+		spellSelector:       spellSelector,
+		featSelector:          featSelector,
+		featDetailPopup:       featDetailPopup,
+		featureDetailPopup:    featureDetailPopup,
+		itemDetailPopup:       itemDetailPopup,
+		masteryDetailPopup:    masteryDetailPopup,
+		maneuverDetailPopup:   maneuverDetailPopup,
+		consumableDetailPopup: consumableDetailPopup,
+		spellDetailPopup:      spellDetailPopup,
+		originSelector:        originSelector,
+		alignmentSelector:     alignmentSelector,
+		traitSelector:         traitSelector,
+		backstoryEditor:       backstoryEditor,
+		originDetailPopup:     originDetailPopup,
+		inputPopup:            inputPopup,
+		toolSelector:          toolSelector,
+		itemSelector:           itemSelector,
+		classSelector:          classSelector,
+		classSkillSelector:     classSkillSelector,
+		subclassSelector:       subclassSelector,
+		fightingStyleSelector:  fightingStyleSelector,
+		cantripSelector:        cantripSelector,
+		leveledSpellSelector:   leveledSpellSelector,
+		schoolSpellSelector:    schoolSpellSelector,
+		spellbookEditor:        spellbookEditor,
+		spellPrepSelector:      spellPrepSelector,
+		slotRestorer:           slotRestorer,
+		statGenerator:          statGenerator,
+		abilityRoller:         abilityRoller,
+		abilityChoiceSelector: abilityChoiceSelector,
+		attackRoller:          attackRoller,
+		attackMenu:            attackMenu,
+		weaponMasterySelector: weaponMasterySelector,
+		expertiseSelector:     expertiseSelector,
+		maneuverSelector:      maneuverSelector,
+		levelUpSelector:       levelUpSelector,
+		deLevelSelector:       deLevelSelector,
+		restPopup:             restPopup,
+		messagePopup:          messagePopup,
 		statsPanel:            panels.NewStatsPanel(char),
 		skillsPanel:           panels.NewSkillsPanel(char),
 		inventoryPanel:        panels.NewInventoryPanel(char),
@@ -216,6 +322,8 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		dicePanel:           panels.NewDicePanel(char),
 		characterStatsPanel: panels.NewCharacterStatsPanel(char),
 		actionsPanel:        panels.NewActionsPanel(char),
+		componentManager:    componentManager,
+		stateMachine:        stateMachine,
 		currentPanel:        StatsPanel,
 		focusArea:           FocusMain,
 		pendingChanges:      models.NewPendingChanges(),
@@ -336,37 +444,51 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Check if feat detail popup is active
 		if m.featDetailPopup.IsVisible() {
-			return m.handleFeatDetailPopupKeys(msg)
+			if handlers.HandleFeatDetailPopupKeys(msg, m.featDetailPopup, &m.message) {
+				return m, nil
+			}
 		}
 
 		// Check if mastery detail popup is active
 		if m.masteryDetailPopup.IsVisible() {
-			return m.handleMasteryDetailPopupKeys(msg)
+			if handlers.HandleMasteryDetailPopupKeys(msg, m.masteryDetailPopup, &m.message) {
+				return m, nil
+			}
 		}
 
 		// Check if maneuver detail popup is active
 		if m.maneuverDetailPopup.IsVisible() {
-			return m.handleManeuverDetailPopupKeys(msg)
+			if handlers.HandleManeuverDetailPopupKeys(msg, m.maneuverDetailPopup, &m.message) {
+				return m, nil
+			}
 		}
 
 		// Check if consumable detail popup is active
 		if m.consumableDetailPopup.IsVisible() {
-			return m.handleConsumableDetailPopupKeys(msg)
+			if handlers.HandleConsumableDetailPopupKeys(msg, m.consumableDetailPopup, &m.message) {
+				return m, nil
+			}
 		}
 
 		// Check if feature detail popup is active
 		if m.featureDetailPopup.IsVisible() {
-			return m.handleFeatureDetailPopupKeys(msg)
+			if handlers.HandleFeatureDetailPopupKeys(msg, m.featureDetailPopup, &m.message) {
+				return m, nil
+			}
 		}
 
 		// Check if item detail popup is active
 		if m.itemDetailPopup.IsVisible() {
-			return m.handleItemDetailPopupKeys(msg)
+			if handlers.HandleItemDetailPopupKeys(msg, m.itemDetailPopup, &m.message) {
+				return m, nil
+			}
 		}
 
 		// Check if spell detail popup is active
 		if m.spellDetailPopup.IsVisible() {
-			return m.handleSpellDetailPopupKeys(msg)
+			if handlers.HandleSpellDetailPopupKeys(msg, m.spellDetailPopup, &m.message) {
+				return m, nil
+			}
 		}
 
 		// Check if origin selector is active
@@ -381,7 +503,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Check if origin detail popup is active
 		if m.originDetailPopup.IsVisible() {
-			return m.handleOriginDetailPopupKeys(msg)
+			if handlers.HandleOriginDetailPopupKeys(msg, m.originDetailPopup, &m.message) {
+				return m, nil
+			}
 		}
 
 		// Check if input popup is active
@@ -3798,70 +3922,8 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleFeatDetailPopupKeys handles keyboard input for the feat detail popup
-func (m *Model) handleFeatDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
-		m.featDetailPopup.Hide()
-		m.message = "Closed feat details"
-	}
-	return m, nil
-}
-
-func (m *Model) handleMasteryDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter":
-		m.masteryDetailPopup.Hide()
-		m.message = "Closed weapon mastery details"
-	}
-	return m, nil
-}
-
-func (m *Model) handleManeuverDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter":
-		m.maneuverDetailPopup.Hide()
-		m.message = "Closed maneuver details"
-	}
-	return m, nil
-}
-
-func (m *Model) handleConsumableDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter":
-		m.consumableDetailPopup.Hide()
-		m.message = ""
-	}
-	return m, nil
-}
-
-func (m *Model) handleFeatureDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter":
-		m.featureDetailPopup.Hide()
-		m.message = ""
-	}
-	return m, nil
-}
-
-func (m *Model) handleItemDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter":
-		m.itemDetailPopup.Hide()
-		m.message = "Closed item details"
-	}
-	return m, nil
-}
-
-// handleSpellDetailPopupKeys handles keyboard input for the spell detail popup
-func (m *Model) handleSpellDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter":
-		m.spellDetailPopup.Hide()
-		m.message = "Closed spell details"
-	}
-	return m, nil
-}
+// Detail popup handlers have been moved to handlers package
+// See handlers/detail_popup_handler.go
 
 // handleOriginSelectorKeys handles keyboard input for the origin selector
 func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -4121,42 +4183,24 @@ func (m *Model) View() string {
 		return m.help.ViewWithContext(m.width, m.height, panelName, contextBindings)
 	}
 
-	// Calculate heights to fit exactly within screen
-	// Distribution: Line 1 (45%), Line 2 (45%), Status bar (4%), Gaps (6%)
-	statusBarHeight := int(float64(m.height) * 0.04)
-	if statusBarHeight < 1 {
-		statusBarHeight = 1
-	}
+	// Calculate layout dimensions
+	layoutCalc := view.NewLayoutCalculator()
+	layout := layoutCalc.CalculateLayout(m.width, m.height)
 
-	// First row: Main panel (55%) + Character stats (43%)
-	mainPanelWidth := int(float64(m.width) * 0.55)
-	charStatsWidth := int(float64(m.width) * 0.43)
-
-	// Calculate panel heights: top row 48%, bottom row 42%
-	topRowHeight := int(float64(m.height) * 0.48)
-	bottomHeight := int(float64(m.height) * 0.42)
-
-	// Ensure minimum heights
-	if topRowHeight < 10 {
-		topRowHeight = 10
-	}
-	if bottomHeight < 8 {
-		bottomHeight = 8
-	}
-
-	// Tab navigation (width accounts for border and padding)
-	tabBarWidth := mainPanelWidth - 8 // Account for border (2) + horizontal padding (4)
+	// Tab navigation
+	tabBarWidth := layout.MainPanelWidth - 8 // Account for border (2) + horizontal padding (4)
 	tabBar := m.tabs.View(tabBarWidth)
 	tabHeight := lipgloss.Height(tabBar)
 
-	// Main content height accounts for tabs and spacing, to fill the full topRowHeight
-	// topRowHeight includes border and padding in the final render
-	mainContentHeight := topRowHeight - tabHeight - 5 // border (2) + padding vertical (2) + spacing line (1)
+	// Main content height accounts for tabs and spacing
+	mainContentHeight := layout.TopRowHeight - tabHeight - 5 // border (2) + padding vertical (2) + spacing line (1)
+	if mainContentHeight < 5 {
+		mainContentHeight = 5
+	}
 
-	// Main panel content
+	// Main panel content (without tabs - tabs will be combined in RenderMainView)
+	mainWidth := layout.MainPanelWidth - 8 // Account for border + padding
 	var mainPanelView string
-	mainWidth := mainPanelWidth - 8 // Account for border + padding (2 for border, 4 for padding)
-
 	switch m.currentPanel {
 	case StatsPanel:
 		mainPanelView = m.statsPanel.View(mainWidth, mainContentHeight)
@@ -4174,361 +4218,93 @@ func (m *Model) View() string {
 		mainPanelView = m.originPanel.View(mainWidth, mainContentHeight)
 	}
 
-	// Combine tabs and content vertically (tabs inside the panel)
-	tabsAndContent := lipgloss.JoinVertical(
-		lipgloss.Left,
-		tabBar,
-		"", // Add a line of spacing
-		mainPanelView,
-	)
+	// Character stats view
+	charStatsView := m.characterStatsPanel.View(layout.CharStatsInnerWidth, layout.CharStatsInnerHeight)
 
-	// Add border to combined tabs + main panel (focused = pink, unfocused = gray)
-	// Set explicit height and width to fill space properly
-	mainPanelStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(1, 2). // Match skills/inventory padding
-		Width(mainPanelWidth).
-		Height(topRowHeight)
-
-	if m.focusArea == FocusMain {
-		mainPanelStyle = mainPanelStyle.BorderForeground(lipgloss.Color("205"))
-	} else {
-		mainPanelStyle = mainPanelStyle.BorderForeground(lipgloss.Color("240"))
-	}
-
-	mainPanelWithTabs := mainPanelStyle.Render(tabsAndContent)
-
-	// Character stats panel (always visible, 45% of width)
-	// Height should match the main panel exactly
-	charStatsInnerWidth := charStatsWidth - 8 // Account for border + padding (2 for border, 4 for padding)
-	charStatsInnerHeight := topRowHeight - 6 // Account for border (2) + vertical padding (4)
-	charStatsView := m.characterStatsPanel.View(charStatsInnerWidth, charStatsInnerHeight)
-	charStatsPanelStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(1, 2). // Match skills/inventory padding
-		Width(charStatsWidth).
-		Height(topRowHeight)
-
-	if m.focusArea == FocusCharStats {
-		charStatsPanelStyle = charStatsPanelStyle.BorderForeground(lipgloss.Color("205"))
-	} else {
-		charStatsPanelStyle = charStatsPanelStyle.BorderForeground(lipgloss.Color("86"))
-	}
-	charStatsWithBorder := charStatsPanelStyle.Render(charStatsView)
-
-	// Join main panel (with tabs) and character stats horizontally
-	topRow := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		mainPanelWithTabs,
-		charStatsWithBorder,
-	)
-
-	// Bottom panels: Actions (50%) + Dice Roller (48%)
-	actionsWidthRatio := int(float64(m.width) * 0.50)
-	diceWidthRatio := int(float64(m.width) * 0.48)
-
-	// Calculate inner dimensions: account for border + padding (2 for border, 4 for padding)
-	actionsWidth := actionsWidthRatio - 8
-	diceWidth := diceWidthRatio - 8
-	bottomInnerHeight := bottomHeight - 6 // Account for border (2) + vertical padding (4)
-
-	// Actions panel with border (focused = pink, unfocused = gray)
-	actionsView := m.actionsPanel.View(actionsWidth, bottomInnerHeight)
-	actionsPanelStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(1, 2). // Match skills/inventory padding
-		Width(actionsWidthRatio). // Set explicit width to fill space
-		Height(bottomHeight) // Enforce 45% height
-
-	if m.focusArea == FocusActions {
-		actionsPanelStyle = actionsPanelStyle.BorderForeground(lipgloss.Color("205"))
-	} else {
-		actionsPanelStyle = actionsPanelStyle.BorderForeground(lipgloss.Color("240"))
-	}
-	actionsView = actionsPanelStyle.Render(actionsView)
-
-	// Dice panel with border (focused = pink, unfocused = gray)
-	diceView := m.dicePanel.View(diceWidth, bottomInnerHeight)
-	dicePanelStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(1, 2). // Match skills/inventory padding
-		Width(diceWidthRatio). // Set explicit width to fill space
-		Height(bottomHeight) // Enforce 45% height
-
-	if m.focusArea == FocusDice {
-		dicePanelStyle = dicePanelStyle.BorderForeground(lipgloss.Color("205"))
-	} else {
-		dicePanelStyle = dicePanelStyle.BorderForeground(lipgloss.Color("240"))
-	}
-	diceView = dicePanelStyle.Render(diceView)
-
-	// Bottom row (actions + dice)
-	bottomRow := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		actionsView,
-		diceView,
-	)
+	// Actions and dice views
+	actionsView := m.actionsPanel.View(layout.ActionsWidth, layout.BottomInnerHeight)
+	diceView := m.dicePanel.View(layout.DiceWidth, layout.BottomInnerHeight)
 
 	// Status bar
 	statusBar := m.buildStatusBar()
 
-	// Combine all parts vertically
-	mainView := lipgloss.JoinVertical(
-		lipgloss.Left,
-		topRow,
-		bottomRow,
+	// Render main view using view package (it will combine tabs and content)
+	mainView := view.RenderMainView(
+		m.width, m.height,
+		int(m.focusArea),
+		layout,
+		tabBar,
+		mainPanelView,
+		charStatsView,
+		actionsView,
+		diceView,
 		statusBar,
 	)
 
-	// Render popups/overlays (in priority order)
-	// Calculate popup dimensions based on size category
+	// Render popups using PopupRenderer
+	popupRenderer := view.NewPopupRenderer(m.character, m.width, m.height, layout)
+	popupView := popupRenderer.RenderPopups(
+		m.statGenerator,
+		m.abilityRoller,
+		m.attackRoller,
+		m.spellSelector,
+		m.featSelector,
+		m.featDetailPopup,
+		m.masteryDetailPopup,
+		m.maneuverDetailPopup,
+		m.consumableDetailPopup,
+		m.featureDetailPopup,
+		m.itemDetailPopup,
+		m.spellDetailPopup,
+		m.originSelector,
+		m.alignmentSelector,
+		m.traitSelector,
+		m.backstoryEditor,
+		m.originDetailPopup,
+		m.inputPopup,
+		m.abilityChoiceSelector,
+		m.subtypeSelector,
+		m.skillSelector,
+		m.languageSelector,
+		m.toolSelector,
+		m.weaponMasterySelector,
+		m.expertiseSelector,
+		m.maneuverSelector,
+		m.levelUpSelector,
+		m.deLevelSelector,
+		m.itemSelector,
+		m.fightingStyleSelector,
+		m.cantripSelector,
+		m.leveledSpellSelector,
+		m.schoolSpellSelector,
+		m.spellbookEditor,
+		m.spellPrepSelector,
+		m.slotRestorer,
+		m.classSkillSelector,
+		m.subclassSelector,
+		m.classSelector,
+		m.speciesSelector,
+		m.messagePopup,
+		m.restPopup,
+		m.attackMenu,
+		m.divineOrderSelectorVisible,
+		func() string { return m.renderDivineOrderSelector() },
+	)
 
-	// Small popup dimensions (50% width, 60% height)
-	popupSmallWidth := max(int(float64(m.width)*PopupSmallWidthPercent), PopupSmallMinWidth)
-	popupSmallHeight := max(int(float64(m.height)*PopupSmallHeightPercent), PopupSmallMinHeight)
-
-	// Medium popup dimensions (75% width, 80% height)
-	popupMediumWidth := max(int(float64(m.width)*PopupMediumWidthPercent), PopupMediumMinWidth)
-	popupMediumHeight := max(int(float64(m.height)*PopupMediumHeightPercent), PopupMediumMinHeight)
-
-	// Large popup dimensions (85% width, 85% height)
-	popupLargeWidth := max(int(float64(m.width)*PopupLargeWidthPercent), PopupLargeMinWidth)
-	popupLargeHeight := max(int(float64(m.height)*PopupLargeHeightPercent), PopupLargeMinHeight)
-
-	// Stat generator takes highest priority (Medium)
-	if m.statGenerator.IsVisible() {
-		return m.statGenerator.View(popupMediumWidth, popupMediumHeight)
+	// If popup is visible, return it; otherwise return main view
+	if popupView != "" {
+		return popupView
 	}
 
-	// Ability roller takes high priority (Small)
-	if m.abilityRoller.IsVisible() {
-		return m.abilityRoller.View(popupSmallWidth, popupSmallHeight, m.character)
-	}
-
-	// Attack roller takes high priority (Medium)
-	if m.attackRoller.IsVisible() {
-		return m.attackRoller.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// Attack menu should show AFTER checking all full-screen popups
-	// but BEFORE returning mainView
-
-	// Spell selector takes high priority (Large)
-	if m.spellSelector.IsVisible() {
-		return m.spellSelector.View(popupLargeWidth, popupLargeHeight)
-	}
-
-	// Feat selector takes second priority (Medium)
-	if m.featSelector.IsVisible() {
-		return m.featSelector.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// Feat detail popup (Medium)
-	if m.featDetailPopup.IsVisible() {
-		return m.featDetailPopup.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// Mastery detail popup (Medium)
-	if m.masteryDetailPopup.IsVisible() {
-		return m.masteryDetailPopup.View(m.width, m.height)
-	}
-
-	// Maneuver detail popup (Medium)
-	if m.maneuverDetailPopup.IsVisible() {
-		return m.maneuverDetailPopup.View(m.width, m.height)
-	}
-
-	// Consumable detail popup (Medium)
-	if m.consumableDetailPopup.IsVisible() {
-		return m.consumableDetailPopup.View(m.width, m.height)
-	}
-
-	// Feature detail popup (Medium)
-	if m.featureDetailPopup.IsVisible() {
-		return m.featureDetailPopup.View(m.width, m.height)
-	}
-
-	// Item detail popup (Medium)
-	if m.itemDetailPopup.IsVisible() {
-		return m.itemDetailPopup.View(m.width, m.height)
-	}
-
-	// Spell detail popup (Medium)
-	if m.spellDetailPopup.IsVisible() {
-		return m.spellDetailPopup.View()
-	}
-
-	// Origin selector (Medium)
-	if m.originSelector.IsVisible() {
-		return m.originSelector.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// Alignment selector (takes full screen)
-	if m.alignmentSelector.IsVisible() {
-		return m.alignmentSelector.View(m.width, m.height)
-	}
-
-	// Trait selector (Medium)
-	if m.traitSelector.IsVisible() {
-		return m.traitSelector.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// Backstory editor (takes full screen)
-	if m.backstoryEditor.IsVisible() {
-		return m.backstoryEditor.View(m.width, m.height)
-	}
-
-	// Origin detail popup (Medium)
-	if m.originDetailPopup.IsVisible() {
-		return m.originDetailPopup.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// Input popup (Small)
-	if m.inputPopup.IsVisible() {
-		return m.inputPopup.View(popupSmallWidth, popupSmallHeight)
-	}
-
-	// Ability choice selector (for feat ability choices) (Small)
-	if m.abilityChoiceSelector.IsVisible() {
-		return m.abilityChoiceSelector.View(popupSmallWidth, popupSmallHeight)
-	}
-
-	// Subtype selector takes third priority (Small)
-	if m.subtypeSelector.IsVisible() {
-		return m.subtypeSelector.View(popupSmallWidth, popupSmallHeight)
-	}
-
-	// Skill selector takes fourth priority (Small)
-	if m.skillSelector.IsVisible() {
-		return m.skillSelector.View(popupSmallWidth, popupSmallHeight)
-	}
-
-	// Language selector takes third priority (Small)
-	if m.languageSelector.IsVisible() {
-		return m.languageSelector.View(popupSmallWidth, popupSmallHeight)
-	}
-
-	// Tool selector takes fourth priority (Small)
-	if m.toolSelector.IsVisible() {
-		return m.toolSelector.View(popupSmallWidth, popupSmallHeight)
-	}
-
-	// Weapon mastery selector takes fifth priority (Medium)
-	if m.weaponMasterySelector.IsVisible() {
-		return m.weaponMasterySelector.View()
-	}
-
-	// Expertise selector (Medium)
-	if m.expertiseSelector.IsVisible() {
-		return m.expertiseSelector.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// Maneuver selector (Medium)
-	if m.maneuverSelector.IsVisible() {
-		return m.maneuverSelector.View()
-	}
-
-	// Level-up selector takes sixth priority (Medium/Large)
-	if m.levelUpSelector.IsVisible() {
-		return m.levelUpSelector.View()
-	}
-
-	// De-level selector takes priority after level-up (Medium)
-	if m.deLevelSelector.IsVisible() {
-		return m.deLevelSelector.View(m.width, m.height)
-	}
-
-	// Item selector takes seventh priority (Large)
-	if m.itemSelector.IsVisible() {
-		return m.itemSelector.View(popupLargeWidth, popupLargeHeight)
-	}
-
-	// Fighting style selector takes sixth priority (Medium)
-	if m.fightingStyleSelector.IsVisible() {
-		return m.fightingStyleSelector.View(m.width, m.height)
-	}
-
-	// Cantrip selector takes seventh priority (Medium)
-	if m.cantripSelector.IsVisible() {
-		return m.cantripSelector.View()
-	}
-
-	// Message popup takes highest priority (shown after selections complete)
-	if m.messagePopup.IsVisible() {
-		return m.messagePopup.View(m.width, m.height)
-	}
-
-	// Leveled spell selector takes priority
-	if m.leveledSpellSelector.IsVisible() {
-		return m.leveledSpellSelector.View(m.width, m.height)
-	}
-
-	// School spell selector takes priority
-	if m.schoolSpellSelector.IsVisible() {
-		return m.schoolSpellSelector.View(m.width, m.height)
-	}
-
-	// Spellbook editor takes priority
-	if m.spellbookEditor.IsVisible() {
-		return m.spellbookEditor.View(m.width, m.height)
-	}
-
-	// Spell prep selector takes eighth priority (Medium)
-	if m.spellPrepSelector.IsVisible() {
-		return m.spellPrepSelector.View()
-	}
-
-	// Slot restorer takes ninth priority (Small)
-	if m.slotRestorer.IsVisible() {
-		return m.slotRestorer.View()
-	}
-
-	// Class skill selector takes tenth priority (Medium)
-	if m.classSkillSelector.IsVisible() {
-		return m.classSkillSelector.View(m.width, m.height)
-	}
-
-	// Subclass selector takes priority after skills (Medium)
-	if m.subclassSelector.IsVisible() {
-		return m.subclassSelector.View()
-	}
-
-	// Divine Order selector (for Cleric level 1) - show as popup (Medium)
-	if m.divineOrderSelectorVisible {
-		return m.renderDivineOrderSelector()
-	}
-
-	// Class selector takes seventh priority (Medium)
-	if m.classSelector.IsVisible() {
-		return m.classSelector.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// Species selector takes seventh priority (Medium)
-	if m.speciesSelector.IsVisible() {
-		return m.speciesSelector.View(popupMediumWidth, popupMediumHeight)
-	}
-
-	// HP popup overlay if active (Small)
-	hpPopup := m.characterStatsPanel.RenderHPPopup(popupSmallWidth, popupSmallHeight)
+	// Check for HP/XP popups from character stats panel
+	hpPopup := m.characterStatsPanel.RenderHPPopup(layout.PopupSmallWidth, layout.PopupSmallHeight)
 	if hpPopup != "" {
 		return hpPopup
 	}
 
-	// XP popup overlay if active (Small)
-	xpPopup := m.characterStatsPanel.RenderXPPopup(popupSmallWidth, popupSmallHeight)
+	xpPopup := m.characterStatsPanel.RenderXPPopup(layout.PopupSmallWidth, layout.PopupSmallHeight)
 	if xpPopup != "" {
 		return xpPopup
-	}
-
-	// Rest popup overlay if active
-	if m.restPopup.IsVisible() {
-		return m.restPopup.View()
-	}
-
-	// Attack menu takes priority (shows as centered overlay)
-	// Note: This will hide the TUI underneath for simplicity
-	if m.attackMenu.IsVisible() {
-		return m.attackMenu.View(m.width, m.height)
 	}
 
 	return mainView
@@ -4708,14 +4484,7 @@ func (m *Model) handleBackstoryEditorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleOriginDetailPopupKeys handles origin detail popup input
-func (m *Model) handleOriginDetailPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc", "enter":
-		m.originDetailPopup.Hide()
-		m.message = ""
-	}
-	return m, nil
-}
+// handleOriginDetailPopupKeys moved to handlers package
 
 // handleInputPopupKeys handles input popup input
 func (m *Model) handleInputPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
