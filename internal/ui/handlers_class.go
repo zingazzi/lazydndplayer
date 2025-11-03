@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
@@ -512,4 +513,71 @@ func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 		m.message = "Divine Order selection cancelled - restored previous state"
 	}
 	return m, cmd
+}
+
+// renderDivineOrderSelector renders the Divine Order selection popup (Cleric-specific)
+func (m *Model) renderDivineOrderSelector() string {
+	popupMediumWidth := int(float64(m.width) * 0.60)
+	popupMediumHeight := int(float64(m.height) * 0.50)
+	if popupMediumWidth < 70 {
+		popupMediumWidth = 70
+	}
+	if popupMediumHeight < 20 {
+		popupMediumHeight = 20
+	}
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("205")).
+		Align(lipgloss.Center).
+		MarginBottom(1)
+
+	optionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		MarginBottom(1)
+
+	highlightStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205")).
+		Bold(true)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true).
+		Align(lipgloss.Center).
+		MarginTop(1)
+
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("205")).
+		Padding(2, 4).
+		Width(popupMediumWidth - 8).
+		Align(lipgloss.Center)
+
+	var optionsText string
+	if m.pendingDivineOrder == "Thaumaturgic" {
+		// Show skill selection for Thaumaturgic
+		optionsText = optionStyle.Render("Choose skill for Thaumaturgic:") + "\n\n" +
+			highlightStyle.Render("[a]") + " Arcana\n" +
+			highlightStyle.Render("[r]") + " Religion\n\n" +
+			hintStyle.Render("Press 'a' for Arcana or 'r' for Religion")
+	} else {
+		// Show Divine Order selection
+		optionsText = titleStyle.Render("Select Divine Order") + "\n\n" +
+			optionStyle.Render("Choose how you channel your divine faith:") + "\n\n" +
+			highlightStyle.Render("[1]") + " Protector\n" +
+			"   Proficiency with martial weapons and heavy armor\n" +
+			"   3 cantrips\n\n" +
+			highlightStyle.Render("[2]") + " Thaumaturgic\n" +
+			"   Extra cantrip (+1, for 4 total)\n" +
+			"   Expertise in Arcana or Religion (your choice)\n\n" +
+			hintStyle.Render("Press 1 for Protector or 2 for Thaumaturgic • ESC to cancel")
+	}
+
+	box := boxStyle.Render(optionsText)
+
+	return lipgloss.Place(
+		m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		box,
+	)
 }
