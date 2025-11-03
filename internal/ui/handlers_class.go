@@ -1,0 +1,515 @@
+// internal/ui/handlers_class.go
+package ui
+
+import (
+	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
+	"github.com/marcozingoni/lazydndplayer/internal/models"
+)
+
+// handleClassSelectorKeys handles class selector specific keys
+func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleClassSelectorKeys: key=%s", msg.String())
+
+	// Delegate navigation to the component's Update method
+	var cmd tea.Cmd
+	*m.classSelector, cmd = m.classSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter":
+		selectedClassName := m.classSelector.GetSelectedClass()
+		debug.Log("Class selector: enter pressed, selected=%s", selectedClassName)
+
+		if selectedClassName != "" {
+			// Get the full class data to check skill choices
+			classData := models.GetClassByName(selectedClassName)
+			debug.Log("Class data loaded: %v (nil=%v)", selectedClassName, classData == nil)
+
+			if classData == nil {
+				debug.Log("ERROR: Class %s not found!", selectedClassName)
+				m.message = fmt.Sprintf("Error: Class %s not found", selectedClassName)
+				m.classSelector.Hide()
+				return m, nil
+			}
+
+			debug.Log("Class %s: SkillChoices=%v", selectedClassName, classData.SkillChoices)
+			if classData.SkillChoices != nil {
+				debug.Log("  Choose=%d, From=%v", classData.SkillChoices.Choose, classData.SkillChoices.From)
+			}
+
+			// Check if class has skill choices
+			if classData.SkillChoices != nil && classData.SkillChoices.Choose > 0 {
+				// Show skill selector
+				debug.Log("Showing skill selector for %s", selectedClassName)
+				m.classSelector.Hide()
+				m.classSkillSelector.Show(selectedClassName, classData.SkillChoices.From, classData.SkillChoices.Choose, m.character)
+				m.message = fmt.Sprintf("Select skills for %s class...", selectedClassName)
+			} else {
+				// No skill choices, apply class directly
+				debug.Log("No skill choices, applying class directly")
+				err := models.ApplyClassToCharacter(m.character, selectedClassName)
+				if err != nil {
+					debug.Log("ERROR applying class: %v", err)
+					m.message = fmt.Sprintf("Error applying class: %v", err)
+				} else {
+					debug.Log("Class applied successfully: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
+					m.message = fmt.Sprintf("Class changed to: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
+				}
+				m.storage.Save(m.character)
+				m.classSelector.Hide()
+			}
+		}
+	case "esc":
+		debug.Log("Class selector: cancelled - restoring previous state")
+		// Restore previous class state
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
+		m.classSelector.Hide()
+		m.storage.Save(m.character) // Save restored state
+		m.message = "Class selection cancelled - restored previous state"
+	}
+
+	return m, cmd
+}
+
+// handleSubclassSelectorKeys handles subclass selector specific keys
+func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleSubclassSelectorKeys: key=%s", msg.String())
+
+	// Delegate navigation to the component's Update method
+	var cmd tea.Cmd
+	*m.subclassSelector, cmd = m.subclassSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter":
+		selectedSubclass := m.subclassSelector.GetSelectedSubclass()
+		if selectedSubclass != nil {
+			debug.Log("Subclass selected: %s", selectedSubclass.Name)
+
+			// Apply the subclass to the character's current class
+			if len(m.character.Classes) > 0 {
+				// Update the most recent class (should be the only one at level 1)
+				m.character.Classes[len(m.character.Classes)-1].Subclass = selectedSubclass.Name
+				debug.Log("Set character subclass to: %s", selectedSubclass.Name)
+
+				// Grant subclass features for the current level
+				className := m.character.Classes[len(m.character.Classes)-1].ClassName
+				classLevel := m.character.Classes[len(m.character.Classes)-1].Level
+				subclassFeatures := models.GrantSubclassFeatures(m.character, className, selectedSubclass.Name, classLevel)
+				debug.Log("Granted %d subclass features: %v", len(subclassFeatures), subclassFeatures)
+
+				m.subclassSelector.Hide()
+
+				// Handle Fighter subclass-specific prompts
+				debug.Log("Checking for Fighter subclass prompts: className='%s', subclass='%s'", className, selectedSubclass.Name)
+
+				if className == "Fighter" {
+					debug.Log("Fighter detected, checking subclass type")
+					switch selectedSubclass.Name {
+					case "Eldritch Knight":
+						// Eldritch Knight: Prompt for 2 cantrips from Wizard list
+						debug.Log("Eldritch Knight selected - prompting for cantrips")
+						m.cantripSelector.Show("Wizard", 2)
+						m.message = "Select 2 cantrips from the Wizard spell list..."
+						return m, cmd
+					case "Battle Master":
+						// Battle Master: Prompt for 3 maneuvers
+						debug.Log("Battle Master selected - prompting for maneuvers")
+						m.maneuverSelector.Show(3)
+						m.message = "Select 3 maneuvers for Battle Master..."
+						return m, cmd
+					default:
+						debug.Log("Fighter subclass '%s' doesn't require special prompts", selectedSubclass.Name)
+					}
+				}
+
+				// Handle Wizard subclass-specific prompts
+				if className == "Wizard" {
+					debug.Log("Wizard detected, checking for Savant spell selection")
+
+					// Check for Savant features that require spell selection
+					for _, feature := range m.character.Features.Features {
+						if feature.Mechanics != nil {
+							if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "spell_selection" {
+								// Get school, count, and maxLevel from mechanics
+								school, _ := feature.Mechanics["spell_school"].(string)
+								spellCount := 2 // default
+								if count, ok := feature.Mechanics["spell_count"].(float64); ok {
+									spellCount = int(count)
+								}
+								maxLevel := 2 // default
+								if level, ok := feature.Mechanics["max_spell_level"].(float64); ok {
+									maxLevel = int(level)
+								}
+
+								debug.Log("Triggering school spell selector: school=%s, count=%d, maxLevel=%d", school, spellCount, maxLevel)
+								m.schoolSpellSelector.Show(school, maxLevel, spellCount)
+								m.message = fmt.Sprintf("Select %d %s spells for your spellbook...", spellCount, school)
+								return m, cmd
+							}
+						}
+					}
+				} else {
+					debug.Log("Not a Fighter or Wizard, className='%s'", className)
+				}
+
+				// Check if we need cantrip selection next (for other spellcasters)
+				classData := models.GetClassByName(m.character.Class)
+			needsCantrips := classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0
+			debug.Log("Class %s needs cantrips: %v", m.character.Class, needsCantrips)
+
+			if needsCantrips {
+				// Show cantrip selector for the class
+				cantripCount := classData.Spellcasting.CantripsKnown
+				debug.Log("Showing cantrip selector for %s: %d cantrips", m.character.Class, cantripCount)
+				m.cantripSelector.Show(m.character.Class, cantripCount)
+				m.message = fmt.Sprintf("Select %d cantrip(s) from the %s spell list...", cantripCount, m.character.Class)
+				return m, cmd
+			}
+
+			// Check if we need weapon mastery selection
+			masteryCount := m.getWeaponMasteryCount()
+			debug.Log("After subclass, checking weapon mastery: count=%d", masteryCount)
+
+				if masteryCount > 0 {
+					// Show weapon mastery selector
+					debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+					m.weaponMasterySelector.Show(masteryCount)
+					m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+					return m, cmd
+				}
+
+				// Check if we need fighting style selection
+				if m.character.HasClass("Fighter") || m.character.HasClass("Paladin") || m.character.HasClass("Ranger") {
+					fighterLevel := m.character.GetClassLevel("Fighter")
+					paladinLevel := m.character.GetClassLevel("Paladin")
+					rangerLevel := m.character.GetClassLevel("Ranger")
+					if fighterLevel == 1 || paladinLevel == 2 || rangerLevel == 2 {
+						debug.Log("Showing fighting style selector")
+						m.fightingStyleSelector.Show(m.character.Class)
+						m.message = "Select your fighting style..."
+						return m, cmd
+					}
+				}
+
+				// Check if we need expertise selection (Rogue level 1)
+				if m.character.HasClass("Rogue") {
+					rogueLevel := m.character.GetClassLevel("Rogue")
+					if rogueLevel == 1 {
+						debug.Log("Rogue level 1 - showing expertise selector")
+						m.expertiseSelector.Show(2) // 2 skills at level 1
+						m.message = "Select 2 skills for expertise..."
+						return m, cmd
+					}
+				}
+
+				// Complete class selection
+				debug.Log("Saving character and completing class selection")
+				m.pendingChanges.Clear() // Clear backup on successful completion
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Subclass '%s' selected! Class setup complete. (HP: %d/%d)", selectedSubclass.Name, m.character.CurrentHP, m.character.MaxHP)
+			}
+		}
+	case "esc":
+		debug.Log("Subclass selector: cancelled - restoring previous state")
+		m.subclassSelector.Hide()
+		m.pendingChanges.RestoreClass(m.character)
+		m.storage.Save(m.character)
+		m.message = "Subclass selection cancelled - restored previous state"
+	}
+
+	return m, cmd
+}
+
+// handleClassSkillSelectorKeys handles class skill selector specific keys
+func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleClassSkillSelectorKeys: key=%s", msg.String())
+
+	// Delegate navigation and selection to the component's Update method
+	var cmd tea.Cmd
+	*m.classSkillSelector, cmd = m.classSkillSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case " ": // Space to toggle - provide feedback
+		debug.Log("Skill selector: selected=%d/%d", len(m.classSkillSelector.SelectedSkills), m.classSkillSelector.MaxChoices)
+	case "enter":
+		canConfirm := m.classSkillSelector.CanConfirm()
+		debug.Log("Skill selector: enter pressed, canConfirm=%v", canConfirm)
+
+		if canConfirm {
+			selectedSkills := m.classSkillSelector.GetSelectedSkills()
+			selectedClassName := m.classSkillSelector.ClassName
+			debug.Log("Applying class %s with skills: %v", selectedClassName, selectedSkills)
+
+			// Apply the class first
+			err := models.ApplyClassToCharacter(m.character, selectedClassName)
+			if err != nil {
+				debug.Log("ERROR applying class: %v", err)
+				m.message = fmt.Sprintf("Error applying class: %v", err)
+				m.classSkillSelector.Hide()
+				return m, nil
+			}
+			debug.Log("Class %s applied successfully", selectedClassName)
+
+			// Apply selected skills
+			for _, skillName := range selectedSkills {
+				skillType := models.SkillType(skillName)
+				skill := m.character.Skills.GetSkill(skillType)
+				if skill != nil && skill.Proficiency == 0 {
+					skill.Proficiency = 1 // Grant proficiency
+					debug.Log("Granted proficiency in %s", skillName)
+				}
+				// Track this skill as coming from class
+				m.character.ClassSkills = append(m.character.ClassSkills, skillType)
+				debug.Log("Tracked %s as class skill", skillName)
+			}
+
+			// Record choices for rollback
+			debug.Log("Recording class choice: %s with skills %v", selectedClassName, selectedSkills)
+			m.character.Choices.RecordClassChoice(selectedClassName, "")
+			m.character.Choices.RecordLevelChoice(1, selectedSkills, "", []string{}, "", nil)
+
+			m.classSkillSelector.Hide()
+
+			// Check if we need subclass selection
+			classData := models.GetClassByName(selectedClassName)
+			if classData != nil && classData.Subclasses != nil && len(classData.Subclasses) > 0 {
+				debug.Log("Class has subclasses, showing subclass selector")
+				m.subclassSelector.Show(selectedClassName, 1) // Level 1 subclass selection
+				m.message = fmt.Sprintf("Select %s subclass...", selectedClassName)
+				return m, cmd
+			}
+
+			// Check if we need cantrip selection
+			if classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0 {
+				cantripCount := classData.Spellcasting.CantripsKnown
+				debug.Log("Showing cantrip selector for %s: %d cantrips", selectedClassName, cantripCount)
+				m.cantripSelector.Show(selectedClassName, cantripCount) // Use class name as spell list
+				m.message = fmt.Sprintf("Select %d cantrip(s) from the %s spell list...", cantripCount, selectedClassName)
+				return m, cmd
+			}
+
+			// Check if we need weapon mastery selection
+			masteryCount := m.getWeaponMasteryCount()
+			debug.Log("After class skills, checking weapon mastery: count=%d", masteryCount)
+
+			if masteryCount > 0 {
+				// Show weapon mastery selector
+				debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+				m.weaponMasterySelector.Show(masteryCount)
+				m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+				return m, cmd
+			}
+
+			// Check if we need fighting style selection
+			if selectedClassName == "Fighter" || selectedClassName == "Paladin" || selectedClassName == "Ranger" {
+				fighterLevel := m.character.GetClassLevel("Fighter")
+				paladinLevel := m.character.GetClassLevel("Paladin")
+				rangerLevel := m.character.GetClassLevel("Ranger")
+				if fighterLevel == 1 || paladinLevel == 2 || rangerLevel == 2 {
+					debug.Log("Showing fighting style selector")
+					m.fightingStyleSelector.Show(m.character.Class)
+					m.message = "Select your fighting style..."
+					return m, cmd
+				}
+			}
+
+			// Check if we need expertise selection (Rogue level 1)
+			if selectedClassName == "Rogue" {
+				rogueLevel := m.character.GetClassLevel("Rogue")
+				if rogueLevel == 1 {
+					debug.Log("Rogue level 1 - showing expertise selector")
+					m.expertiseSelector.Show(2) // 2 skills at level 1
+					m.message = "Select 2 skills for expertise..."
+					return m, cmd
+				}
+			}
+
+			// Complete class selection
+			debug.Log("Saving character and completing class selection")
+			m.pendingChanges.Clear() // Clear backup on successful completion
+			m.storage.Save(m.character)
+			m.message = fmt.Sprintf("Class %s selected! Class setup complete. (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
+		} else {
+			selectedCount := len(m.classSkillSelector.SelectedSkills)
+			maxCount := m.classSkillSelector.MaxChoices
+			m.message = fmt.Sprintf("Please select %d skill(s) (%d/%d selected)", maxCount, selectedCount, maxCount)
+		}
+	case "esc":
+		debug.Log("Class skill selector: cancelled - restoring previous state")
+		m.classSkillSelector.Hide()
+		m.pendingChanges.RestoreClass(m.character)
+		m.storage.Save(m.character)
+		m.message = "Class selection cancelled - restored previous state"
+	}
+
+	return m, cmd
+}
+
+// handleFightingStyleSelectorKeys handles fighting style selector specific keys
+func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleFightingStyleSelectorKeys: key=%s", msg.String())
+
+	// Delegate navigation to the component's Update method
+	var cmd tea.Cmd
+	*m.fightingStyleSelector, cmd = m.fightingStyleSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter":
+		selectedStyle := m.fightingStyleSelector.GetSelectedStyle()
+		debug.Log("Fighting style selector: enter pressed, selected=%s", selectedStyle)
+
+		if selectedStyle != "" {
+			// Apply fighting style
+			err := models.ApplyFightingStyle(m.character, selectedStyle)
+			if err != nil {
+				debug.Log("ERROR applying fighting style: %v", err)
+				m.message = fmt.Sprintf("Error applying fighting style: %v", err)
+			} else {
+				debug.Log("Fighting style '%s' applied successfully", selectedStyle)
+				// Update the choice record with fighting style
+				m.character.Choices.Class.FightingStyle = selectedStyle
+
+				// Check if Blessed Warrior was selected (needs 2 cantrips)
+				if selectedStyle == "Blessed Warrior" {
+					debug.Log("Blessed Warrior selected - showing cantrip selector for 2 cantrips")
+					m.cantripSelector.Show("Cleric", 2) // Blessed Warrior learns from cleric spell list
+					m.message = "Select 2 cantrips from the cleric spell list for Blessed Warrior..."
+					m.fightingStyleSelector.Hide()
+				} else {
+					// Check if character also needs weapon mastery selection
+					masteryCount := m.getWeaponMasteryCount()
+					debug.Log("After fighting style, checking weapon mastery: count=%d", masteryCount)
+
+					if masteryCount > 0 {
+						// Show weapon mastery selector
+						debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+						m.weaponMasterySelector.Show(masteryCount)
+						m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+						m.fightingStyleSelector.Hide()
+					} else {
+						// No weapon mastery needed, class setup complete
+						m.pendingChanges.Clear() // Clear backup on successful completion
+						m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
+						m.fightingStyleSelector.Hide()
+					}
+				}
+			}
+			m.storage.Save(m.character)
+		}
+	case "esc":
+		debug.Log("Fighting style selector: cancelled")
+		m.fightingStyleSelector.Hide()
+		m.message = "Fighting style selection cancelled"
+	}
+
+	return m, cmd
+}
+
+// handleDivineOrderSelectorKeys handles keyboard input for Divine Order selection
+func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	// Allow number keys 3-7 for tab navigation to pass through
+	// Only handle keys specifically for Divine Order selection
+	switch msg.String() {
+	case "3", "4", "5", "6", "7":
+		// Tab navigation keys - always allow these to pass through
+		// (handled in main Update function's tab navigation check)
+		// Return empty to allow fall-through to tab navigation
+		return m, cmd
+	case "1":
+		// Protector selected
+		m.pendingDivineOrder = "Protector"
+		debug.Log("Divine Order selected: Protector")
+		err := models.ApplyDivineOrderBenefits(m.character, "Protector", "")
+		if err != nil {
+			m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
+			return m, cmd
+		}
+		m.divineOrderSelectorVisible = false
+		m.message = "Divine Order: Protector selected (Martial weapons + Heavy armor, 3 cantrips)"
+
+		// Check if cantrip selection is needed next
+		needsCantrips := m.character.SpellBook.CantripsKnown > 0
+		if needsCantrips {
+			debug.Log("After Divine Order, showing cantrip selector for %d cantrips", m.character.SpellBook.CantripsKnown)
+			m.cantripSelector.Show("Cleric", m.character.SpellBook.CantripsKnown)
+			m.message = fmt.Sprintf("Select %d cantrips for Cleric...", m.character.SpellBook.CantripsKnown)
+		} else {
+			m.pendingChanges.Clear()
+			m.storage.Save(m.character)
+		}
+	case "2":
+		// Thaumaturgic selected - need to choose skill first
+		m.pendingDivineOrder = "Thaumaturgic"
+		debug.Log("Divine Order selected: Thaumaturgic - prompting for skill choice")
+		m.message = "Choose skill for Thaumaturgic: [a] Arcana or [r] Religion"
+	case "a":
+		// Arcana chosen for Thaumaturgic
+		if m.pendingDivineOrder == "Thaumaturgic" {
+			m.pendingDivineOrderSkill = "Arcana"
+			debug.Log("Thaumaturgic skill selected: Arcana")
+			err := models.ApplyDivineOrderBenefits(m.character, "Thaumaturgic", "Arcana")
+			if err != nil {
+				m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
+				return m, cmd
+			}
+			m.divineOrderSelectorVisible = false
+			m.message = "Divine Order: Thaumaturgic selected (Extra cantrip + Arcana expertise)"
+
+			// Check if cantrip selection is needed next (Thaumaturgic gets +1 cantrip)
+			cantripsKnown := m.character.SpellBook.CantripsKnown
+			if cantripsKnown > 0 {
+				// Thaumaturgic gets one extra cantrip
+				cantripsKnown++
+				debug.Log("Thaumaturgic: increasing cantrips from %d to %d", m.character.SpellBook.CantripsKnown, cantripsKnown)
+				m.character.SpellBook.CantripsKnown = cantripsKnown
+				m.cantripSelector.Show("Cleric", cantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for Cleric (Thaumaturgic: +1 extra)...", cantripsKnown)
+			} else {
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+			}
+		}
+	case "r":
+		// Religion chosen for Thaumaturgic
+		if m.pendingDivineOrder == "Thaumaturgic" {
+			m.pendingDivineOrderSkill = "Religion"
+			debug.Log("Thaumaturgic skill selected: Religion")
+			err := models.ApplyDivineOrderBenefits(m.character, "Thaumaturgic", "Religion")
+			if err != nil {
+				m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
+				return m, cmd
+			}
+			m.divineOrderSelectorVisible = false
+			m.message = "Divine Order: Thaumaturgic selected (Extra cantrip + Religion expertise)"
+
+			// Check if cantrip selection is needed next (Thaumaturgic gets +1 cantrip)
+			cantripsKnown := m.character.SpellBook.CantripsKnown
+			if cantripsKnown > 0 {
+				// Thaumaturgic gets one extra cantrip
+				cantripsKnown++
+				debug.Log("Thaumaturgic: increasing cantrips from %d to %d", m.character.SpellBook.CantripsKnown, cantripsKnown)
+				m.character.SpellBook.CantripsKnown = cantripsKnown
+				m.cantripSelector.Show("Cleric", cantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for Cleric (Thaumaturgic: +1 extra)...", cantripsKnown)
+			} else {
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+			}
+		}
+	case "esc":
+		debug.Log("Divine Order selection cancelled")
+		m.divineOrderSelectorVisible = false
+		m.pendingDivineOrder = ""
+		m.pendingDivineOrderSkill = ""
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
+		m.storage.Save(m.character)
+		m.message = "Divine Order selection cancelled - restored previous state"
+	}
+	return m, cmd
+}

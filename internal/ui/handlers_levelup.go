@@ -1,0 +1,170 @@
+// internal/ui/handlers_levelup.go
+package ui
+
+import (
+	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
+)
+
+// handleLevelUpSelectorKeys handles level-up selector keys
+func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	updated, cmd := m.levelUpSelector.Update(msg)
+	m.levelUpSelector = &updated
+
+	// Save character if level-up is complete
+	if !m.levelUpSelector.IsVisible() {
+		m.storage.Save(m.character)
+		m.character.UpdateDerivedStats()
+
+		// Check if Battle Master needs maneuver selection
+		if m.levelUpSelector.NeedsManeuverSelection {
+			debug.Log("Battle Master detected - prompting for maneuver selection")
+			m.levelUpSelector.NeedsManeuverSelection = false // Clear flag
+			m.maneuverSelector.Show(3) // Battle Master starts with 3 maneuvers
+			m.message = "Select 3 maneuvers for Battle Master..."
+			return m, cmd
+		}
+
+		// Check if Eldritch Knight needs cantrip selection
+		if m.levelUpSelector.NeedsCantripSelection {
+			debug.Log("Eldritch Knight detected - prompting for cantrip selection")
+			m.levelUpSelector.NeedsCantripSelection = false // Clear flag
+			m.cantripSelector.Show("Wizard", 2) // Eldritch Knight starts with 2 cantrips
+			m.message = "Select 2 cantrips from the Wizard spell list..."
+			return m, cmd
+		}
+
+		// Check if Scholar skill selection is needed (Wizard level 2)
+		if m.character.HasClass("Wizard") {
+			wizardLevel := m.character.GetClassLevel("Wizard")
+			if wizardLevel == 2 {
+				// Check if Scholar feature exists and needs skill selection
+				for _, feature := range m.character.Features.Features {
+					if feature.Name == "Scholar" && feature.Mechanics != nil {
+						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+							if skillList, ok := feature.Mechanics["skill_list"].([]interface{}); ok {
+								skills := []string{}
+								for _, s := range skillList {
+									if skillStr, ok := s.(string); ok {
+										skills = append(skills, skillStr)
+									}
+								}
+								debug.Log("Scholar feature needs skill selection: %v", skills)
+								m.classSkillSelector.Show("Wizard", skills, 1, m.character)
+								m.message = "Select 1 skill for Scholar feature..."
+								return m, cmd
+							}
+						}
+					}
+				}
+			}
+
+			// Check if Savant spell selection is needed (Wizard level 3 with subclass)
+			if wizardLevel == 3 {
+				debug.Log("Wizard level 3 detected - checking for Savant spell selection")
+				// Check for Savant features that require spell selection
+				for _, feature := range m.character.Features.Features {
+					if feature.Mechanics != nil {
+						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "spell_selection" {
+							// Get school, count, and maxLevel from mechanics
+							school, _ := feature.Mechanics["spell_school"].(string)
+							spellCount := 2 // default
+							if count, ok := feature.Mechanics["spell_count"].(float64); ok {
+								spellCount = int(count)
+							}
+							maxLevel := 2 // default
+							if level, ok := feature.Mechanics["max_spell_level"].(float64); ok {
+								maxLevel = int(level)
+							}
+
+							debug.Log("Triggering school spell selector: school=%s, count=%d, maxLevel=%d", school, spellCount, maxLevel)
+							m.schoolSpellSelector.Show(school, maxLevel, spellCount)
+							m.message = fmt.Sprintf("Select %d %s spells for your spellbook...", spellCount, school)
+							return m, cmd
+						}
+					}
+				}
+			}
+		}
+
+		// Wizard spell learning - show message popup for levels 4+
+		if m.character.HasClass("Wizard") {
+			wizardLevel := m.character.GetClassLevel("Wizard")
+			if wizardLevel > 3 {
+				// Level 4+: Show message popup
+				maxSpellLevel := (wizardLevel + 1) / 2
+				if maxSpellLevel > 9 {
+					maxSpellLevel = 9
+				}
+				m.messagePopup.Show("Wizard Spellbook", fmt.Sprintf("Add 2 spells (up to level %d) to your spellbook.\n\nPress 'v' in the Spells panel to open your spellbook.", maxSpellLevel))
+				return m, cmd
+			} else {
+				m.message = "Character updated!"
+			}
+		} else {
+			m.message = "Character updated!"
+		}
+	}
+
+	return m, cmd
+}
+
+// handleDeLevelSelectorKeys handles de-level selector keys
+func (m *Model) handleDeLevelSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleDeLevelSelectorKeys: key=%s, showConfirm=%v", msg.String(), m.deLevelSelector.IsShowingConfirmation())
+
+	switch msg.String() {
+	case "up", "k":
+		if !m.deLevelSelector.IsShowingConfirmation() {
+			m.deLevelSelector.Prev()
+		}
+	case "down", "j":
+		if !m.deLevelSelector.IsShowingConfirmation() {
+			m.deLevelSelector.Next()
+		}
+	case "enter":
+		if m.deLevelSelector.IsShowingConfirmation() {
+			// Second enter - execute de-level (already done in ShowConfirmation)
+			m.deLevelSelector.ConfirmDeLevel()
+			m.storage.Save(m.character)
+			m.character.UpdateDerivedStats()
+
+			// Show result message
+			previewResult := m.deLevelSelector.GetPreviewResult()
+			if previewResult != nil {
+				if previewResult.ClassRemoved {
+					m.message = fmt.Sprintf("%s class removed entirely (was level %d). Total level: %d",
+						previewResult.ClassName, previewResult.OldClassLevel, previewResult.NewTotalLevel)
+				} else {
+					m.message = fmt.Sprintf("%s level reduced from %d to %d. Total level: %d",
+						previewResult.ClassName, previewResult.OldClassLevel, previewResult.NewClassLevel, previewResult.NewTotalLevel)
+				}
+			} else {
+				m.message = "De-level complete!"
+			}
+		} else {
+			// First enter - show confirmation
+			err := m.deLevelSelector.ShowConfirmation()
+			if err != nil {
+				m.message = fmt.Sprintf("Error: %v", err)
+				m.deLevelSelector.Hide()
+			} else {
+				m.message = "Confirm de-level (Enter) or cancel (Esc)"
+			}
+		}
+	case "esc":
+		if m.deLevelSelector.IsShowingConfirmation() {
+			// Cancel confirmation, go back to class list
+			m.deLevelSelector.CancelConfirmation()
+			m.message = "De-level cancelled"
+		} else {
+			// Cancel entire de-level process
+			m.deLevelSelector.Hide()
+			m.message = "De-level cancelled"
+		}
+	}
+
+	return m, nil
+}
