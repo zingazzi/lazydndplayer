@@ -219,6 +219,13 @@ func handleSkillChoices(char *Character, classData *Class, options LevelUpOption
 		return false
 	}
 
+	// Skip skill selection for multiclass (when character already has other classes)
+	// Since updateClassLevel already added the new class, len(char.Classes) > 1 means multiclass
+	if len(char.Classes) > 1 {
+		debug.Log("handleSkillChoices: Skipping skill selection for multiclass (character has %d classes)", len(char.Classes))
+		return false // No skill selection needed for multiclass
+	}
+
 	if len(options.SelectedSkills) > 0 {
 		ApplySkillChoices(char, options.SelectedSkills, options.ClassName)
 		return false
@@ -1210,6 +1217,9 @@ func applyMulticlassProficiencies(char *Character, className string) []string {
 	granted := []string{}
 	multiclassProfs := GetMulticlassProficiencies(className)
 
+	// Get class data to access tool proficiencies
+	classData := GetClassByName(className)
+
 	for _, prof := range multiclassProfs {
 		// Check armor proficiencies
 		if !contains(char.ArmorProficiencies, prof) &&
@@ -1225,6 +1235,18 @@ func applyMulticlassProficiencies(char *Character, className string) []string {
 			char.WeaponProficiencies = append(char.WeaponProficiencies, prof)
 			char.MulticlassProficiencies = append(char.MulticlassProficiencies, prof)
 			granted = append(granted, prof)
+		}
+	}
+
+	// Grant tool proficiencies from class (multiclass grants all tool proficiencies)
+	if classData != nil {
+		for _, tool := range classData.ToolProficiencies {
+			if !contains(char.ToolProficiencies, tool) {
+				char.ToolProficiencies = append(char.ToolProficiencies, tool)
+				char.MulticlassProficiencies = append(char.MulticlassProficiencies, tool)
+				granted = append(granted, tool)
+				debug.Log("Granted tool proficiency: %s from multiclass", tool)
+			}
 		}
 	}
 
