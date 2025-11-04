@@ -60,7 +60,7 @@ const (
 // Model is the main application model
 type Model struct {
 	character    *models.Character
-	storage      *storage.Storage
+	storage      StorageInterface // Use interface instead of concrete type
 
 	// UI Components
 	tabs             *components.Tabs
@@ -149,8 +149,9 @@ type Model struct {
 	inputPopupContext string // Context for what is being edited in inputPopup
 }
 
-// NewModel creates a new application model
-func NewModel(char *models.Character, store *storage.Storage) *Model {
+// NewModel creates a new application model with dependency injection
+// If factory is nil, it uses the default ComponentFactory
+func NewModel(char *models.Character, store StorageInterface, factory ComponentFactoryInterface) *Model {
 	// Initialize hit dice for the character
 	classData, err := models.LoadClassesFromJSON("data/classes")
 	if err == nil && classData != nil {
@@ -162,56 +163,61 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		char.InitializeHitDice(classMap)
 	}
 
+	// Use default factory if none provided
+	if factory == nil {
+		factory = NewComponentFactory()
+	}
+
 	// Create component manager and state machine
 	componentManager := NewComponentManager()
 	stateMachine := state.NewStateMachine()
 
-	// Create components
-	tabs := components.NewTabs()
-	help := components.NewHelp()
-	speciesSelector := components.NewSpeciesSelector()
-	subtypeSelector := components.NewSubtypeSelector()
-	languageSelector := components.NewLanguageSelector()
-	skillSelector := components.NewSkillSelector()
-	spellSelector := components.NewSpellSelector()
-	featSelector := components.NewFeatSelector()
-	featDetailPopup := components.NewFeatDetailPopup()
-	featureDetailPopup := components.NewFeatureDetailPopup()
-	itemDetailPopup := components.NewItemDetailPopup()
-	masteryDetailPopup := components.NewMasteryDetailPopup()
-	maneuverDetailPopup := components.NewManeuverDetailPopup()
-	consumableDetailPopup := components.NewConsumableDetailPopup()
-	spellDetailPopup := components.NewSpellDetailPopup()
-	originSelector := components.NewOriginSelector()
-	alignmentSelector := components.NewAlignmentSelector()
-	traitSelector := components.NewTraitSelector()
-	backstoryEditor := components.NewBackstoryEditor()
-	originDetailPopup := components.NewOriginDetailPopup()
-	inputPopup := components.NewInputPopup()
-	toolSelector := components.NewToolSelector()
-	itemSelector := components.NewItemSelector()
-	classSelector := components.NewClassSelector(char)
-	classSkillSelector := components.NewClassSkillSelector()
-	subclassSelector := components.NewSubclassSelector(char)
-	fightingStyleSelector := components.NewFightingStyleSelector()
-	cantripSelector := components.NewCantripSelector(char)
-	leveledSpellSelector := components.NewLeveledSpellSelector(char)
-	schoolSpellSelector := components.NewSchoolSpellSelector(char)
-	spellbookEditor := components.NewSpellbookEditor(char)
-	spellPrepSelector := components.NewSpellPrepSelector(char)
-	slotRestorer := components.NewSlotRestorer(char)
-	statGenerator := components.NewStatGenerator()
-	abilityRoller := components.NewAbilityRoller()
-	abilityChoiceSelector := components.NewAbilityChoiceSelector()
-	attackRoller := components.NewAttackRoller()
-	attackMenu := components.NewAttackMenu()
-	weaponMasterySelector := components.NewWeaponMasterySelector(char)
-	expertiseSelector := components.NewExpertiseSelector(char)
-	maneuverSelector := components.NewManeuverSelector()
-	levelUpSelector := components.NewLevelUpSelector(char)
-	deLevelSelector := components.NewDeLevelSelector(char)
-	restPopup := components.NewRestPopup(char, models.NewStandardDiceRoller())
-	messagePopup := components.NewMessagePopup()
+	// Create components using factory
+	tabs := factory.CreateTabs()
+	help := factory.CreateHelp()
+	speciesSelector := factory.CreateSpeciesSelector()
+	subtypeSelector := factory.CreateSubtypeSelector()
+	languageSelector := factory.CreateLanguageSelector()
+	skillSelector := factory.CreateSkillSelector()
+	spellSelector := factory.CreateSpellSelector()
+	featSelector := factory.CreateFeatSelector()
+	featDetailPopup := factory.CreateFeatDetailPopup()
+	featureDetailPopup := factory.CreateFeatureDetailPopup()
+	itemDetailPopup := factory.CreateItemDetailPopup()
+	masteryDetailPopup := factory.CreateMasteryDetailPopup()
+	maneuverDetailPopup := factory.CreateManeuverDetailPopup()
+	consumableDetailPopup := factory.CreateConsumableDetailPopup()
+	spellDetailPopup := factory.CreateSpellDetailPopup()
+	originSelector := factory.CreateOriginSelector()
+	alignmentSelector := factory.CreateAlignmentSelector()
+	traitSelector := factory.CreateTraitSelector()
+	backstoryEditor := factory.CreateBackstoryEditor()
+	originDetailPopup := factory.CreateOriginDetailPopup()
+	inputPopup := factory.CreateInputPopup()
+	toolSelector := factory.CreateToolSelector()
+	itemSelector := factory.CreateItemSelector()
+	classSelector := factory.CreateClassSelector(char)
+	classSkillSelector := factory.CreateClassSkillSelector()
+	subclassSelector := factory.CreateSubclassSelector(char)
+	fightingStyleSelector := factory.CreateFightingStyleSelector()
+	cantripSelector := factory.CreateCantripSelector(char)
+	leveledSpellSelector := factory.CreateLeveledSpellSelector(char)
+	schoolSpellSelector := factory.CreateSchoolSpellSelector(char)
+	spellbookEditor := factory.CreateSpellbookEditor(char)
+	spellPrepSelector := factory.CreateSpellPrepSelector(char)
+	slotRestorer := factory.CreateSlotRestorer(char)
+	statGenerator := factory.CreateStatGenerator()
+	abilityRoller := factory.CreateAbilityRoller()
+	abilityChoiceSelector := factory.CreateAbilityChoiceSelector()
+	attackRoller := factory.CreateAttackRoller()
+	attackMenu := factory.CreateAttackMenu()
+	weaponMasterySelector := factory.CreateWeaponMasterySelector(char)
+	expertiseSelector := factory.CreateExpertiseSelector(char)
+	maneuverSelector := factory.CreateManeuverSelector()
+	levelUpSelector := factory.CreateLevelUpSelector(char)
+	deLevelSelector := factory.CreateDeLevelSelector(char)
+	restPopup := factory.CreateRestPopup(char, models.NewStandardDiceRoller())
+	messagePopup := factory.CreateMessagePopup()
 
 	// Register components with priorities (higher number = higher priority)
 	// Highest priority components first
@@ -307,16 +313,16 @@ func NewModel(char *models.Character, store *storage.Storage) *Model {
 		deLevelSelector:       deLevelSelector,
 		restPopup:             restPopup,
 		messagePopup:          messagePopup,
-		statsPanel:            panels.NewStatsPanel(char),
-		skillsPanel:           panels.NewSkillsPanel(char),
-		inventoryPanel:        panels.NewInventoryPanel(char),
-		spellsPanel:           panels.NewSpellsPanel(char),
-		featuresPanel:         panels.NewFeaturesPanel(char),
-		traitsPanel:           panels.NewTraitsPanel(char),
-		originPanel:           panels.NewOriginPanel(char),
-		dicePanel:           panels.NewDicePanel(char),
-		characterStatsPanel: panels.NewCharacterStatsPanel(char),
-		actionsPanel:        panels.NewActionsPanel(char),
+		statsPanel:            factory.CreateStatsPanel(char),
+		skillsPanel:           factory.CreateSkillsPanel(char),
+		inventoryPanel:        factory.CreateInventoryPanel(char),
+		spellsPanel:           factory.CreateSpellsPanel(char),
+		featuresPanel:         factory.CreateFeaturesPanel(char),
+		traitsPanel:           factory.CreateTraitsPanel(char),
+		originPanel:           factory.CreateOriginPanel(char),
+		dicePanel:           factory.CreateDicePanel(char),
+		characterStatsPanel: factory.CreateCharacterStatsPanel(char),
+		actionsPanel:        factory.CreateActionsPanel(char),
 		componentManager:    componentManager,
 		stateMachine:        stateMachine,
 		currentPanel:        StatsPanel,
@@ -651,8 +657,10 @@ func (m *Model) View() string {
 
 // Run runs the application
 func Run(char *models.Character, store *storage.Storage) error {
+	// Convert concrete storage to interface (storage.Storage implements StorageInterface)
+	var storageInterface StorageInterface = store
 	p := tea.NewProgram(
-		NewModel(char, store),
+		NewModel(char, storageInterface, nil), // nil = use default factory
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)
