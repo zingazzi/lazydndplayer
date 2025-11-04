@@ -1245,6 +1245,13 @@ func (m *Model) handleStatGeneratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.statGenerator.Next()
 			}
 		case "esc":
+			// Check if in wizard mode
+			if m.IsInWizard() {
+				// In wizard, ESC cancels the entire wizard
+				m.cancelWizard()
+				return m, nil
+			}
+
 			// Cancel extra input or go back
 			if editingExtra {
 				m.statGenerator.CancelExtra()
@@ -1264,8 +1271,14 @@ func (m *Model) handleStatGeneratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if !m.statGenerator.IsVisible() {
 					// Apply stats and close
 					m.statGenerator.ApplyToCharacter(m.character)
-					m.message = "Ability scores updated!"
 					m.storage.Save(m.character)
+
+					// If in wizard mode, advance to next step
+					if m.IsInWizard() {
+						m.advanceWizardStep()
+					} else {
+						m.message = "Ability scores updated!"
+					}
 				}
 			} else {
 				m.message = "Please assign all stats before continuing"

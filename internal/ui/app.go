@@ -432,6 +432,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.message = "Focus: Dice Roller"
 			}
 			return m, nil
+
+		// Character Creation Wizard - Shift+W
+		case "W":
+			// Only allow wizard if character has no class
+			if len(m.character.Classes) == 0 && m.character.Class == "" {
+				m.startWizard()
+			} else {
+				m.message = "Wizard only works for new characters (no class selected)"
+			}
+			return m, nil
 		}
 
 		// Handle special components that need processing before normal routing

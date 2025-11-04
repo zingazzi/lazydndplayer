@@ -290,6 +290,61 @@ func (c *Character) UpdateDerivedStats() {
 		}
 	}
 
+	// Update HP if character has a class (Constitution modifier affects HP)
+	debug.Log("UpdateDerivedStats: Checking HP recalculation - Classes count=%d, Class='%s'", len(c.Classes), c.Class)
+	if len(c.Classes) > 0 {
+		// Use the first class in the Classes array (primary class)
+		// Note: c.Class might be a display string like "Barbarian 1", so we use Classes array
+		className := c.Classes[0].ClassName
+		debug.Log("UpdateDerivedStats: Using class '%s' (from Classes array) for HP calculation", className)
+		classData := GetClassByName(className)
+		if classData != nil {
+			// Recalculate HP with current Constitution modifier
+			newMaxHP := CalculateMaxHP(c, classData)
+			debug.Log("UpdateDerivedStats: Calculated newMaxHP=%d, current MaxHP=%d", newMaxHP, c.MaxHP)
+			// Always update HP when Constitution might have changed (for wizard flow)
+			if newMaxHP != c.MaxHP {
+				// Preserve current HP ratio if possible
+				if c.MaxHP > 0 && c.CurrentHP > 0 {
+					ratio := CalculateHPRatio(c.CurrentHP, c.MaxHP)
+					c.CurrentHP = ApplyHPRatio(newMaxHP, ratio)
+					debug.Log("UpdateDerivedStats: Preserved HP ratio - ratio=%.2f, newCurrentHP=%d", ratio, c.CurrentHP)
+				} else {
+					// If at full health or no HP, set to full
+					c.CurrentHP = newMaxHP
+					debug.Log("UpdateDerivedStats: Set HP to full - currentHP=%d", c.CurrentHP)
+				}
+				c.MaxHP = newMaxHP
+				debug.Log("UpdateDerivedStats: HP updated - newMaxHP=%d, currentHP=%d", c.MaxHP, c.CurrentHP)
+			} else {
+				debug.Log("UpdateDerivedStats: HP unchanged (newMaxHP == current MaxHP)")
+			}
+		} else {
+			debug.Log("UpdateDerivedStats: Class '%s' not found in database", className)
+		}
+	} else if c.Class != "" {
+		// Fallback: try to extract class name from display string (e.g., "Barbarian 1" -> "Barbarian")
+		// This handles legacy characters that might not have Classes array
+		className := strings.TrimSpace(strings.Split(c.Class, " ")[0])
+		debug.Log("UpdateDerivedStats: Using class '%s' (extracted from Class string) for HP calculation", className)
+		classData := GetClassByName(className)
+		if classData != nil {
+			newMaxHP := CalculateMaxHP(c, classData)
+			if newMaxHP != c.MaxHP {
+				if c.MaxHP > 0 && c.CurrentHP > 0 {
+					ratio := CalculateHPRatio(c.CurrentHP, c.MaxHP)
+					c.CurrentHP = ApplyHPRatio(newMaxHP, ratio)
+				} else {
+					c.CurrentHP = newMaxHP
+				}
+				c.MaxHP = newMaxHP
+				debug.Log("UpdateDerivedStats: HP updated - newMaxHP=%d, currentHP=%d", c.MaxHP, c.CurrentHP)
+			}
+		}
+	} else {
+		debug.Log("UpdateDerivedStats: No class found, skipping HP recalculation")
+	}
+
 	// Update AC based on equipped armor and shield
 	c.AC = CalculateAC(c)
 	c.ArmorClass = c.AC // Keep both for compatibility

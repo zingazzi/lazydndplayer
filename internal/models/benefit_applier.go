@@ -20,43 +20,52 @@ func NewBenefitApplier(char *Character) *BenefitApplier {
 	return &BenefitApplier{char: char}
 }
 
-// AddAbilityScore increases an ability score and tracks it
+// AddAbilityScore increases an ability score by adding to the extra bonus and tracks it
+// This ensures modifiers are kept separate from base scores
 func (ba *BenefitApplier) AddAbilityScore(source BenefitSource, ability string, increase int) error {
 	abilityLower := strings.ToLower(ability)
 
-	// Determine which ability and calculate new value
+	// Determine which ability
 	const maxAbilityScore = 20
-	var newValue int
 	var normalizedAbility string
+	var abilityType AbilityType
 
 	switch {
 	case strings.Contains(abilityLower, "strength"):
-		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Strength, increase, maxAbilityScore)
-		ba.char.AbilityScores.Strength = newValue
 		normalizedAbility = "Strength"
+		abilityType = Strength
 	case strings.Contains(abilityLower, "dexterity"):
-		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Dexterity, increase, maxAbilityScore)
-		ba.char.AbilityScores.Dexterity = newValue
 		normalizedAbility = "Dexterity"
+		abilityType = Dexterity
 	case strings.Contains(abilityLower, "constitution"):
-		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Constitution, increase, maxAbilityScore)
-		ba.char.AbilityScores.Constitution = newValue
 		normalizedAbility = "Constitution"
+		abilityType = Constitution
 	case strings.Contains(abilityLower, "intelligence"):
-		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Intelligence, increase, maxAbilityScore)
-		ba.char.AbilityScores.Intelligence = newValue
 		normalizedAbility = "Intelligence"
+		abilityType = Intelligence
 	case strings.Contains(abilityLower, "wisdom"):
-		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Wisdom, increase, maxAbilityScore)
-		ba.char.AbilityScores.Wisdom = newValue
 		normalizedAbility = "Wisdom"
+		abilityType = Wisdom
 	case strings.Contains(abilityLower, "charisma"):
-		newValue = CalculateAbilityIncrease(ba.char.AbilityScores.Charisma, increase, maxAbilityScore)
-		ba.char.AbilityScores.Charisma = newValue
 		normalizedAbility = "Charisma"
+		abilityType = Charisma
 	default:
 		return fmt.Errorf("unknown ability: %s", ability)
 	}
+
+	// Get current base and extra values
+	currentBase := ba.char.AbilityScores.GetBaseScore(abilityType)
+	currentExtra := ba.char.AbilityScores.GetExtraScore(abilityType)
+	currentTotal := currentBase + currentExtra
+
+	// Calculate new total with the increase
+	newTotal := CalculateAbilityIncrease(currentTotal, increase, maxAbilityScore)
+
+	// Calculate the new extra value (preserving any existing extras)
+	newExtra := currentExtra + (newTotal - currentTotal)
+
+	// Set the new extra value (this will automatically recalculate the total)
+	ba.char.AbilityScores.SetExtraScore(abilityType, newExtra)
 
 	// Track the benefit
 	ba.char.BenefitTracker.AddBenefit(GrantedBenefit{

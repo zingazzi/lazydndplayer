@@ -47,7 +47,11 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.classSelector.Hide()
 				from, choose := m.classService.GetSkillChoices(selectedClassName)
 				m.classSkillSelector.Show(selectedClassName, from, choose, m.character)
-				m.message = fmt.Sprintf("Select skills for %s class...", selectedClassName)
+				if m.IsInWizard() {
+					m.message = fmt.Sprintf("Step 1/4: Class Selection - Select skills for %s class...", selectedClassName)
+				} else {
+					m.message = fmt.Sprintf("Select skills for %s class...", selectedClassName)
+				}
 			} else {
 				// No skill choices, apply class directly using service
 				debug.Log("No skill choices, applying class directly")
@@ -61,9 +65,20 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				m.storage.Save(m.character)
 				m.classSelector.Hide()
+
+				// If in wizard mode, advance to next step
+				if m.IsInWizard() {
+					m.advanceWizardStep()
+				}
 			}
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		debug.Log("Class selector: cancelled - restoring previous state")
 		// Restore previous class state
 		m.pendingChanges.RestoreClass(m.character)
@@ -211,10 +226,24 @@ func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 				debug.Log("Saving character and completing class selection")
 				m.pendingChanges.Clear() // Clear backup on successful completion
 				m.storage.Save(m.character)
-				m.message = fmt.Sprintf("Subclass '%s' selected! Class setup complete. (HP: %d/%d)", selectedSubclass.Name, m.character.CurrentHP, m.character.MaxHP)
+
+				// If in wizard mode, check if we can advance
+				if m.IsInWizard() {
+					m.checkAndAdvanceWizardAfterClassSetup()
+					// Return immediately to ensure wizard state is preserved
+					return m, cmd
+				} else {
+					m.message = fmt.Sprintf("Subclass '%s' selected! Class setup complete. (HP: %d/%d)", selectedSubclass.Name, m.character.CurrentHP, m.character.MaxHP)
+				}
 			}
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		debug.Log("Subclass selector: cancelled - restoring previous state")
 		m.subclassSelector.Hide()
 		m.pendingChanges.RestoreClass(m.character)
@@ -275,12 +304,16 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 			m.classSkillSelector.Hide()
 
-			// Check if we need subclass selection
+			// Check if we need subclass selection at level 1
 			classData := models.GetClassByName(selectedClassName)
-			if classData != nil && classData.Subclasses != nil && len(classData.Subclasses) > 0 {
-				debug.Log("Class has subclasses, showing subclass selector")
+			if classData != nil && models.RequiresSubclassAtLevel(classData, 1) {
+				debug.Log("Class requires subclass at level 1, showing subclass selector")
 				m.subclassSelector.Show(selectedClassName, 1) // Level 1 subclass selection
-				m.message = fmt.Sprintf("Select %s subclass...", selectedClassName)
+				if m.IsInWizard() {
+					m.message = fmt.Sprintf("Step 1/4: Class Selection - Select %s subclass...", selectedClassName)
+				} else {
+					m.message = fmt.Sprintf("Select %s subclass...", selectedClassName)
+				}
 				return m, cmd
 			}
 
@@ -333,7 +366,13 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			debug.Log("Saving character and completing class selection")
 			m.pendingChanges.Clear() // Clear backup on successful completion
 			m.storage.Save(m.character)
-			m.message = fmt.Sprintf("Class %s selected! Class setup complete. (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
+
+			// If in wizard mode, advance to next step
+			if m.IsInWizard() {
+				m.advanceWizardStep()
+			} else {
+				m.message = fmt.Sprintf("Class %s selected! Class setup complete. (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
+			}
 		} else {
 			selectedCount := len(m.classSkillSelector.SelectedSkills)
 			maxCount := m.classSkillSelector.MaxChoices
@@ -394,14 +433,28 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 					} else {
 						// No weapon mastery needed, class setup complete
 						m.pendingChanges.Clear() // Clear backup on successful completion
-						m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
 						m.fightingStyleSelector.Hide()
+
+						// If in wizard mode, check if we can advance
+						if m.IsInWizard() {
+							m.checkAndAdvanceWizardAfterClassSetup()
+							// Return immediately to ensure wizard state is preserved
+							return m, cmd
+						} else {
+							m.message = fmt.Sprintf("Fighting style '%s' selected! Class setup complete. (HP: %d/%d)", selectedStyle, m.character.CurrentHP, m.character.MaxHP)
+						}
 					}
 				}
 			}
 			m.storage.Save(m.character)
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		debug.Log("Fighting style selector: cancelled")
 		m.fightingStyleSelector.Hide()
 		m.message = "Fighting style selection cancelled"
@@ -443,6 +496,13 @@ func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 		} else {
 			m.pendingChanges.Clear()
 			m.storage.Save(m.character)
+
+			// If in wizard mode, check if we can advance (after Divine Order Protector selection)
+			if m.IsInWizard() {
+				m.checkAndAdvanceWizardAfterClassSetup()
+				// Return immediately to ensure wizard state is preserved
+				return m, cmd
+			}
 		}
 	case "2":
 		// Thaumaturgic selected - need to choose skill first
@@ -501,9 +561,22 @@ func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 			} else {
 				m.pendingChanges.Clear()
 				m.storage.Save(m.character)
+
+				// If in wizard mode, check if we can advance (after Divine Order selection)
+				if m.IsInWizard() {
+					m.checkAndAdvanceWizardAfterClassSetup()
+					// Return immediately to ensure wizard state is preserved
+					return m, cmd
+				}
 			}
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		debug.Log("Divine Order selection cancelled")
 		m.SetDivineOrderSelectorVisible(false)
 		m.stateMachine.ClearContext("pendingDivineOrder")

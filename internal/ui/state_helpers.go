@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/state"
 )
@@ -18,14 +19,24 @@ func (m *Model) GetPendingFeat() *models.Feat {
 }
 
 func (m *Model) SetPendingFeat(feat *models.Feat) {
-	m.stateMachine.SetContext("pendingFeat", feat)
-	m.stateMachine.Transition(state.StateFeatSelection, map[string]interface{}{"pendingFeat": feat})
+	debug.Log("SetPendingFeat: Setting pending feat=%s, IsInWizard=%v", feat.Name, m.IsInWizard())
+	// If in wizard mode, preserve wizard state; otherwise transition to feat selection
+	if m.IsInWizard() {
+		// Keep wizard state, just add pendingFeat to context
+		m.stateMachine.SetContext("pendingFeat", feat)
+	} else {
+		m.stateMachine.Transition(state.StateFeatSelection, map[string]interface{}{"pendingFeat": feat})
+	}
 	m.pendingFeat = feat // Keep legacy field in sync for now
 }
 
 func (m *Model) ClearPendingFeat() {
+	debug.Log("ClearPendingFeat: Clearing pending feat, IsInWizard=%v", m.IsInWizard())
 	m.stateMachine.ClearContext("pendingFeat")
-	m.stateMachine.Transition(state.StateIdle, nil)
+	// If in wizard mode, preserve wizard state; otherwise transition to idle
+	if !m.IsInWizard() {
+		m.stateMachine.Transition(state.StateIdle, nil)
+	}
 	m.pendingFeat = nil // Keep legacy field in sync for now
 }
 
@@ -38,14 +49,24 @@ func (m *Model) GetPendingOrigin() *models.Origin {
 }
 
 func (m *Model) SetPendingOrigin(origin *models.Origin) {
-	m.stateMachine.SetContext("pendingOrigin", origin)
-	m.stateMachine.Transition(state.StateAbilityChoice, map[string]interface{}{"pendingOrigin": origin})
+	debug.Log("SetPendingOrigin: Setting pending origin=%s, IsInWizard=%v", origin.Name, m.IsInWizard())
+	// If in wizard mode, preserve wizard state; otherwise transition to ability choice
+	if m.IsInWizard() {
+		// Keep wizard state, just add pendingOrigin to context
+		m.stateMachine.SetContext("pendingOrigin", origin)
+	} else {
+		m.stateMachine.Transition(state.StateAbilityChoice, map[string]interface{}{"pendingOrigin": origin})
+	}
 	m.pendingOrigin = origin // Keep legacy field in sync for now
 }
 
 func (m *Model) ClearPendingOrigin() {
+	debug.Log("ClearPendingOrigin: Clearing pending origin, IsInWizard=%v", m.IsInWizard())
 	m.stateMachine.ClearContext("pendingOrigin")
-	m.stateMachine.Transition(state.StateIdle, nil)
+	// If in wizard mode, preserve wizard state; otherwise transition to idle
+	if !m.IsInWizard() {
+		m.stateMachine.Transition(state.StateIdle, nil)
+	}
 	m.pendingOrigin = nil // Keep legacy field in sync for now
 }
 
@@ -158,4 +179,34 @@ func (m *Model) SetInputPopupContext(context string) {
 func (m *Model) ClearInputPopupContext() {
 	m.stateMachine.ClearContext("inputPopupContext")
 	m.inputPopupContext = "" // Keep legacy field in sync for now
+}
+
+// Wizard state helper methods
+func (m *Model) IsInWizard() bool {
+	isWizard := m.stateMachine.GetState() == state.StateCharacterCreationWizard
+	// Only log occasionally to avoid spam
+	// debug.Log("IsInWizard: state=%v, result=%v", m.stateMachine.GetState(), isWizard)
+	return isWizard
+}
+
+func (m *Model) GetWizardStep() int {
+	if step, ok := m.stateMachine.GetContext("wizardStep").(int); ok {
+		return step
+	}
+	return 0
+}
+
+func (m *Model) SetWizardStep(step int) {
+	debug.Log("SetWizardStep: Setting wizard step to %d", step)
+	m.stateMachine.SetContext("wizardStep", step)
+	m.stateMachine.Transition(state.StateCharacterCreationWizard, map[string]interface{}{
+		"wizardStep": step,
+	})
+	debug.Log("SetWizardStep: Wizard step set, current state=%v, step=%d", m.stateMachine.GetState(), m.GetWizardStep())
+}
+
+func (m *Model) ClearWizardState() {
+	debug.Log("ClearWizardState: Clearing wizard state")
+	m.stateMachine.ClearContext("wizardStep")
+	m.stateMachine.Transition(state.StateIdle, nil)
 }

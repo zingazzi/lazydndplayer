@@ -43,7 +43,15 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				debug.Log("Saving character and completing class selection")
 				m.pendingChanges.Clear() // Clear backup on successful completion
 				m.storage.Save(m.character)
-				m.message = fmt.Sprintf("Cantrip selection complete! (Total: %d cantrips)", len(selectedCantrips))
+
+				// If in wizard mode, check if we can advance
+				if m.IsInWizard() {
+					m.checkAndAdvanceWizardAfterClassSetup()
+					// Return immediately to ensure wizard state is preserved
+					return m, cmd
+				} else {
+					m.message = fmt.Sprintf("Cantrip selection complete! (Total: %d cantrips)", len(selectedCantrips))
+				}
 			}
 		} else {
 			selectedCount := m.cantripSelector.GetSelectedCount()
@@ -51,6 +59,12 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.message = fmt.Sprintf("Please select %d cantrip(s) (%d/%d selected)", maxCount, selectedCount, maxCount)
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		debug.Log("Cantrip selection cancelled, rolling back changes")
 		m.cantripSelector.Hide()
 		m.pendingChanges.RestoreClass(m.character)
@@ -159,7 +173,15 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 							debug.Log("Saving character and completing class selection")
 							m.pendingChanges.Clear() // Clear backup on successful completion
 							m.storage.Save(m.character)
-							m.message = "Eldritch Knight setup complete! 3 spells learned."
+
+							// If in wizard mode, check if we can advance
+							if m.IsInWizard() {
+								m.checkAndAdvanceWizardAfterClassSetup()
+								// Return immediately to ensure wizard state is preserved
+								return m, nil
+							} else {
+								m.message = "Eldritch Knight setup complete! 3 spells learned."
+							}
 						}
 						return m, nil
 					}

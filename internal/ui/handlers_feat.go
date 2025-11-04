@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 )
 
 // handleFeatSelectorKeys handles feat selector specific keys
@@ -98,14 +99,33 @@ func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 
 		// Handle origin ability choice
 		if pendingOrigin := m.GetPendingOrigin(); pendingOrigin != nil {
+			debug.Log("handleAbilityChoiceSelectorKeys: Applying origin=%s with ability=%s, IsInWizard=%v, wizardStep=%d",
+				pendingOrigin.Name, chosenAbility, m.IsInWizard(), m.GetWizardStep())
 			// Use service to apply origin with chosen ability
-			m.message = m.originService.ApplyOrigin(m.character, pendingOrigin, chosenAbility)
+			originMsg := m.originService.ApplyOrigin(m.character, pendingOrigin, chosenAbility)
 			m.storage.Save(m.character)
 			m.ClearPendingOrigin()
 			m.abilityChoiceSelector.Hide()
+
+			// If in wizard mode, advance to next step (this will set the correct wizard message)
+			if m.IsInWizard() {
+				debug.Log("handleAbilityChoiceSelectorKeys: In wizard mode, advancing from Origin step")
+				m.advanceWizardStep()
+				debug.Log("handleAbilityChoiceSelectorKeys: After advanceWizardStep, IsInWizard=%v, wizardStep=%d", m.IsInWizard(), m.GetWizardStep())
+				// Return immediately to ensure wizard state is preserved
+				return m, nil
+			} else {
+				m.message = originMsg
+			}
 		}
 	case "esc":
-		// Cancel ability choice
+		// Check if in wizard mode - ESC cancels the entire wizard
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
+		// Cancel ability choice (not in wizard mode)
 		if pendingFeat := m.GetPendingFeat(); pendingFeat != nil {
 			// Use service to cancel feat selection
 			m.featService.CancelFeatSelection(m.character, pendingFeat)

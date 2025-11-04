@@ -142,17 +142,27 @@ func CalculateMaxHP(char *Character, class *Class) int {
 	if level == 1 {
 		// Level 1: Always use maximum hit die value
 		baseHP = class.HitDie
+		debug.Log("CalculateMaxHP: Level 1, using max hit die: %d", baseHP)
 	} else {
 		// Higher levels: Hit die per level (simplified - should track actual rolls)
 		// For now, use average: (HitDie/2 + 1) per level after 1st
 		baseHP = class.HitDie // First level (max)
 		averagePerLevel := (class.HitDie / 2) + 1
 		baseHP += averagePerLevel * (level - 1)
+		debug.Log("CalculateMaxHP: Level %d, baseHP=%d (max=%d + avg=%d*%d)", level, baseHP, class.HitDie, averagePerLevel, level-1)
 	}
+
+	// Get Constitution score details
+	conScore := char.AbilityScores.GetScore(Constitution)
+	conBase := char.AbilityScores.GetBaseScore(Constitution)
+	conExtra := char.AbilityScores.GetExtraScore(Constitution)
 
 	// Add Constitution modifier per level
 	conModifier := char.AbilityScores.GetModifier("Constitution")
 	totalConBonus := conModifier * level
+
+	debug.Log("CalculateMaxHP: Constitution - Base=%d, Extra=%d, Total=%d, Modifier=%d, Bonus per level=%d",
+		conBase, conExtra, conScore, conModifier, totalConBonus)
 
 	// Add any HP bonuses from feats, species, etc.
 	// These are tracked separately and added to base HP
@@ -167,6 +177,9 @@ func CalculateMaxHP(char *Character, class *Class) int {
 	}
 
 	totalHP := baseHP + totalConBonus + bonusHP
+
+	debug.Log("CalculateMaxHP: baseHP=%d, conBonus=%d, bonusHP=%d, totalHP=%d",
+		baseHP, totalConBonus, bonusHP, totalHP)
 
 	// Minimum 1 HP
 	if totalHP < 1 {

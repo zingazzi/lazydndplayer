@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
@@ -18,8 +19,10 @@ func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		selectedOrigin := m.originSelector.GetSelected()
 		if selectedOrigin != nil {
+			debug.Log("handleOriginSelectorKeys: Origin selected=%s, IsInWizard=%v, wizardStep=%d", selectedOrigin.Name, m.IsInWizard(), m.GetWizardStep())
 			// Check if origin has ability choice using service
 			if m.originService.RequiresAbilityChoice(selectedOrigin) {
+				debug.Log("handleOriginSelectorKeys: Origin requires ability choice, showing ability choice selector")
 				// Store origin temporarily and show ability choice selector
 				m.SetPendingOrigin(selectedOrigin)
 				m.originSelector.Hide()
@@ -28,12 +31,27 @@ func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.message = "Choose an ability score to increase..."
 			} else {
 				// Apply origin directly (no choice needed) using service
-				m.message = m.originService.ApplyOrigin(m.character, selectedOrigin, "")
+				debug.Log("handleOriginSelectorKeys: Origin does not require ability choice, applying directly")
+				originMsg := m.originService.ApplyOrigin(m.character, selectedOrigin, "")
 				m.storage.Save(m.character)
 				m.originSelector.Hide()
+
+				// If in wizard mode, advance to next step (this will set the correct wizard message)
+				if m.IsInWizard() {
+					debug.Log("handleOriginSelectorKeys: In wizard mode, advancing from Origin step")
+					m.advanceWizardStep()
+				} else {
+					m.message = originMsg
+				}
 			}
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		m.originSelector.Hide()
 		m.message = "Origin selection cancelled"
 	}
@@ -44,6 +62,12 @@ func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleAlignmentSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		m.alignmentSelector.Hide()
 		m.message = ""
 	case "up", "k":
@@ -54,8 +78,14 @@ func (m *Model) handleAlignmentSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		selected := m.alignmentSelector.GetSelectedAlignment()
 		m.character.Alignment = selected
 		m.alignmentSelector.Hide()
-		m.message = fmt.Sprintf("Alignment set to %s", selected)
 		m.storage.Save(m.character)
+
+		// If in wizard mode, complete wizard
+		if m.IsInWizard() {
+			m.completeWizard()
+		} else {
+			m.message = fmt.Sprintf("Alignment set to %s", selected)
+		}
 	}
 	return m, nil
 }

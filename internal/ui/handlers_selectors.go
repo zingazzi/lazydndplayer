@@ -271,12 +271,28 @@ func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 			m.storage.Save(m.character)
 
 			debug.Log("Weapon mastery selection complete: %v", m.character.MasteredWeapons)
-			m.message = fmt.Sprintf("Weapon mastery complete! Mastered %d weapons. Class setup complete. (HP: %d/%d)",
-				len(m.character.MasteredWeapons), m.character.CurrentHP, m.character.MaxHP)
+
+			// If in wizard mode, check if we can advance
+			if m.IsInWizard() {
+				debug.Log("handleWeaponMasterySelectorKeys: In wizard mode, checking if class setup complete")
+				m.checkAndAdvanceWizardAfterClassSetup()
+				debug.Log("handleWeaponMasterySelectorKeys: After checkAndAdvanceWizardAfterClassSetup, IsInWizard=%v, wizardStep=%d", m.IsInWizard(), m.GetWizardStep())
+				// Return immediately to ensure wizard state is preserved
+				return m, cmd
+			} else {
+				m.message = fmt.Sprintf("Weapon mastery complete! Mastered %d weapons. Class setup complete. (HP: %d/%d)",
+					len(m.character.MasteredWeapons), m.character.CurrentHP, m.character.MaxHP)
+			}
 		} else {
 			m.message = "Please select at least one weapon"
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		// Cancel
 		m.weaponMasterySelector.Hide()
 		m.message = "Cancelled"
@@ -309,14 +325,30 @@ func (m *Model) handleExpertiseSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 			m.storage.Save(m.character)
 
 			debug.Log("Expertise selection complete: %d skills selected", len(m.expertiseSelector.GetSelectedSkills()))
-			m.message = fmt.Sprintf("Expertise complete! Selected %d skills. Class setup complete. (HP: %d/%d)",
-				len(m.expertiseSelector.GetSelectedSkills()), m.character.CurrentHP, m.character.MaxHP)
+
+			// If in wizard mode, check if we can advance
+			if m.IsInWizard() {
+				debug.Log("handleExpertiseSelectorKeys: In wizard mode, checking if class setup complete")
+				m.checkAndAdvanceWizardAfterClassSetup()
+				debug.Log("handleExpertiseSelectorKeys: After checkAndAdvanceWizardAfterClassSetup, IsInWizard=%v, wizardStep=%d", m.IsInWizard(), m.GetWizardStep())
+				// Return immediately to ensure wizard state is preserved
+				return m, cmd
+			} else {
+				m.message = fmt.Sprintf("Expertise complete! Selected %d skills. Class setup complete. (HP: %d/%d)",
+					len(m.expertiseSelector.GetSelectedSkills()), m.character.CurrentHP, m.character.MaxHP)
+			}
 		} else {
 			selectedCount := len(m.expertiseSelector.GetSelectedSkills())
 			maxCount := m.expertiseSelector.GetMaxExpertise()
 			m.message = fmt.Sprintf("Please select %d skill(s) for expertise (%d/%d selected)", maxCount, selectedCount, maxCount)
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
 		// Cancel selection
 		m.expertiseSelector.Hide()
 		m.message = "Expertise selection cancelled"

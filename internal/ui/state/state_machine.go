@@ -16,6 +16,7 @@ const (
 	StateDivineOrderSelection
 	StateSpellSelection
 	StateEldritchKnightSpellSelection
+	StateCharacterCreationWizard
 )
 
 // StateMachine manages complex selection flows and temporary state
