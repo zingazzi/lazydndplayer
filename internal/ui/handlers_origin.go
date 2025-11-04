@@ -21,7 +21,7 @@ func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Check if origin has ability choice
 			if models.HasOriginAbilityChoice(*selectedOrigin) {
 				// Store origin temporarily and show ability choice selector
-				m.pendingOrigin = selectedOrigin
+				m.SetPendingOrigin(selectedOrigin)
 				m.originSelector.Hide()
 				choices := models.GetOriginAbilityChoices(*selectedOrigin)
 				m.abilityChoiceSelector.Show(selectedOrigin.Name, choices, m.character)
@@ -171,12 +171,12 @@ func (m *Model) handleInputPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.inputPopup.Hide()
-		m.inputPopupContext = ""
+		m.ClearInputPopupContext()
 		m.message = "Cancelled"
 	case "enter":
 		// Save based on context
 		value := m.inputPopup.GetValue()
-		switch m.inputPopupContext {
+		switch m.GetInputPopupContext() {
 		case "height":
 			m.character.Height = value
 			m.message = "Height updated!"
@@ -185,7 +185,7 @@ func (m *Model) handleInputPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.message = "Weight updated!"
 		}
 		m.inputPopup.Hide()
-		m.inputPopupContext = ""
+		m.ClearInputPopupContext()
 		m.storage.Save(m.character)
 	default:
 		// Update text input

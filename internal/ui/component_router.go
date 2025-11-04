@@ -202,7 +202,7 @@ func (m *Model) handleSpecialComponents(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 	}
 
 	// Divine Order selector has special tab passthrough logic
-	if m.divineOrderSelectorVisible {
+	if m.IsDivineOrderSelectorVisible() {
 		// Check if Divine Order has already been applied
 		divineOrderApplied := false
 		if m.character.BenefitTracker != nil {
@@ -216,7 +216,8 @@ func (m *Model) handleSpecialComponents(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 
 		// If already applied, hide selector and allow navigation
 		if divineOrderApplied {
-			m.divineOrderSelectorVisible = false
+			m.SetDivineOrderSelectorVisible(false)
+			m.stateMachine.ClearContext("pendingDivineOrder")
 			m.pendingDivineOrder = ""
 			// Continue to normal routing (don't return handled)
 			return m, nil, false

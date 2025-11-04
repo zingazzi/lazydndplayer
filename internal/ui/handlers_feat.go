@@ -62,7 +62,7 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						// Check if this feat has ability choices
 						if models.HasAbilityChoice(*selectedFeat) {
 							// Store the feat and show ability choice selector
-							m.pendingFeat = selectedFeat
+							m.SetPendingFeat(selectedFeat)
 							m.featSelector.Hide()
 							choices := models.GetAbilityChoices(*selectedFeat)
 							m.abilityChoiceSelector.Show(selectedFeat.Name, choices, m.character)
@@ -101,17 +101,17 @@ func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 		}
 
 		// Handle feat ability choice
-		if m.pendingFeat != nil {
+		if pendingFeat := m.GetPendingFeat(); pendingFeat != nil {
 			// Apply feat benefits with the chosen ability
-			models.ApplyFeatBenefits(m.character, *m.pendingFeat, chosenAbility)
-			m.message = fmt.Sprintf("Feat gained: %s (+1 %s)!", m.pendingFeat.Name, chosenAbility)
+			models.ApplyFeatBenefits(m.character, *pendingFeat, chosenAbility)
+			m.message = fmt.Sprintf("Feat gained: %s (+1 %s)!", pendingFeat.Name, chosenAbility)
 			m.storage.Save(m.character)
-			m.pendingFeat = nil
+			m.ClearPendingFeat()
 			m.abilityChoiceSelector.Hide()
 		}
 
 		// Handle origin ability choice
-		if m.pendingOrigin != nil {
+		if pendingOrigin := m.GetPendingOrigin(); pendingOrigin != nil {
 			// Remove old origin first
 			if m.character.Origin != "" {
 				oldOrigin := models.GetOriginByName(m.character.Origin)
@@ -121,31 +121,31 @@ func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 			}
 
 			// Apply new origin with chosen ability
-			m.character.Origin = m.pendingOrigin.Name
-			models.ApplyOriginBenefits(m.character, *m.pendingOrigin, chosenAbility)
-			m.message = fmt.Sprintf("Origin changed to: %s (+1 %s)!", m.pendingOrigin.Name, chosenAbility)
+			m.character.Origin = pendingOrigin.Name
+			models.ApplyOriginBenefits(m.character, *pendingOrigin, chosenAbility)
+			m.message = fmt.Sprintf("Origin changed to: %s (+1 %s)!", pendingOrigin.Name, chosenAbility)
 			m.storage.Save(m.character)
-			m.pendingOrigin = nil
+			m.ClearPendingOrigin()
 			m.abilityChoiceSelector.Hide()
 		}
 	case "esc":
 		// Cancel ability choice
-		if m.pendingFeat != nil {
+		if pendingFeat := m.GetPendingFeat(); pendingFeat != nil {
 			// Remove the feat from character since we're cancelling
 			for i, featName := range m.character.Feats {
-				if featName == m.pendingFeat.Name {
+				if featName == pendingFeat.Name {
 					m.character.Feats = append(m.character.Feats[:i], m.character.Feats[i+1:]...)
 					break
 				}
 			}
 			m.storage.Save(m.character)
 			m.message = "Feat selection cancelled"
-			m.pendingFeat = nil
+			m.ClearPendingFeat()
 		}
 
-		if m.pendingOrigin != nil {
+		if m.GetPendingOrigin() != nil {
 			m.message = "Origin selection cancelled"
-			m.pendingOrigin = nil
+			m.ClearPendingOrigin()
 		}
 
 		m.abilityChoiceSelector.Hide()

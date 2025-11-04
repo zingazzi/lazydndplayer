@@ -753,12 +753,12 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "h":
 		// Edit height
 		m.inputPopup.Show("Edit Height", m.character.Height, "Enter height (e.g., 6'2\")...")
-		m.inputPopupContext = "height"
+		m.SetInputPopupContext("height")
 		m.message = "Editing height..."
 	case "w":
 		// Edit weight
 		m.inputPopup.Show("Edit Weight", m.character.Weight, "Enter weight (e.g., 180 lbs)...")
-		m.inputPopupContext = "weight"
+		m.SetInputPopupContext("weight")
 		m.message = "Editing weight..."
 	case "t":
 		// Edit personality

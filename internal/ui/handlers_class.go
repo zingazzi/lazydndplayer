@@ -423,14 +423,14 @@ func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 		return m, cmd
 	case "1":
 		// Protector selected
-		m.pendingDivineOrder = "Protector"
+		m.SetPendingDivineOrder("Protector")
 		debug.Log("Divine Order selected: Protector")
 		err := models.ApplyDivineOrderBenefits(m.character, "Protector", "")
 		if err != nil {
 			m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
 			return m, cmd
 		}
-		m.divineOrderSelectorVisible = false
+		m.SetDivineOrderSelectorVisible(false)
 		m.message = "Divine Order: Protector selected (Martial weapons + Heavy armor, 3 cantrips)"
 
 		// Check if cantrip selection is needed next
@@ -445,20 +445,20 @@ func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 		}
 	case "2":
 		// Thaumaturgic selected - need to choose skill first
-		m.pendingDivineOrder = "Thaumaturgic"
+		m.SetPendingDivineOrder("Thaumaturgic")
 		debug.Log("Divine Order selected: Thaumaturgic - prompting for skill choice")
 		m.message = "Choose skill for Thaumaturgic: [a] Arcana or [r] Religion"
 	case "a":
 		// Arcana chosen for Thaumaturgic
-		if m.pendingDivineOrder == "Thaumaturgic" {
-			m.pendingDivineOrderSkill = "Arcana"
+		if m.GetPendingDivineOrder() == "Thaumaturgic" {
+			m.SetPendingDivineOrderSkill("Arcana")
 			debug.Log("Thaumaturgic skill selected: Arcana")
 			err := models.ApplyDivineOrderBenefits(m.character, "Thaumaturgic", "Arcana")
 			if err != nil {
 				m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
 				return m, cmd
 			}
-			m.divineOrderSelectorVisible = false
+			m.SetDivineOrderSelectorVisible(false)
 			m.message = "Divine Order: Thaumaturgic selected (Extra cantrip + Arcana expertise)"
 
 			// Check if cantrip selection is needed next (Thaumaturgic gets +1 cantrip)
@@ -477,15 +477,15 @@ func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 		}
 	case "r":
 		// Religion chosen for Thaumaturgic
-		if m.pendingDivineOrder == "Thaumaturgic" {
-			m.pendingDivineOrderSkill = "Religion"
+		if m.GetPendingDivineOrder() == "Thaumaturgic" {
+			m.SetPendingDivineOrderSkill("Religion")
 			debug.Log("Thaumaturgic skill selected: Religion")
 			err := models.ApplyDivineOrderBenefits(m.character, "Thaumaturgic", "Religion")
 			if err != nil {
 				m.message = fmt.Sprintf("Error applying Divine Order: %v", err)
 				return m, cmd
 			}
-			m.divineOrderSelectorVisible = false
+			m.SetDivineOrderSelectorVisible(false)
 			m.message = "Divine Order: Thaumaturgic selected (Extra cantrip + Religion expertise)"
 
 			// Check if cantrip selection is needed next (Thaumaturgic gets +1 cantrip)
@@ -504,7 +504,9 @@ func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 		}
 	case "esc":
 		debug.Log("Divine Order selection cancelled")
-		m.divineOrderSelectorVisible = false
+		m.SetDivineOrderSelectorVisible(false)
+		m.stateMachine.ClearContext("pendingDivineOrder")
+		m.stateMachine.ClearContext("pendingDivineOrderSkill")
 		m.pendingDivineOrder = ""
 		m.pendingDivineOrderSkill = ""
 		m.pendingChanges.RestoreClass(m.character)
@@ -554,7 +556,7 @@ func (m *Model) renderDivineOrderSelector() string {
 		Align(lipgloss.Center)
 
 	var optionsText string
-	if m.pendingDivineOrder == "Thaumaturgic" {
+	if m.GetPendingDivineOrder() == "Thaumaturgic" {
 		// Show skill selection for Thaumaturgic
 		optionsText = optionStyle.Render("Choose skill for Thaumaturgic:") + "\n\n" +
 			highlightStyle.Render("[a]") + " Arcana\n" +

@@ -841,7 +841,7 @@ func (m *Model) View() string {
 		m.messagePopup,
 		m.restPopup,
 		m.attackMenu,
-		m.divineOrderSelectorVisible,
+		m.IsDivineOrderSelectorVisible(),
 		func() string { return m.renderDivineOrderSelector() },
 	)
 
