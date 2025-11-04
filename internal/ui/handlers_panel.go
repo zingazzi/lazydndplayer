@@ -668,7 +668,7 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Manage weapon mastery
 		debug.Log("handleTraitsPanel: 'm' key pressed - checking weapon mastery")
 		// Check if character has weapon mastery feature
-		masteryCount := m.getWeaponMasteryCount()
+		masteryCount := getWeaponMasteryCount(m.character)
 		debug.Log("handleTraitsPanel: masteryCount=%d", masteryCount)
 		if masteryCount > 0 {
 			debug.Log("handleTraitsPanel: Showing weapon mastery selector")
@@ -681,7 +681,7 @@ func (m *Model) handleTraitsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "e":
 		// Manage expertise
 		debug.Log("handleTraitsPanel: 'e' key pressed - checking expertise")
-		expertiseCount := m.getExpertiseCount()
+		expertiseCount := getExpertiseCount(m.character)
 		debug.Log("handleTraitsPanel: expertiseCount=%d", expertiseCount)
 		if expertiseCount > 0 {
 			debug.Log("handleTraitsPanel: Showing expertise selector")

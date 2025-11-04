@@ -30,7 +30,7 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cantripSelector.Hide()
 
 			// Check if we need weapon mastery selection next
-			masteryCount := m.getWeaponMasteryCount()
+			masteryCount := getWeaponMasteryCount(m.character)
 			debug.Log("After cantrip selection, checking weapon mastery: count=%d", masteryCount)
 
 			if masteryCount > 0 {
@@ -146,7 +146,7 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						m.eldritchKnightSpellsSelected = 0
 
 						// Check for weapon mastery
-						masteryCount := m.getWeaponMasteryCount()
+						masteryCount := getWeaponMasteryCount(m.character)
 						debug.Log("After EK spells, checking weapon mastery: count=%d", masteryCount)
 
 						if masteryCount > 0 {

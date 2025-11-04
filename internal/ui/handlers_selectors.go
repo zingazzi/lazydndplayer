@@ -10,6 +10,95 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
+// handleSkillSelectorKeys handles skill selector specific keys (for species selection)
+// This is different from handleClassSkillSelectorKeys - this one is for species skill choices
+func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.skillSelector.Prev()
+	case "down", "j":
+		m.skillSelector.Next()
+	case "enter":
+		selectedSkill := m.skillSelector.GetSelectedSkill()
+		if selectedSkill != "" {
+			// Apply the skill proficiency and track it as a species skill
+			skillNameLower := strings.ToLower(selectedSkill)
+			var skillType models.SkillType
+			switch skillNameLower {
+			case "acrobatics":
+				skillType = models.Acrobatics
+			case "animal handling":
+				skillType = models.AnimalHandling
+			case "arcana":
+				skillType = models.Arcana
+			case "athletics":
+				skillType = models.Athletics
+			case "deception":
+				skillType = models.Deception
+			case "history":
+				skillType = models.History
+			case "insight":
+				skillType = models.Insight
+			case "intimidation":
+				skillType = models.Intimidation
+			case "investigation":
+				skillType = models.Investigation
+			case "medicine":
+				skillType = models.Medicine
+			case "nature":
+				skillType = models.Nature
+			case "perception":
+				skillType = models.Perception
+			case "performance":
+				skillType = models.Performance
+			case "persuasion":
+				skillType = models.Persuasion
+			case "religion":
+				skillType = models.Religion
+			case "sleight of hand":
+				skillType = models.SleightOfHand
+			case "stealth":
+				skillType = models.Stealth
+			case "survival":
+				skillType = models.Survival
+			}
+			// Use the helper function to add and track the species skill
+			models.AddSpeciesSkillChoice(m.character, skillType)
+
+			// Check if this is Student of War skill selection
+			if m.IsStudentOfWarToolSelected() {
+				m.message = "Battle Master Student of War setup complete!"
+				m.SetStudentOfWarToolSelected(false)
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+			} else {
+				// After skill selection, check if we need spell or feat selection
+				species := models.GetSpeciesByName(m.character.Race)
+				if species != nil && models.HasSpellChoice(species) {
+					// Show wizard cantrip selector for High Elf
+					cantrips := models.GetWizardCantrips()
+					m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
+					m.spellSelector.Show()
+					m.message = "Select your wizard cantrip..."
+				} else if species != nil && models.HasFeatChoice(species) {
+					// Show feat selector for origin feat
+					m.featSelector.Show(m.character, true)
+					m.message = "Select your origin feat..."
+				} else {
+					m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
+					// Save when selection is complete (no more selections needed)
+					m.storage.Save(m.character)
+				}
+			}
+		}
+		m.skillSelector.Hide()
+	case "esc":
+		m.skillSelector.Hide()
+		m.message = "Skill selection cancelled"
+	}
+	return m, nil
+}
+
 // handleLanguageSelectorKeys handles language selector specific keys
 func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -164,9 +253,9 @@ func (m *Model) handleWeaponMasterySelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 	switch msg.String() {
 	case " ":
 		// Check if toggle was successful and provide feedback
-		if len(m.weaponMasterySelector.GetSelectedWeapons()) >= m.getWeaponMasteryCount() {
+		if len(m.weaponMasterySelector.GetSelectedWeapons()) >= getWeaponMasteryCount(m.character) {
 			selectedCount := len(m.weaponMasterySelector.GetSelectedWeapons())
-			maxCount := m.getWeaponMasteryCount()
+			maxCount := getWeaponMasteryCount(m.character)
 			if selectedCount > maxCount {
 				m.message = "Maximum weapons already selected"
 			}

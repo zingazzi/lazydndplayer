@@ -206,7 +206,16 @@ func (p *TraitsPanel) View(width, height int) string {
 
 	if p.hasWeaponMasteryFeature(p.character) {
 		// Get mastery count
-		masteryCount := p.getWeaponMasteryCount(p.character)
+		// Get mastery count from feature mechanics
+		masteryCount := 0
+		for _, feature := range p.character.Features.Features {
+			if feature.Name == "Weapon Mastery" && feature.Mechanics != nil {
+				if weaponsMastered, ok := feature.Mechanics["weapons_mastered"].(float64); ok {
+					masteryCount = int(weaponsMastered)
+					break
+				}
+			}
+		}
 		masteryInfo := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Render(fmt.Sprintf("  Can master %d weapons", masteryCount))
@@ -706,18 +715,6 @@ func (p *TraitsPanel) hasWeaponMasteryFeature(char *models.Character) bool {
 	return false
 }
 
-// getWeaponMasteryCount returns the number of weapons the character can master
-func (p *TraitsPanel) getWeaponMasteryCount(char *models.Character) int {
-	// Read weapons_mastered from feature mechanics (generic approach)
-	for _, feature := range char.Features.Features {
-		if feature.Name == "Weapon Mastery" && feature.Mechanics != nil {
-			if weaponsMastered, ok := feature.Mechanics["weapons_mastered"].(float64); ok {
-				return int(weaponsMastered)
-			}
-		}
-	}
-	return 0
-}
 
 // getAvailableWeaponsToMaster returns weapons the character has proficiency with but hasn't mastered
 func (p *TraitsPanel) getAvailableWeaponsToMaster(char *models.Character) []string {

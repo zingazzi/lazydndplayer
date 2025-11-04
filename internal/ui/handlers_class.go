@@ -171,7 +171,7 @@ func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 			}
 
 			// Check if we need weapon mastery selection
-			masteryCount := m.getWeaponMasteryCount()
+			masteryCount := getWeaponMasteryCount(m.character)
 			debug.Log("After subclass, checking weapon mastery: count=%d", masteryCount)
 
 				if masteryCount > 0 {
@@ -293,7 +293,7 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			}
 
 			// Check if we need weapon mastery selection
-			masteryCount := m.getWeaponMasteryCount()
+			masteryCount := getWeaponMasteryCount(m.character)
 			debug.Log("After class skills, checking weapon mastery: count=%d", masteryCount)
 
 			if masteryCount > 0 {
@@ -381,7 +381,7 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 					m.fightingStyleSelector.Hide()
 				} else {
 					// Check if character also needs weapon mastery selection
-					masteryCount := m.getWeaponMasteryCount()
+					masteryCount := getWeaponMasteryCount(m.character)
 					debug.Log("After fighting style, checking weapon mastery: count=%d", masteryCount)
 
 					if masteryCount > 0 {

@@ -2,9 +2,6 @@
 package ui
 
 import (
-	"fmt"
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/debug"
@@ -486,95 +483,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handleClassSelectorKeys, handleSubclassSelectorKeys, handleClassSkillSelectorKeys,
 // and handleFightingStyleSelectorKeys moved to handlers_class.go
 
-// handleSkillSelectorKeys handles skill selector specific keys (for species selection)
-// This is different from handleClassSkillSelectorKeys - this one is for species skill choices
-func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "up", "k":
-		m.skillSelector.Prev()
-	case "down", "j":
-		m.skillSelector.Next()
-	case "enter":
-		selectedSkill := m.skillSelector.GetSelectedSkill()
-		if selectedSkill != "" {
-			// Apply the skill proficiency and track it as a species skill
-			skillNameLower := strings.ToLower(selectedSkill)
-			var skillType models.SkillType
-			switch skillNameLower {
-			case "acrobatics":
-				skillType = models.Acrobatics
-			case "animal handling":
-				skillType = models.AnimalHandling
-			case "arcana":
-				skillType = models.Arcana
-			case "athletics":
-				skillType = models.Athletics
-			case "deception":
-				skillType = models.Deception
-			case "history":
-				skillType = models.History
-			case "insight":
-				skillType = models.Insight
-			case "intimidation":
-				skillType = models.Intimidation
-			case "investigation":
-				skillType = models.Investigation
-			case "medicine":
-				skillType = models.Medicine
-			case "nature":
-				skillType = models.Nature
-			case "perception":
-				skillType = models.Perception
-			case "performance":
-				skillType = models.Performance
-			case "persuasion":
-				skillType = models.Persuasion
-			case "religion":
-				skillType = models.Religion
-			case "sleight of hand":
-				skillType = models.SleightOfHand
-			case "stealth":
-				skillType = models.Stealth
-			case "survival":
-				skillType = models.Survival
-			}
-			// Use the helper function to add and track the species skill
-			models.AddSpeciesSkillChoice(m.character, skillType)
-
-			// Check if this is Student of War skill selection
-			if m.studentOfWarToolSelected {
-				m.message = "Battle Master Student of War setup complete!"
-				m.studentOfWarToolSelected = false
-				m.pendingChanges.Clear()
-				m.storage.Save(m.character)
-			} else {
-			// After skill selection, check if we need spell or feat selection
-			species := models.GetSpeciesByName(m.character.Race)
-			if species != nil && models.HasSpellChoice(species) {
-				// Show wizard cantrip selector for High Elf
-				cantrips := models.GetWizardCantrips()
-				m.spellSelector.SetSpells(cantrips, "SELECT WIZARD CANTRIP")
-				m.spellSelector.Show()
-				m.message = "Select your wizard cantrip..."
-			} else if species != nil && models.HasFeatChoice(species) {
-				// Show feat selector for origin feat
-				m.featSelector.Show(m.character, true)
-				m.message = "Select your origin feat..."
-			} else {
-				m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
-				// Save when selection is complete (no more selections needed)
-				m.storage.Save(m.character)
-				}
-			}
-		}
-		m.skillSelector.Hide()
-	case "esc":
-		m.skillSelector.Hide()
-		m.message = "Skill selection cancelled"
-	}
-	return m, nil
-}
-
+// handleSkillSelectorKeys moved to handlers_selectors.go
 // handleSpellSelectorKeys, handleCantripSelectorKeys, handleLeveledSpellSelectorKeys, handleSchoolSpellSelectorKeys,
 // handleSpellPrepSelectorKeys, handleSpellbookEditorKeys, handleSlotRestorerKeys moved to handlers_spell.go
 // handleDivineOrderSelectorKeys moved to handlers_class.go
@@ -588,142 +497,7 @@ func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleOriginSelectorKeys, handleAlignmentSelectorKeys, handleTraitSelectorKeys,
 // handleBackstoryEditorKeys, and handleInputPopupKeys moved to handlers_origin.go
 
-// getContextualHelp returns the panel name and contextual help bindings based on current focus
-func (m *Model) getContextualHelp() (string, []components.HelpBinding) {
-	switch m.focusArea {
-	case FocusMain:
-		switch m.currentPanel {
-		case StatsPanel:
-			return "Stats", components.GetStatsBindings()
-		case SkillsPanel:
-			return "Skills", components.GetSkillsBindings()
-		case InventoryPanel:
-			return "Inventory", components.GetInventoryBindings()
-		case SpellsPanel:
-			return "Spells", components.GetSpellsBindings()
-		case FeaturesPanel:
-			return "Features", components.GetFeaturesBindings()
-		case TraitsPanel:
-			// Dynamic bindings for Traits panel based on character state
-			bindings := components.GetTraitsBindings()
-			// Add maneuver management key if character has maneuvers
-			if m.character.IsBattleMaster() && len(m.character.Maneuvers) > 0 {
-				bindings = append(bindings, components.HelpBinding{
-					Key:  "n",
-					Desc: "Manage Battle Master maneuvers",
-				})
-			}
-			return "Traits", bindings
-		case OriginPanel:
-			return "Origin", components.GetGeneralBindings()
-		}
-	case FocusCharStats:
-		return "Character Info", components.GetCharacterStatsBindings()
-	case FocusActions:
-		return "Actions", components.GetActionsBindings()
-	case FocusDice:
-		mode := "idle"
-		switch m.dicePanel.GetMode() {
-		case panels.DiceModeInput:
-			mode = "input"
-		case panels.DiceModeHistory:
-			mode = "history"
-		}
-		return "Dice Roller", components.GetDiceBindings(mode)
-	}
-	return "Stats", components.GetStatsBindings()
-}
-
-// buildStatusBar creates the status bar with contextual information
-func (m *Model) buildStatusBar() string {
-	panelNameStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("86")).
-		Background(lipgloss.Color("235"))
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252")).
-		Background(lipgloss.Color("235"))
-
-	keyStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("170")).
-		Background(lipgloss.Color("235"))
-
-	// Get active panel name and contextual help
-	var panelName, contextHelp string
-
-	switch m.focusArea {
-	case FocusMain:
-		switch m.currentPanel {
-		case StatsPanel:
-			panelName = "Stats"
-			contextHelp = "[r] Roll Stats • [e] Edit Modifiers • [t] Test/Save"
-		case SkillsPanel:
-			panelName = "Skills"
-			contextHelp = "[↑/↓] Navigate • [r] Roll • [e] Toggle Prof"
-		case InventoryPanel:
-			panelName = "Inventory"
-			contextHelp = "[a] Add Item • [e] Equip • [d] Remove 1 • [D] Remove All"
-		case SpellsPanel:
-			panelName = "Spells"
-			contextHelp = "[↑/↓] Navigate • [c] Change Cantrips • [r] Rest"
-		case FeaturesPanel:
-			panelName = "Features"
-			contextHelp = "[↑/↓] Navigate • [u] Use • [+] Restore"
-		case TraitsPanel:
-			panelName = "Traits"
-			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [f] Add Feat • [m] Weapon Mastery"
-		case OriginPanel:
-			panelName = "Origin"
-			contextHelp = "[o] Origin • [Enter] Details • [a] Alignment • [h/w] Height/Weight • [t/i/b/f] Traits • [s] Backstory"
-		}
-	case FocusCharStats:
-		panelName = "Character Info"
-		contextHelp = "[n] Name • [h] HP • [r] Short Rest • [R] Long Rest • [+/-] ±1 • [i] Init"
-	case FocusActions:
-		panelName = "Actions"
-		contextHelp = "[↑/↓] Navigate • [Enter] Activate"
-	case FocusDice:
-		panelName = "Dice Roller"
-		switch m.dicePanel.GetMode() {
-		case panels.DiceModeIdle:
-			contextHelp = "[Enter] Input • [h] History • [r] Reroll"
-		case panels.DiceModeInput:
-			contextHelp = "Type dice notation • [Enter] Roll • [Esc] Cancel"
-		case panels.DiceModeHistory:
-			contextHelp = "[↑/↓] Navigate • [Enter] Reroll • [Esc] Back"
-		}
-	}
-
-	// Build left section: panel + help
-	leftSection := panelNameStyle.Render(" "+panelName+" ")
-
-	if contextHelp != "" {
-		leftSection += helpStyle.Render(" "+contextHelp+" ")
-	}
-
-	// Build right section: global shortcuts
-	rightSection := keyStyle.Render("[Tab]") + helpStyle.Render(" Switch tabs • ") +
-		keyStyle.Render("[p/P]") + helpStyle.Render(" Focus • ") +
-		keyStyle.Render("[s]") + helpStyle.Render(" Save • ") +
-		keyStyle.Render("[?]") + helpStyle.Render(" Help • ") +
-		keyStyle.Render("[q]") + helpStyle.Render(" Quit ")
-
-	// Calculate padding
-	leftWidth := lipgloss.Width(leftSection)
-	rightWidth := lipgloss.Width(rightSection)
-	padding := m.width - leftWidth - rightWidth
-	if padding < 0 {
-		padding = 0
-	}
-
-	paddingStr := strings.Repeat(" ", padding)
-
-	statusBarStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("235")).
-		Width(m.width)
-
-	return statusBarStyle.Render(leftSection + paddingStr + rightSection)
-}
+// Status bar and contextual help methods moved to view/status_bar.go
 
 // View renders the application
 func (m *Model) View() string {
@@ -733,7 +507,13 @@ func (m *Model) View() string {
 
 	// Show help overlay if visible
 	if m.help.Visible {
-		panelName, contextBindings := m.getContextualHelp()
+		panelName, contextBindings := view.GetContextualHelp(
+			int(m.focusArea),
+			view.PanelType(m.currentPanel),
+			m.dicePanel.GetMode(),
+			m.character.IsBattleMaster(),
+			len(m.character.Maneuvers) > 0,
+		)
 		return m.help.ViewWithContext(m.width, m.height, panelName, contextBindings)
 	}
 
@@ -754,23 +534,17 @@ func (m *Model) View() string {
 
 	// Main panel content (without tabs - tabs will be combined in RenderMainView)
 	mainWidth := layout.MainPanelWidth - 8 // Account for border + padding
-	var mainPanelView string
-	switch m.currentPanel {
-	case StatsPanel:
-		mainPanelView = m.statsPanel.View(mainWidth, mainContentHeight)
-	case SkillsPanel:
-		mainPanelView = m.skillsPanel.View(mainWidth, mainContentHeight)
-	case InventoryPanel:
-		mainPanelView = m.inventoryPanel.View(mainWidth, mainContentHeight)
-	case SpellsPanel:
-		mainPanelView = m.spellsPanel.View(mainWidth, mainContentHeight)
-	case FeaturesPanel:
-		mainPanelView = m.featuresPanel.View(mainWidth, mainContentHeight)
-	case TraitsPanel:
-		mainPanelView = m.traitsPanel.View(mainWidth, mainContentHeight)
-	case OriginPanel:
-		mainPanelView = m.originPanel.View(mainWidth, mainContentHeight)
-	}
+	// Use PanelRenderer instead of switch statement
+	panelRenderer := view.RegisterPanelsFromModel(
+		m.statsPanel,
+		m.skillsPanel,
+		m.inventoryPanel,
+		m.spellsPanel,
+		m.featuresPanel,
+		m.traitsPanel,
+		m.originPanel,
+	)
+	mainPanelView := panelRenderer.RenderPanel(view.PanelType(m.currentPanel), mainWidth, mainContentHeight)
 
 	// Character stats view
 	charStatsView := m.characterStatsPanel.View(layout.CharStatsInnerWidth, layout.CharStatsInnerHeight)
@@ -780,7 +554,12 @@ func (m *Model) View() string {
 	diceView := m.dicePanel.View(layout.DiceWidth, layout.BottomInnerHeight)
 
 	// Status bar
-	statusBar := m.buildStatusBar()
+	statusBar := view.BuildStatusBar(view.StatusBarContext{
+		FocusArea:    int(m.focusArea),
+		CurrentPanel: view.PanelType(m.currentPanel),
+		DiceMode:     m.dicePanel.GetMode(),
+		Width:        m.width,
+	})
 
 	// Render main view using view package (it will combine tabs and content)
 	mainView := view.RenderMainView(
@@ -864,63 +643,8 @@ func (m *Model) View() string {
 	return mainView
 }
 
-// getWeaponMasteryCount returns the number of weapons the character can master
-func (m *Model) getWeaponMasteryCount() int {
-	debug.Log("getWeaponMasteryCount: Checking for Weapon Mastery feature")
-	debug.Log("getWeaponMasteryCount: Character class=%s, total features=%d", m.character.Class, len(m.character.Features.Features))
-
-	for i, feature := range m.character.Features.Features {
-		debug.Log("getWeaponMasteryCount: Feature[%d]='%s'", i, feature.Name)
-		if feature.Name == "Weapon Mastery" {
-			debug.Log("getWeaponMasteryCount: Found Weapon Mastery feature!")
-
-			// Read weapons_mastered from feature mechanics
-			if feature.Mechanics != nil {
-				if weaponsMastered, ok := feature.Mechanics["weapons_mastered"].(float64); ok {
-					count := int(weaponsMastered)
-					debug.Log("getWeaponMasteryCount: Returning %d from feature mechanics", count)
-					return count
-				}
-			}
-
-			// Fallback: if no mechanics data, return 0
-			debug.Log("getWeaponMasteryCount: No mechanics data found, returning 0")
-			return 0
-		}
-	}
-	debug.Log("getWeaponMasteryCount: Weapon Mastery feature not found, returning 0")
-	return 0
-}
-
-// getExpertiseCount returns the number of skills the character can have expertise in
-func (m *Model) getExpertiseCount() int {
-	debug.Log("getExpertiseCount: Checking for Expertise feature")
-
-	// Check for Expertise feature
-	for _, feature := range m.character.Features.Features {
-		if feature.Name == "Expertise" && feature.Mechanics != nil {
-			if expertiseCount, ok := feature.Mechanics["expertise_count"].(float64); ok {
-				debug.Log("getExpertiseCount: Returning %d from feature mechanics", int(expertiseCount))
-				return int(expertiseCount)
-			}
-		}
-	}
-
-	// Default: Rogue gets 2 expertise at level 1, 4 at level 6
-	if m.character.IsRogue() {
-		rogueLevel := m.character.GetRogueLevel()
-		if rogueLevel >= 6 {
-			debug.Log("getExpertiseCount: Rogue level %d, returning 4", rogueLevel)
-			return 4
-		} else if rogueLevel >= 1 {
-			debug.Log("getExpertiseCount: Rogue level %d, returning 2", rogueLevel)
-			return 2
-		}
-	}
-
-	debug.Log("getExpertiseCount: No expertise feature found, returning 0")
-	return 0
-}
+// Utility methods moved to utils.go
+// getWeaponMasteryCount and getExpertiseCount are now package-level functions
 
 // Origin panel handlers moved to handlers_origin.go
 // renderDivineOrderSelector moved to handlers_class.go (Cleric-specific)
