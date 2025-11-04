@@ -10,9 +10,10 @@ import (
 // Wizard step constants
 const (
 	WizardStepClass        = 1
-	WizardStepOrigin       = 2
-	WizardStepAbilityScores = 3
-	WizardStepAlignment    = 4
+	WizardStepSpecies      = 2
+	WizardStepOrigin       = 3
+	WizardStepAbilityScores = 4
+	WizardStepAlignment    = 5
 )
 
 // startWizard initializes and starts the character creation wizard
@@ -33,7 +34,7 @@ func (m *Model) startWizard() {
 
 	// Start with class selection
 	m.classSelector.Show()
-	m.message = "Step 1/4: Class Selection - Choose your class"
+	m.message = "Step 1/5: Class Selection - Choose your class"
 	debug.Log("startWizard: Wizard started, showing class selector")
 }
 
@@ -50,6 +51,8 @@ func (m *Model) cancelWizard() {
 
 	// Hide all selectors
 	m.classSelector.Hide()
+	m.speciesSelector.Hide()
+	m.subtypeSelector.Hide()
 	m.originSelector.Hide()
 	m.statGenerator.Hide()
 	m.alignmentSelector.Hide()
@@ -71,32 +74,40 @@ func (m *Model) advanceWizardStep() {
 
 	switch currentStep {
 	case WizardStepClass:
+		// Move to species selection
+		debug.Log("advanceWizardStep: Moving from Class (step 1) to Species (step 2)")
+		m.SetWizardStep(WizardStepSpecies)
+		m.speciesSelector.Show()
+		m.message = "Step 2/5: Species Selection - Choose your species"
+		debug.Log("advanceWizardStep: Species selector shown, wizard step set to %d", WizardStepSpecies)
+
+	case WizardStepSpecies:
 		// Move to origin selection
-		debug.Log("advanceWizardStep: Moving from Class (step 1) to Origin (step 2)")
+		debug.Log("advanceWizardStep: Moving from Species (step 2) to Origin (step 3)")
 		m.SetWizardStep(WizardStepOrigin)
 		m.originSelector.Show(m.character)
-		m.message = "Step 2/4: Origin Selection - Choose your origin"
+		m.message = "Step 3/5: Origin Selection - Choose your origin"
 		debug.Log("advanceWizardStep: Origin selector shown, wizard step set to %d", WizardStepOrigin)
 
 	case WizardStepOrigin:
 		// Move to ability scores
-		debug.Log("advanceWizardStep: Moving from Origin (step 2) to Ability Scores (step 3)")
+		debug.Log("advanceWizardStep: Moving from Origin (step 3) to Ability Scores (step 4)")
 		m.SetWizardStep(WizardStepAbilityScores)
 		m.statGenerator.Show(&m.character.AbilityScores)
-		m.message = "Step 3/4: Ability Scores - Set your ability scores"
+		m.message = "Step 4/5: Ability Scores - Set your ability scores"
 		debug.Log("advanceWizardStep: Stat generator shown, wizard step set to %d", WizardStepAbilityScores)
 
 	case WizardStepAbilityScores:
 		// Move to alignment
-		debug.Log("advanceWizardStep: Moving from Ability Scores (step 3) to Alignment (step 4)")
+		debug.Log("advanceWizardStep: Moving from Ability Scores (step 4) to Alignment (step 5)")
 		m.SetWizardStep(WizardStepAlignment)
 		m.alignmentSelector.Show()
-		m.message = "Step 4/4: Alignment - Choose your alignment"
+		m.message = "Step 5/5: Alignment - Choose your alignment"
 		debug.Log("advanceWizardStep: Alignment selector shown, wizard step set to %d", WizardStepAlignment)
 
 	case WizardStepAlignment:
 		// Complete wizard
-		debug.Log("advanceWizardStep: Moving from Alignment (step 4) to completion")
+		debug.Log("advanceWizardStep: Moving from Alignment (step 5) to completion")
 		m.completeWizard()
 
 	default:
@@ -127,13 +138,15 @@ func (m *Model) completeWizard() {
 func (m *Model) getWizardProgressMessage(step int) string {
 	switch step {
 	case WizardStepClass:
-		return "Step 1/4: Class Selection - Choose your class"
+		return "Step 1/5: Class Selection - Choose your class"
+	case WizardStepSpecies:
+		return "Step 2/5: Species Selection - Choose your species"
 	case WizardStepOrigin:
-		return "Step 2/4: Origin Selection - Choose your origin"
+		return "Step 3/5: Origin Selection - Choose your origin"
 	case WizardStepAbilityScores:
-		return "Step 3/4: Ability Scores - Set your ability scores"
+		return "Step 4/5: Ability Scores - Set your ability scores"
 	case WizardStepAlignment:
-		return "Step 4/4: Alignment - Choose your alignment"
+		return "Step 5/5: Alignment - Choose your alignment"
 	default:
 		return "Character Creation Wizard"
 	}
@@ -176,5 +189,41 @@ func (m *Model) checkAndAdvanceWizardAfterClassSetup() {
 
 	// All class setup is complete, advance wizard
 	debug.Log("checkAndAdvanceWizardAfterClassSetup: All class setup complete, advancing wizard")
+	m.advanceWizardStep()
+}
+
+// checkAndAdvanceWizardAfterSpeciesSetup checks if species setup is complete and advances wizard if needed
+// This should be called after any species-related selection (subtype, languages, skills, spells, feats)
+func (m *Model) checkAndAdvanceWizardAfterSpeciesSetup() {
+	debug.Log("checkAndAdvanceWizardAfterSpeciesSetup: Checking if species setup is complete")
+	if !m.IsInWizard() {
+		debug.Log("checkAndAdvanceWizardAfterSpeciesSetup: Not in wizard mode, aborting")
+		return
+	}
+
+	// Check if any species-related selectors are still visible
+	speciesVisible := m.speciesSelector.IsVisible()
+	subtypeVisible := m.subtypeSelector.IsVisible()
+	languageVisible := m.languageSelector.IsVisible()
+	skillVisible := m.skillSelector.IsVisible()
+	spellVisible := m.spellSelector.IsVisible()
+	featVisible := m.featSelector.IsVisible()
+
+	debug.Log("checkAndAdvanceWizardAfterSpeciesSetup: Selector visibility - species=%v, subtype=%v, language=%v, skill=%v, spell=%v, feat=%v",
+		speciesVisible, subtypeVisible, languageVisible, skillVisible, spellVisible, featVisible)
+
+	if speciesVisible ||
+		subtypeVisible ||
+		languageVisible ||
+		skillVisible ||
+		spellVisible ||
+		featVisible {
+		// Still have species setup to do, don't advance yet
+		debug.Log("checkAndAdvanceWizardAfterSpeciesSetup: Species setup not complete, waiting for more selections")
+		return
+	}
+
+	// All species setup is complete, advance wizard
+	debug.Log("checkAndAdvanceWizardAfterSpeciesSetup: All species setup complete, advancing wizard")
 	m.advanceWizardStep()
 }

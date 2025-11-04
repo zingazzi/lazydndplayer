@@ -62,11 +62,11 @@ func BuildStatusBar(ctx StatusBarContext) string {
 			contextHelp = "[↑/↓] Navigate • [l] Add Lang • [f] Add Feat • [m] Weapon Mastery"
 		case OriginPanel:
 			panelName = "Origin"
-			contextHelp = "[o] Origin • [Enter] Details • [a] Alignment • [h/w] Height/Weight • [t/i/b/f] Traits • [s] Backstory"
+			contextHelp = "[o] Origin • [Enter] Details • [a] Alignment • [h/w] Height/Weight • [t/i/b/f] Traits • [s] Species • [Shift+S] Save"
 		}
 	case FocusCharStats:
 		panelName = "Character Info"
-		contextHelp = "[n] Name • [h] HP • [r] Short Rest • [R] Long Rest • [+/-] ±1 • [i] Init"
+		contextHelp = "[n] Name • [s] Species • [Shift+S] Save • [h] HP • [r] Short Rest • [R] Long Rest • [+/-] ±1 • [i] Init"
 	case FocusActions:
 		panelName = "Actions"
 		contextHelp = "[↑/↓] Navigate • [Enter] Activate"

@@ -205,41 +205,48 @@ func (m *Model) handleSpellSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				// Add spell to spellbook and track it as a species spell
 				m.character.SpellBook.AddSpell(selectedSpell)
 				m.character.SpeciesSpells = append(m.character.SpeciesSpells, selectedSpell.Name)
-				m.message = fmt.Sprintf("Spell learned: %s", selectedSpell.Name)
-			} else {
-				m.message = fmt.Sprintf("You already know %s", selectedSpell.Name)
-			}
 
-			// After spell selection, check if we need feat selection
-			species := models.GetSpeciesByName(m.character.Race)
-			if species != nil && models.HasFeatChoice(species) {
-				m.spellSelector.Hide()
-				// Show feat selector for origin feat
-				m.featSelector.Show(m.character, true)
-				m.message = "Select your origin feat..."
-				return m, nil
-			}
+				// For cantrips, also add to cantrips list
+				if selectedSpell.Level == 0 {
+					m.character.SpellBook.Cantrips = append(m.character.SpellBook.Cantrips, selectedSpell.Name)
+				}
 
-			// Regular spell selection (for High Elf wizard cantrip)
-			if selectedSpell.Level == 0 {
-				m.character.SpellBook.Cantrips = append(m.character.SpellBook.Cantrips, selectedSpell.Name)
-				m.storage.Save(m.character)
 				m.spellSelector.Hide()
 
-				// Check if we need feat selection
+				// Check if we need feat selection (after spell selection)
+				species := models.GetSpeciesByName(m.character.Race)
 				if species != nil && models.HasFeatChoice(species) {
+					// Show feat selector for origin feat
 					m.featSelector.Show(m.character, true)
 					m.message = "Select your origin feat..."
+					return m, nil
+				}
+
+				// Spell selection complete (no more selections needed)
+				if m.IsInWizard() {
+					// In wizard mode, check if species setup is complete and advance
+					m.checkAndAdvanceWizardAfterSpeciesSetup()
+					return m, nil
 				} else {
-					m.message = fmt.Sprintf("Wizard cantrip learned: %s", selectedSpell.Name)
+					if selectedSpell.Level == 0 {
+						m.message = fmt.Sprintf("Wizard cantrip learned: %s", selectedSpell.Name)
+					} else {
+						m.message = fmt.Sprintf("Spell learned: %s", selectedSpell.Name)
+					}
+					m.storage.Save(m.character)
 				}
 			} else {
-				// Save character after spell selection (final step)
-				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("You already know %s", selectedSpell.Name)
+				m.spellSelector.Hide()
 			}
 		}
-		m.spellSelector.Hide()
 	case "esc":
+		// Check if in wizard mode (for species spell selection)
+		if m.IsInWizard() && !m.character.IsEldritchKnight() {
+			// In wizard, ESC cancels the entire wizard
+			m.cancelWizard()
+			return m, nil
+		}
 		// Check if we're cancelling Eldritch Knight spell selection
 		if m.character.IsEldritchKnight() && m.eldritchKnightSpellsSelected > 0 {
 			debug.Log("Eldritch Knight spell selection cancelled, rolling back changes")

@@ -98,7 +98,10 @@ func GetSpellsBindings() []HelpBinding {
 func GetCharacterStatsBindings() []HelpBinding {
 	return []HelpBinding{
 		{"n", "Edit character name"},
-		{"r", "Select species (from D&D 5e 2024 species)"},
+		{"s", "Change species"},
+		{"Shift+S", "Save character"},
+		{"r", "Short rest"},
+		{"R", "Long rest"},
 		{"h", "Adjust HP (popup)"},
 		{"+/-", "Quick HP adjust (±1)"},
 		{"i", "Roll initiative (1d20 + DEX)"},

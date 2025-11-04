@@ -85,14 +85,27 @@ func (m *Model) handleSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.featSelector.Show(m.character, true)
 					m.message = "Select your origin feat..."
 				} else {
-					m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
-					// Save when selection is complete (no more selections needed)
-					m.storage.Save(m.character)
+					// Skill selection complete (no more selections needed)
+					if m.IsInWizard() {
+						// In wizard mode, check if species setup is complete and advance
+						m.checkAndAdvanceWizardAfterSpeciesSetup()
+						return m, nil
+					} else {
+						m.message = fmt.Sprintf("Skill proficiency gained: %s", selectedSkill)
+						// Save when selection is complete (no more selections needed)
+						m.storage.Save(m.character)
+					}
 				}
 			}
 		}
 		m.skillSelector.Hide()
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			// In wizard, ESC cancels the entire wizard
+			m.cancelWizard()
+			return m, nil
+		}
 		m.skillSelector.Hide()
 		m.message = "Skill selection cancelled"
 	}
@@ -154,9 +167,16 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 						m.featSelector.Show(m.character, true)
 						m.message = "Select your origin feat..."
 					} else {
-						m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
-						// Save when selection is complete (no more selections needed)
-						m.storage.Save(m.character)
+						// Language selection complete (no more selections needed)
+						if m.IsInWizard() {
+							// In wizard mode, check if species setup is complete and advance
+							m.checkAndAdvanceWizardAfterSpeciesSetup()
+							return m, nil
+						} else {
+							m.message = fmt.Sprintf("Language selected: %s (Total languages: %d)", selectedLanguage, len(m.character.Languages))
+							// Save when selection is complete (no more selections needed)
+							m.storage.Save(m.character)
+						}
 					}
 				} else {
 					m.message = fmt.Sprintf("Language learned: %s!", selectedLanguage)
@@ -167,6 +187,12 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 			}
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			// In wizard, ESC cancels the entire wizard
+			m.cancelWizard()
+			return m, nil
+		}
 		m.languageSelector.Hide()
 		m.message = "Language selection cancelled"
 	}

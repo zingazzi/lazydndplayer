@@ -717,9 +717,13 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.traitSelector.Show(models.TraitFlaw, m.character.Flaw)
 		m.message = "Select or create flaws (Space to toggle, Enter to confirm)..."
 	case "s":
-		// Edit backstory
-		m.backstoryEditor.Show(m.character.Backstory)
-		m.message = "Edit your character's backstory..."
+		// Change species
+		m.speciesSelector.Show()
+		m.message = "Select a species..."
+	case "S":
+		// Save character (Shift+S)
+		m.storage.Save(m.character)
+		m.message = "Character saved!"
 	}
 	return m, nil
 }
@@ -1224,6 +1228,14 @@ func (m *Model) handleCharStatsPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.message = "Inspiration used"
 		}
 		m.storage.Save(m.character)
+	case "s":
+		// Change species
+		m.speciesSelector.Show()
+		m.message = "Select a species..."
+	case "S":
+		// Save character (Shift+S)
+		m.storage.Save(m.character)
+		m.message = "Character saved!"
 	}
 	return m, nil
 }

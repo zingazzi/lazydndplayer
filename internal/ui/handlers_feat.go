@@ -55,14 +55,28 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						m.message = "Choose which ability to increase"
 					} else {
 						// Feat applied automatically (no ability choice)
-						m.message = msg
-						m.storage.Save(m.character)
-						m.featSelector.Hide()
+						// Check if this is a species feat (wizard mode)
+						if m.IsInWizard() {
+							// In wizard mode, check if species setup is complete and advance
+							m.featSelector.Hide()
+							m.checkAndAdvanceWizardAfterSpeciesSetup()
+							return m, nil
+						} else {
+							m.message = msg
+							m.storage.Save(m.character)
+							m.featSelector.Hide()
+						}
 					}
 				}
 			}
 		}
 	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			// In wizard, ESC cancels the entire wizard
+			m.cancelWizard()
+			return m, nil
+		}
 		m.featSelector.Hide()
 		m.message = "Feat selection cancelled"
 	}
@@ -90,11 +104,18 @@ func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 			if err != nil {
 				m.message = err.Error()
 			} else {
-				m.message = msg
-				m.storage.Save(m.character)
+				m.ClearPendingFeat()
+				m.abilityChoiceSelector.Hide()
+				// Check if this is a species feat (wizard mode)
+				if m.IsInWizard() {
+					// In wizard mode, check if species setup is complete and advance
+					m.checkAndAdvanceWizardAfterSpeciesSetup()
+					return m, nil
+				} else {
+					m.message = msg
+					m.storage.Save(m.character)
+				}
 			}
-			m.ClearPendingFeat()
-			m.abilityChoiceSelector.Hide()
 		}
 
 		// Handle origin ability choice
