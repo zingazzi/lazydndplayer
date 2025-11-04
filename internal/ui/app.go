@@ -9,6 +9,7 @@ import (
 	"github.com/marcozingoni/lazydndplayer/internal/storage"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/components"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/panels"
+	"github.com/marcozingoni/lazydndplayer/internal/ui/services"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/state"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/view"
 )
@@ -127,6 +128,12 @@ type Model struct {
 	componentManager *ComponentManager
 	stateMachine     *state.StateMachine
 
+	// Services
+	rollService  *services.RollService
+	featService  *services.FeatService
+	originService *services.OriginService
+	classService  *services.ClassService
+
 	// State
 	currentPanel       PanelType
 	focusArea          FocusArea
@@ -171,6 +178,12 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 	// Create component manager and state machine
 	componentManager := NewComponentManager()
 	stateMachine := state.NewStateMachine()
+
+	// Create services
+	rollService := services.NewRollService()
+	featService := services.NewFeatService()
+	originService := services.NewOriginService()
+	classService := services.NewClassService()
 
 	// Create components using factory
 	tabs := factory.CreateTabs()
@@ -325,6 +338,10 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 		actionsPanel:        factory.CreateActionsPanel(char),
 		componentManager:    componentManager,
 		stateMachine:        stateMachine,
+		rollService:         rollService,
+		featService:         featService,
+		originService:       originService,
+		classService:        classService,
 		currentPanel:        StatsPanel,
 		focusArea:           FocusMain,
 		pendingChanges:      models.NewPendingChanges(),

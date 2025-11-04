@@ -64,76 +64,16 @@ func (m *Model) handleStatsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // rollSavingThrow rolls a saving throw for the given ability
 func (m *Model) rollSavingThrow(ability models.AbilityType) {
-	char := m.character
-	modifier := char.AbilityScores.GetModifier(ability)
-
-	// Check if proficient in this saving throw
-	isProficient := false
-	abilityFullName := ""
-	switch ability {
-	case models.Strength:
-		abilityFullName = "Strength"
-	case models.Dexterity:
-		abilityFullName = "Dexterity"
-	case models.Constitution:
-		abilityFullName = "Constitution"
-	case models.Intelligence:
-		abilityFullName = "Intelligence"
-	case models.Wisdom:
-		abilityFullName = "Wisdom"
-	case models.Charisma:
-		abilityFullName = "Charisma"
-	}
-
-	for _, prof := range char.SavingThrowProficiencies {
-		if strings.EqualFold(prof, abilityFullName) {
-			isProficient = true
-			break
-		}
-	}
-
-	// Add proficiency bonus if proficient
-	if isProficient {
-		modifier += char.ProficiencyBonus
-	}
-
-	// Roll 1d20 + modifier
-	expression := fmt.Sprintf("1d20%+d", modifier)
+	expression, message := m.rollService.CalculateSavingThrowRoll(m.character, ability)
 	m.dicePanel.Roll(expression)
-
-	profStr := ""
-	if isProficient {
-		profStr = " (proficient)"
-	}
-	m.message = fmt.Sprintf("Rolled %s saving throw%s: %s", abilityFullName, profStr, expression)
+	m.message = message
 }
 
 // rollAbilityCheck rolls an ability check for the given ability
 func (m *Model) rollAbilityCheck(ability models.AbilityType) {
-	char := m.character
-	modifier := char.AbilityScores.GetModifier(ability)
-
-	abilityFullName := ""
-	switch ability {
-	case models.Strength:
-		abilityFullName = "Strength"
-	case models.Dexterity:
-		abilityFullName = "Dexterity"
-	case models.Constitution:
-		abilityFullName = "Constitution"
-	case models.Intelligence:
-		abilityFullName = "Intelligence"
-	case models.Wisdom:
-		abilityFullName = "Wisdom"
-	case models.Charisma:
-		abilityFullName = "Charisma"
-	}
-
-	// Roll 1d20 + modifier (no proficiency for raw ability checks)
-	expression := fmt.Sprintf("1d20%+d", modifier)
+	expression, message := m.rollService.CalculateAbilityCheckRoll(m.character, ability)
 	m.dicePanel.Roll(expression)
-
-	m.message = fmt.Sprintf("Rolled %s ability check: %s", abilityFullName, expression)
+	m.message = message
 }
 
 // handleSkillsPanel handles skills panel specific keys

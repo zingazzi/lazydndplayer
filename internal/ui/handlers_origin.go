@@ -18,30 +18,19 @@ func (m *Model) handleOriginSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		selectedOrigin := m.originSelector.GetSelected()
 		if selectedOrigin != nil {
-			// Check if origin has ability choice
-			if models.HasOriginAbilityChoice(*selectedOrigin) {
+			// Check if origin has ability choice using service
+			if m.originService.RequiresAbilityChoice(selectedOrigin) {
 				// Store origin temporarily and show ability choice selector
 				m.SetPendingOrigin(selectedOrigin)
 				m.originSelector.Hide()
-				choices := models.GetOriginAbilityChoices(*selectedOrigin)
+				choices := m.originService.GetAbilityChoices(selectedOrigin)
 				m.abilityChoiceSelector.Show(selectedOrigin.Name, choices, m.character)
 				m.message = "Choose an ability score to increase..."
 			} else {
-				// Apply origin directly (no choice needed)
-				// Remove old origin first
-				if m.character.Origin != "" {
-					oldOrigin := models.GetOriginByName(m.character.Origin)
-					if oldOrigin != nil {
-						models.RemoveOriginBenefits(m.character, *oldOrigin)
-					}
-				}
-
-				// Apply new origin
-				m.character.Origin = selectedOrigin.Name
-				models.ApplyOriginBenefits(m.character, *selectedOrigin, "")
+				// Apply origin directly (no choice needed) using service
+				m.message = m.originService.ApplyOrigin(m.character, selectedOrigin, "")
 				m.storage.Save(m.character)
 				m.originSelector.Hide()
-				m.message = fmt.Sprintf("Origin changed to: %s", selectedOrigin.Name)
 			}
 		}
 	case "esc":

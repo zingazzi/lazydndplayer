@@ -40,23 +40,24 @@ func (m *Model) handleClassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				debug.Log("  Choose=%d, From=%v", classData.SkillChoices.Choose, classData.SkillChoices.From)
 			}
 
-			// Check if class has skill choices
-			if classData.SkillChoices != nil && classData.SkillChoices.Choose > 0 {
+			// Check if class has skill choices using service
+			if m.classService.RequiresSkillChoice(selectedClassName) {
 				// Show skill selector
 				debug.Log("Showing skill selector for %s", selectedClassName)
 				m.classSelector.Hide()
-				m.classSkillSelector.Show(selectedClassName, classData.SkillChoices.From, classData.SkillChoices.Choose, m.character)
+				from, choose := m.classService.GetSkillChoices(selectedClassName)
+				m.classSkillSelector.Show(selectedClassName, from, choose, m.character)
 				m.message = fmt.Sprintf("Select skills for %s class...", selectedClassName)
 			} else {
-				// No skill choices, apply class directly
+				// No skill choices, apply class directly using service
 				debug.Log("No skill choices, applying class directly")
-				err := models.ApplyClassToCharacter(m.character, selectedClassName)
+				msg, err := m.classService.ApplyClass(m.character, selectedClassName)
 				if err != nil {
 					debug.Log("ERROR applying class: %v", err)
-					m.message = fmt.Sprintf("Error applying class: %v", err)
+					m.message = err.Error()
 				} else {
 					debug.Log("Class applied successfully: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
-					m.message = fmt.Sprintf("Class changed to: %s (HP: %d/%d)", selectedClassName, m.character.CurrentHP, m.character.MaxHP)
+					m.message = msg
 				}
 				m.storage.Save(m.character)
 				m.classSelector.Hide()

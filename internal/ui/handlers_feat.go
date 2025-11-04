@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
 // handleFeatSelectorKeys handles feat selector specific keys
@@ -28,17 +27,8 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if selectedFeat != nil {
 			// Check if we're in delete mode
 			if m.featSelector.IsDeleteMode() {
-				// Remove the feat
-				for i, featName := range m.character.Feats {
-					if featName == selectedFeat.Name {
-						m.character.Feats = append(m.character.Feats[:i], m.character.Feats[i+1:]...)
-						break
-					}
-				}
-				// Remove feat benefits (ability increases, HP, speed, etc.)
-				models.RemoveFeatBenefits(m.character, *selectedFeat)
-
-				m.message = fmt.Sprintf("Feat removed: %s (benefits reversed)", selectedFeat.Name)
+				// Use service to remove feat
+				m.message = m.featService.RemoveFeat(m.character, selectedFeat)
 				m.storage.Save(m.character)
 				m.featSelector.Hide()
 			} else {
@@ -48,33 +38,25 @@ func (m *Model) handleFeatSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
-				// Add mode: Check if character already has this feat
-				if models.HasFeat(m.character, selectedFeat.Name) && !selectedFeat.Repeatable {
-					m.message = fmt.Sprintf("You already have %s and it's not repeatable", selectedFeat.Name)
+				// Use service to check if feat can be applied
+				msg, err := m.featService.ApplyFeat(m.character, selectedFeat, "")
+				if err != nil {
+					m.message = err.Error()
 					m.featSelector.Hide()
 				} else {
-					// Add feat to character
-					err := models.AddFeatToCharacter(m.character, selectedFeat.Name)
-					if err != nil {
-						m.message = fmt.Sprintf("Error adding feat: %v", err)
+					// Check if this feat has ability choices
+					if m.featService.RequiresAbilityChoice(selectedFeat) {
+						// Store the feat and show ability choice selector
+						m.SetPendingFeat(selectedFeat)
 						m.featSelector.Hide()
+						choices := m.featService.GetAbilityChoices(selectedFeat)
+						m.abilityChoiceSelector.Show(selectedFeat.Name, choices, m.character)
+						m.message = "Choose which ability to increase"
 					} else {
-						// Check if this feat has ability choices
-						if models.HasAbilityChoice(*selectedFeat) {
-							// Store the feat and show ability choice selector
-							m.SetPendingFeat(selectedFeat)
-							m.featSelector.Hide()
-							choices := models.GetAbilityChoices(*selectedFeat)
-							m.abilityChoiceSelector.Show(selectedFeat.Name, choices, m.character)
-							m.message = "Choose which ability to increase"
-						} else {
-							// Apply feat benefits automatically (no ability choice)
-							models.ApplyFeatBenefits(m.character, *selectedFeat, "")
-							m.message = fmt.Sprintf("Feat gained: %s!", selectedFeat.Name)
-							// Save character after feat selection
-							m.storage.Save(m.character)
-							m.featSelector.Hide()
-						}
+						// Feat applied automatically (no ability choice)
+						m.message = msg
+						m.storage.Save(m.character)
+						m.featSelector.Hide()
 					}
 				}
 			}
@@ -102,28 +84,22 @@ func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 
 		// Handle feat ability choice
 		if pendingFeat := m.GetPendingFeat(); pendingFeat != nil {
-			// Apply feat benefits with the chosen ability
-			models.ApplyFeatBenefits(m.character, *pendingFeat, chosenAbility)
-			m.message = fmt.Sprintf("Feat gained: %s (+1 %s)!", pendingFeat.Name, chosenAbility)
-			m.storage.Save(m.character)
+			// Use service to apply feat with chosen ability
+			msg, err := m.featService.ApplyFeat(m.character, pendingFeat, chosenAbility)
+			if err != nil {
+				m.message = err.Error()
+			} else {
+				m.message = msg
+				m.storage.Save(m.character)
+			}
 			m.ClearPendingFeat()
 			m.abilityChoiceSelector.Hide()
 		}
 
 		// Handle origin ability choice
 		if pendingOrigin := m.GetPendingOrigin(); pendingOrigin != nil {
-			// Remove old origin first
-			if m.character.Origin != "" {
-				oldOrigin := models.GetOriginByName(m.character.Origin)
-				if oldOrigin != nil {
-					models.RemoveOriginBenefits(m.character, *oldOrigin)
-				}
-			}
-
-			// Apply new origin with chosen ability
-			m.character.Origin = pendingOrigin.Name
-			models.ApplyOriginBenefits(m.character, *pendingOrigin, chosenAbility)
-			m.message = fmt.Sprintf("Origin changed to: %s (+1 %s)!", pendingOrigin.Name, chosenAbility)
+			// Use service to apply origin with chosen ability
+			m.message = m.originService.ApplyOrigin(m.character, pendingOrigin, chosenAbility)
 			m.storage.Save(m.character)
 			m.ClearPendingOrigin()
 			m.abilityChoiceSelector.Hide()
@@ -131,13 +107,8 @@ func (m *Model) handleAbilityChoiceSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 	case "esc":
 		// Cancel ability choice
 		if pendingFeat := m.GetPendingFeat(); pendingFeat != nil {
-			// Remove the feat from character since we're cancelling
-			for i, featName := range m.character.Feats {
-				if featName == pendingFeat.Name {
-					m.character.Feats = append(m.character.Feats[:i], m.character.Feats[i+1:]...)
-					break
-				}
-			}
+			// Use service to cancel feat selection
+			m.featService.CancelFeatSelection(m.character, pendingFeat)
 			m.storage.Save(m.character)
 			m.message = "Feat selection cancelled"
 			m.ClearPendingFeat()
