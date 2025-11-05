@@ -71,6 +71,15 @@ var FeatureScaling = map[string]map[string]map[int]int{
 			17: 6, 18: 6, 19: 6, 20: 6, // Proficiency bonus +6
 		},
 	},
+	"Ranger": {
+		"Favored Enemy": {
+			1: 2, 2: 2, 3: 2, 4: 2, // 2 uses at levels 1-4
+			5: 3, 6: 3, 7: 3, 8: 3, // 3 uses at levels 5-8
+			9: 4, 10: 4, 11: 4, 12: 4, // 4 uses at levels 9-12
+			13: 5, 14: 5, 15: 5, 16: 5, // 5 uses at levels 13-16
+			17: 6, 18: 6, 19: 6, 20: 6, // 6 uses at levels 17-20
+		},
+	},
 	"Druid": {
 		"Wild Shape": {
 			2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2, 10: 2,
@@ -110,9 +119,6 @@ var FeatureScaling = map[string]map[string]map[int]int{
 	},
 	"Warlock": {
 		// Warlock spell slots recovered on short rest - handled separately in spellcasting
-	},
-	"Ranger": {
-		// Most ranger features are passive or use spell slots
 	},
 	"Rogue": {
 		// Sneak Attack is per-turn, not limited use

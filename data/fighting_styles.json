@@ -90,6 +90,14 @@
       "benefits": {
         "special": "Learn 2 cantrips from cleric spell list"
       }
+    },
+    {
+      "name": "Druidic Warrior",
+      "description": "You learn two cantrips from the druid spell list. They count as ranger spells for you, and Wisdom is your spellcasting ability for them.",
+      "requirements": [],
+      "benefits": {
+        "special": "Learn 2 cantrips from druid spell list"
+      }
     }
   ]
 }

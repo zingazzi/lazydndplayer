@@ -67,6 +67,8 @@ func (sb *SpellbookEditor) loadWizardSpells() {
 		targetClass = "wizard"
 	} else if sb.character.HasClass("Bard") {
 		targetClass = "bard"
+	} else if sb.character.HasClass("Ranger") {
+		targetClass = "ranger"
 	} else if sb.character.IsArcaneTrickster() {
 		targetClass = "wizard" // Arcane Trickster uses wizard spells
 	} else {

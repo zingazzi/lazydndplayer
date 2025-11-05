@@ -264,9 +264,13 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.spellbookEditor.Show()
 			m.message = "Managing spellbook... (Space: Prepare | a: Add | d/x: Remove | c: Cantrips | 0-9: Filter)"
 			debug.Log("=== Spellbook editor visible: %v", m.spellbookEditor.IsVisible())
-		} else if m.character.HasClass("Bard") && m.character.SpellBook.SpellcastingMod != "" {
-			// Bard is a known caster - allow spellbook access for managing known spells
-			debug.Log("=== OPENING SPELLBOOK EDITOR FOR BARD")
+		} else if (m.character.HasClass("Bard") || m.character.HasClass("Ranger")) && m.character.SpellBook.SpellcastingMod != "" {
+			// Bard and Ranger are known casters - allow spellbook access for managing known spells
+			className := "Bard"
+			if m.character.HasClass("Ranger") {
+				className = "Ranger"
+			}
+			debug.Log("=== OPENING SPELLBOOK EDITOR FOR %s", className)
 			m.spellbookEditor.Show()
 			m.message = "Managing spellbook... (a: Add | d/x: Remove | c: Cantrips | 0-9: Filter)"
 			debug.Log("=== Spellbook editor visible: %v", m.spellbookEditor.IsVisible())

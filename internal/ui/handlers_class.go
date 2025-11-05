@@ -418,7 +418,16 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 					debug.Log("Blessed Warrior selected - showing cantrip selector for 2 cantrips")
 					m.cantripSelector.Show("Cleric", 2) // Blessed Warrior learns from cleric spell list
 					m.message = "Select 2 cantrips from the cleric spell list for Blessed Warrior..."
+					return m, cmd
+				}
+
+				// Check if Druidic Warrior was selected (needs 2 cantrips)
+				if selectedStyle == "Druidic Warrior" {
+					debug.Log("Druidic Warrior selected - showing cantrip selector for 2 cantrips")
+					m.cantripSelector.Show("Druid", 2) // Druidic Warrior learns from druid spell list
+					m.message = "Select 2 cantrips from the druid spell list for Druidic Warrior..."
 					m.fightingStyleSelector.Hide()
+					return m, cmd
 				} else {
 					// Check if character also needs weapon mastery selection
 					masteryCount := getWeaponMasteryCount(m.character)

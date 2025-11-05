@@ -142,8 +142,8 @@ func GetClassCasterInfo(className string) *ClassSpellcastingInfo {
 			SpellcastingAbility: Wisdom,
 			RitualCasting:       false,
 			SpellsKnownByLevel: map[int]int{
-				2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5, 8: 5, 9: 6, 10: 6,
-				11: 7, 12: 7, 13: 8, 14: 8, 15: 9, 16: 9, 17: 10, 18: 10, 19: 11, 20: 11,
+				1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 6, 7: 7, 8: 7, 9: 8, 10: 8,
+				11: 10, 12: 10, 13: 11, 14: 11, 15: 12, 16: 12, 17: 14, 18: 14, 19: 15, 20: 15,
 			},
 		},
 		"Arcane Trickster": {
