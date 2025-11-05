@@ -89,7 +89,8 @@ func (m *Model) handleSkillsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		if skill := m.skillsPanel.GetSelectedSkill(); skill != nil {
 			abilityMod := m.character.AbilityScores.GetModifier(skill.Ability)
-			bonus := skill.CalculateBonus(abilityMod, m.character.ProficiencyBonus)
+			jackOfAllTradesBonus := models.GetJackOfAllTradesBonus(m.character, skill.Proficiency)
+			bonus := skill.CalculateBonusWithJackOfAllTrades(abilityMod, m.character.ProficiencyBonus, jackOfAllTradesBonus)
 			expr := fmt.Sprintf("1d20%+d", bonus)
 			m.dicePanel.Roll(expr)
 			m.message = fmt.Sprintf("Rolling %s: %s", skill.Name, m.dicePanel.LastMessage)
@@ -248,6 +249,12 @@ func (m *Model) handleSpellsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			debug.Log("=== OPENING SPELLBOOK EDITOR")
 			m.spellbookEditor.Show()
 			m.message = "Managing spellbook... (Space: Prepare | a: Add | d/x: Remove | c: Cantrips | 0-9: Filter)"
+			debug.Log("=== Spellbook editor visible: %v", m.spellbookEditor.IsVisible())
+		} else if m.character.HasClass("Bard") && m.character.SpellBook.SpellcastingMod != "" {
+			// Bard is a known caster - allow spellbook access for managing known spells
+			debug.Log("=== OPENING SPELLBOOK EDITOR FOR BARD")
+			m.spellbookEditor.Show()
+			m.message = "Managing spellbook... (a: Add | d/x: Remove | c: Cantrips | 0-9: Filter)"
 			debug.Log("=== Spellbook editor visible: %v", m.spellbookEditor.IsVisible())
 		} else if m.character.SpellBook.IsPreparedCaster || m.character.HasClass("Paladin") {
 			// Paladins are prepared casters (like Clerics)

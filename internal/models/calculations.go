@@ -123,6 +123,35 @@ func CalculateSkillModifier(abilityMod int, proficiency ProficiencyLevel, profic
 	return modifier
 }
 
+// GetJackOfAllTradesBonus returns half proficiency bonus (rounded down) if character has Jack of All Trades
+// and the check doesn't already include proficiency bonus
+func GetJackOfAllTradesBonus(char *Character, proficiency ProficiencyLevel) int {
+	if char == nil {
+		return 0
+	}
+
+	// Check if character has Jack of All Trades feature
+	hasJackOfAllTrades := false
+	for _, feature := range char.Features.Features {
+		if feature.Name == "Jack of All Trades" {
+			hasJackOfAllTrades = true
+			break
+		}
+	}
+
+	if !hasJackOfAllTrades {
+		return 0
+	}
+
+	// Only apply if not proficient (Jack of All Trades applies to checks without proficiency)
+	if proficiency == NotProficient {
+		// Half proficiency bonus, rounded down
+		return char.ProficiencyBonus / 2
+	}
+
+	return 0
+}
+
 // CalculateHPRatio calculates the ratio of current to max HP (for proportional adjustments).
 func CalculateHPRatio(current, max int) float64 {
 	if max == 0 {

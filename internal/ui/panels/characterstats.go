@@ -511,7 +511,8 @@ func (p *CharacterStatsPanel) calculatePassiveScore(char *models.Character, skil
 	abilityMod := char.AbilityScores.GetModifier(skill.Ability)
 
 	// Calculate skill bonus (includes proficiency if applicable)
-	skillBonus := skill.CalculateBonus(abilityMod, char.ProficiencyBonus)
+	jackOfAllTradesBonus := models.GetJackOfAllTradesBonus(char, skill.Proficiency)
+	skillBonus := skill.CalculateBonusWithJackOfAllTrades(abilityMod, char.ProficiencyBonus, jackOfAllTradesBonus)
 
 	// Add feat bonuses
 	featBonus := 0

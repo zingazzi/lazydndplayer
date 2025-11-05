@@ -54,9 +54,16 @@ func (s *RollService) CalculateAbilityCheckRoll(character *models.Character, abi
 	modifier := character.AbilityScores.GetModifier(ability)
 	abilityFullName := s.getAbilityFullName(ability)
 
-	// Roll 1d20 + modifier (no proficiency for raw ability checks)
+	// Apply Jack of All Trades bonus (half proficiency, rounded down) for ability checks without proficiency
+	jackOfAllTradesBonus := models.GetJackOfAllTradesBonus(character, models.NotProficient)
+	modifier += jackOfAllTradesBonus
+
+	// Roll 1d20 + modifier
 	expression = fmt.Sprintf("1d20%+d", modifier)
 	message = fmt.Sprintf("Rolled %s ability check: %s", abilityFullName, expression)
+	if jackOfAllTradesBonus > 0 {
+		message += fmt.Sprintf(" (Jack of All Trades: +%d)", jackOfAllTradesBonus)
+	}
 
 	return expression, message
 }

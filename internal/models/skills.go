@@ -103,3 +103,12 @@ func (s *Skill) CalculateBonus(abilityMod, proficiencyBonus int) int {
 	}
 	return bonus
 }
+
+// CalculateBonusWithJackOfAllTrades calculates the total bonus for a skill, including Jack of All Trades if applicable
+func (s *Skill) CalculateBonusWithJackOfAllTrades(abilityMod, proficiencyBonus int, jackOfAllTradesBonus int) int {
+	bonus := s.CalculateBonus(abilityMod, proficiencyBonus)
+	if s.Proficiency == NotProficient && jackOfAllTradesBonus > 0 {
+		bonus += jackOfAllTradesBonus
+	}
+	return bonus
+}

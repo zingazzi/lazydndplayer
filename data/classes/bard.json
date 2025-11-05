@@ -34,8 +34,8 @@
         },
         {
           "name": "Bardic Inspiration",
-          "description": "You can inspire others through stirring words or music. To do so, you use a bonus action on your turn to choose one creature other than yourself within 60 feet of you who can hear you. That creature gains one Bardic Inspiration die, a d6. Once within the next 10 minutes, the creature can roll the die and add the number rolled to one ability check, attack roll, or saving throw it makes.",
-          "uses_formula": "proficiency",
+          "description": "You can inspire others through stirring words or music. To do so, you use a bonus action on your turn to choose one creature other than yourself within 60 feet of you who can hear you. That creature gains one Bardic Inspiration die, a d6. Once within the next 10 minutes, the creature can roll the die and add the number rolled to one ability check, attack roll, or saving throw it makes. You have a number of uses equal to your Charisma modifier. You regain all uses after a long rest.",
+          "uses_formula": "charisma_mod",
           "rest_type": "Long Rest"
         }
       ],
@@ -52,6 +52,12 @@
       "level": 2,
       "proficiency_bonus": 2,
       "features": [
+        {
+          "name": "Expertise",
+          "description": "You gain expertise in 2 skill proficiencies. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.",
+          "uses_formula": "0",
+          "rest_type": "None"
+        },
         {
           "name": "Jack of All Trades",
           "description": "Starting at 2nd level, you can add half your proficiency bonus, rounded down, to any ability check you make that doesn't already include your proficiency bonus.",
@@ -84,12 +90,6 @@
           "uses_formula": "0",
           "rest_type": "None",
           "subclass_choice": true
-        },
-        {
-          "name": "Expertise",
-          "description": "At 3rd level, choose two of your skill proficiencies. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.",
-          "uses_formula": "0",
-          "rest_type": "None"
         }
       ],
       "spellcasting_info": {

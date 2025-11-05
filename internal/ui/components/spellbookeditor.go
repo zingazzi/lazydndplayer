@@ -60,10 +60,24 @@ func (sb *SpellbookEditor) loadWizardSpells() {
 	}
 
 	sb.allWizardSpells = []models.Spell{}
+
+	// Determine which class spells to load
+	var targetClass string
+	if sb.character.HasClass("Wizard") {
+		targetClass = "wizard"
+	} else if sb.character.HasClass("Bard") {
+		targetClass = "bard"
+	} else if sb.character.IsArcaneTrickster() {
+		targetClass = "wizard" // Arcane Trickster uses wizard spells
+	} else {
+		// Default to wizard if no specific class found
+		targetClass = "wizard"
+	}
+
 	for _, spell := range allSpells {
-		// Check if it's a Wizard spell
+		// Check if it's a spell for the target class
 		for _, class := range spell.Classes {
-			if strings.ToLower(class) == "wizard" {
+			if strings.ToLower(class) == targetClass {
 				sb.allWizardSpells = append(sb.allWizardSpells, spell)
 				break
 			}
