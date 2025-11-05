@@ -42,6 +42,24 @@ func GenerateAttacks(char *Character) AttackList {
 	attackMod := strMod       // Default: use STR
 	damageBonus := strMod     // Default: use STR
 
+	// Check for Bardic Damage feature (College of Dance) - use DEX instead of STR
+	hasBardicDamage := false
+	for _, feature := range char.Features.Features {
+		if feature.Name == "Dazzling Footwork" {
+			// Check if mechanics indicate Bardic Damage is active
+			if feature.Mechanics != nil {
+				if bardicDamage, ok := feature.Mechanics["bardic_damage"].(bool); ok && bardicDamage {
+					// Check if unarmored and no shield (Dazzling Footwork requirement)
+					armor, shield := GetEquippedArmorInfo(char)
+					if armor == "None" && shield == "None" {
+						hasBardicDamage = true
+					}
+				}
+			}
+			break
+		}
+	}
+
 	// Check for Monk Martial Arts
 	if char.IsMonk() && char.HasFeature("Martial Arts") {
 		monk := char.GetMonkMechanics()
@@ -52,6 +70,10 @@ func GenerateAttacks(char *Character) AttackList {
 			attackMod = dexMod
 			damageBonus = dexMod
 		}
+	} else if hasBardicDamage {
+		// Bardic Damage: use DEX instead of STR for unarmed strikes
+		attackMod = dexMod
+		damageBonus = dexMod
 	} else if char.FightingStyle == "Unarmed Fighting" {
 		// Check if character has any weapons or shield equipped
 		hasWeaponOrShield := false
@@ -134,6 +156,24 @@ func GenerateAttacks(char *Character) AttackList {
 		// Determine which ability modifier to use
 		abilityMod := strMod // Default to Strength
 
+		// Check for Bardic Damage feature (College of Dance) - use DEX instead of STR
+		hasBardicDamage := false
+		for _, feature := range char.Features.Features {
+			if feature.Name == "Dazzling Footwork" {
+				// Check if mechanics indicate Bardic Damage is active
+				if feature.Mechanics != nil {
+					if bardicDamage, ok := feature.Mechanics["bardic_damage"].(bool); ok && bardicDamage {
+						// Check if unarmored and no shield (Dazzling Footwork requirement)
+						armor, shield := GetEquippedArmorInfo(char)
+						if armor == "None" && shield == "None" {
+							hasBardicDamage = true
+						}
+					}
+				}
+				break
+			}
+		}
+
 		// Check for Finesse property - use higher of STR or DEX
 		hasFinesse := false
 		for _, prop := range weaponDef.Properties {
@@ -150,6 +190,9 @@ func GenerateAttacks(char *Character) AttackList {
 			}
 		} else if strings.Contains(strings.ToLower(weaponDef.Subcategory), "ranged") {
 			// Ranged weapons use DEX
+			abilityMod = dexMod
+		} else if hasBardicDamage {
+			// Bardic Damage: use DEX instead of STR for melee weapons
 			abilityMod = dexMod
 		}
 		// Otherwise, use STR (melee weapons)

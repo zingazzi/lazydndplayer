@@ -558,9 +558,92 @@
           },
           {
             "name": "Cutting Words",
-            "description": "You learn how to use your wit to distract, confuse, and otherwise sap the confidence and competence of others. When a creature that you can see within 60 feet of you makes an attack roll, an ability check, or a damage roll, you can use your reaction to expend one of your uses of Bardic Inspiration, rolling a Bardic Inspiration die and subtracting the number rolled from the creature's roll.",
+            "description": "You learn how to use your wit to distract, confuse, and otherwise sap the confidence and competence of others. When a creature that you can see within 60 feet of you makes an attack roll or a saving throw, you can use your reaction to expend one of your uses of Bardic Inspiration, rolling a Bardic Inspiration die and subtracting the number rolled from the creature's roll.",
             "uses_formula": "0",
             "rest_type": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "College of Dance",
+      "description": "Bards of the College of Dance blend magic and movement, using graceful footwork and inspiring performances to captivate audiences and confound enemies.",
+      "subclass_level": 3,
+      "source": "Custom",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Dazzling Footwork",
+            "description": "If you are not wearing armor or shield, you gain the following benefits: Dance Virtuoso (advantage on Performance checks), Unarmored Defense (AC equals 10 + your Dexterity modifier + your Charisma modifier), Agile Strike (when you use Bardic Inspiration, you can make an unarmored strike as a bonus action or reaction), and Bardic Damage (you can use your Dexterity modifier instead of Strength modifier when you attack with weapons).",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "dance_virtuoso": true,
+              "unarmored_defense": "dex+cha",
+              "agile_strike": true,
+              "bardic_damage": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "College of Glamour",
+      "description": "Bards of the College of Glamour use their performances to captivate and inspire. They master the art of beguiling magic and inspire others through their charismatic presence.",
+      "subclass_level": 3,
+      "source": "Custom",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Beguiling Magic",
+            "description": "You always have Charm Person and Mirror Image prepared, and they don't count against the number of spells you know. Additionally, after you cast an illusion or charm spell, you can force one enemy within 30 feet of you to make a Wisdom saving throw. On a failed save, the creature is frightened or charmed by you (your choice) until the end of your next turn. You have 1 use of this feature. You regain all uses when you finish a long rest, or when you use a Bardic Inspiration.",
+            "uses_formula": "1",
+            "rest_type": "Long Rest",
+            "mechanics": {
+              "always_prepared_spells": ["Charm Person", "Mirror Image"],
+              "beguiling_effect": true,
+              "restore_on_bardic_inspiration": true
+            }
+          },
+          {
+            "name": "Mantle of Inspiration",
+            "description": "As a bonus action, you can expend one use of your Bardic Inspiration. Choose a number of creatures you can see within 60 feet of you, up to a number equal to your Charisma modifier (minimum of one). Each target gains temporary hit points equal to two times the number you roll on the Bardic Inspiration die. Additionally, each target can move up to its speed without provoking opportunity attacks.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "mantle_of_inspiration": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "College of Valor",
+      "description": "Bards of the College of Valor are called skalds or blades, and they combine the martial mastery of the fighter with the magical expertise of the bard.",
+      "subclass_level": 3,
+      "source": "Custom",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Combat Inspiration",
+            "description": "When you give a creature a Bardic Inspiration die, the creature can use it in two ways: Defense - The creature can use the die as a reaction after an attacker makes an attack roll against it, rolling the die and subtracting the number rolled from the attacker's roll. Offense - The creature can roll the die and add the number rolled to an attack roll it makes.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "combat_inspiration": true
+            }
+          },
+          {
+            "name": "Martial Training",
+            "description": "You gain proficiency with medium armor, shields, and martial weapons.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "proficiencies": {
+                "armor": ["Medium", "Shields"],
+                "weapons": ["Martial"]
+              }
+            }
           }
         ]
       }

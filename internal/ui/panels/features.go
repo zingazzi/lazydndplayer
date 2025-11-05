@@ -637,8 +637,23 @@ func (p *FeaturesPanel) GetSelectedConsumable() *ConsumableItem {
 func (p *FeaturesPanel) UseFeature() {
 	item := p.GetSelectedConsumable()
 	if item != nil && item.ItemType == "feature" && item.Feature != nil {
-		if item.Feature.CurrentUses > 0 {
-			item.Feature.CurrentUses--
+		// Find the feature index in the character's features list
+		featureIndex := -1
+		for i, f := range p.character.Features.Features {
+			if &f == item.Feature {
+				featureIndex = i
+				break
+			}
+		}
+
+		if featureIndex >= 0 {
+			// Use the FeatureList's UseFeature method to trigger any special logic
+			p.character.Features.UseFeature(featureIndex)
+		} else {
+			// Fallback: direct modification if not found
+			if item.Feature.CurrentUses > 0 {
+				item.Feature.CurrentUses--
+			}
 		}
 	}
 }

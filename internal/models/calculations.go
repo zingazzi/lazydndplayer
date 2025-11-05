@@ -152,6 +152,21 @@ func GetJackOfAllTradesBonus(char *Character, proficiency ProficiencyLevel) int 
 	return 0
 }
 
+// HasDanceVirtuosoAdvantage checks if character has advantage on Performance checks from Dance Virtuoso
+func HasDanceVirtuosoAdvantage(char *Character) bool {
+	if char == nil {
+		return false
+	}
+
+	// Check if character has Dazzling Footwork feature
+	if !char.HasFeature("Dazzling Footwork") {
+		return false
+	}
+
+	// Check if character is unarmored and has no shield
+	return IsUnarmoredNoShield(char)
+}
+
 // CalculateHPRatio calculates the ratio of current to max HP (for proportional adjustments).
 func CalculateHPRatio(current, max int) float64 {
 	if max == 0 {

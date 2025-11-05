@@ -4,6 +4,8 @@ package models
 import (
 	"strconv"
 	"strings"
+
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 )
 
 // RestType indicates when a feature recharges
@@ -58,9 +60,32 @@ func (fl *FeatureList) UseFeature(index int) bool {
 	feature := &fl.Features[index]
 	if feature.CurrentUses > 0 {
 		feature.CurrentUses--
+
+		// Check if this is Bardic Inspiration and restore Beguiling Magic uses
+		if feature.Name == "Bardic Inspiration" {
+			fl.restoreBeguilingMagicOnBardicInspiration()
+		}
+
 		return true
 	}
 	return false
+}
+
+// restoreBeguilingMagicOnBardicInspiration restores Beguiling Magic uses when Bardic Inspiration is used
+func (fl *FeatureList) restoreBeguilingMagicOnBardicInspiration() {
+	for i := range fl.Features {
+		if fl.Features[i].Name == "Beguiling Magic" {
+			if fl.Features[i].Mechanics != nil {
+				if restoreOnBardic, ok := fl.Features[i].Mechanics["restore_on_bardic_inspiration"].(bool); ok && restoreOnBardic {
+					// Restore Beguiling Magic uses
+					fl.Features[i].CurrentUses = fl.Features[i].MaxUses
+					debug.Log("Beguiling Magic uses restored from Bardic Inspiration: %d/%d",
+						fl.Features[i].CurrentUses, fl.Features[i].MaxUses)
+					break
+				}
+			}
+		}
+	}
 }
 
 // RestoreFeature restores one use of a feature

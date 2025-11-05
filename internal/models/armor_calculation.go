@@ -82,6 +82,10 @@ func CalculateAC(char *Character) int {
 			// Barbarian Unarmored Defense: 10 + Dex modifier + Con modifier
 			conMod := char.AbilityScores.GetModifier("Constitution")
 			baseAC = 10 + dexMod + conMod
+		} else if char.HasFeature("Dazzling Footwork") && IsUnarmoredNoShield(char) {
+			// College of Dance Unarmored Defense: 10 + Dex modifier + Char modifier
+			chaMod := char.AbilityScores.GetModifier("Charisma")
+			baseAC = 10 + dexMod + chaMod
 		} else {
 			// Standard unarmored: 10 + Dex modifier
 			baseAC = 10 + dexMod
@@ -205,6 +209,12 @@ func GetEquippedArmorInfo(char *Character) (armor string, shield string) {
 	}
 
 	return armor, shield
+}
+
+// IsUnarmoredNoShield checks if character is unarmored and has no shield equipped
+func IsUnarmoredNoShield(char *Character) bool {
+	armor, shield := GetEquippedArmorInfo(char)
+	return armor == "None" && shield == "None"
 }
 
 // GetFightingStyleACBonus returns conditional AC bonus from fighting style

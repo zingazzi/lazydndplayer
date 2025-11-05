@@ -91,9 +91,23 @@ func (m *Model) handleSkillsPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			abilityMod := m.character.AbilityScores.GetModifier(skill.Ability)
 			jackOfAllTradesBonus := models.GetJackOfAllTradesBonus(m.character, skill.Proficiency)
 			bonus := skill.CalculateBonusWithJackOfAllTrades(abilityMod, m.character.ProficiencyBonus, jackOfAllTradesBonus)
+
+			// Check for Dance Virtuoso advantage on Performance checks
+			hasAdvantage := false
+			if skill.Name == models.Performance && models.HasDanceVirtuosoAdvantage(m.character) {
+				hasAdvantage = true
+			}
+
 			expr := fmt.Sprintf("1d20%+d", bonus)
+			if hasAdvantage {
+				expr += " adv" // Add advantage indicator
+			}
 			m.dicePanel.Roll(expr)
-			m.message = fmt.Sprintf("Rolling %s: %s", skill.Name, m.dicePanel.LastMessage)
+			if hasAdvantage {
+				m.message = fmt.Sprintf("Rolling %s (with advantage): %s", skill.Name, m.dicePanel.LastMessage)
+			} else {
+				m.message = fmt.Sprintf("Rolling %s: %s", skill.Name, m.dicePanel.LastMessage)
+			}
 		}
 	}
 	return m, nil

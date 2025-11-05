@@ -493,6 +493,13 @@ func (c *Character) Heal(amount int) {
 	}
 }
 
+// GrantTemporaryHP grants temporary hit points to the character
+func (c *Character) GrantTemporaryHP(amount int) {
+	if amount > c.TempHP {
+		c.TempHP = amount
+	}
+}
+
 // ShortRest performs a short rest
 func (c *Character) ShortRest() {
 	c.Actions.ShortRest()

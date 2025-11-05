@@ -480,6 +480,21 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 						grantDivineSmite(char)
 					}
 
+					// Check for always-prepared spells (College of Glamour)
+					if featureDef.Mechanics != nil {
+						if alwaysPreparedSpells, ok := featureDef.Mechanics["always_prepared_spells"].([]interface{}); ok {
+							spellNames := make([]string, len(alwaysPreparedSpells))
+							for i, spell := range alwaysPreparedSpells {
+								if spellName, ok := spell.(string); ok {
+									spellNames[i] = spellName
+								}
+							}
+							if len(spellNames) > 0 {
+								grantAlwaysPreparedSpells(char, spellNames)
+							}
+						}
+					}
+
 					// Check if feature has mechanics that require user choices
 					if featureDef.Mechanics != nil {
 						mechType, _ := featureDef.Mechanics["type"].(string)
@@ -738,6 +753,58 @@ func grantOathSpells(char *Character, oathSpells map[string][]string, paladinLev
 	}
 }
 
+// grantAlwaysPreparedSpells grants always-prepared spells to a character (e.g., College of Glamour)
+func grantAlwaysPreparedSpells(char *Character, spellNames []string) {
+	debug.Log("grantAlwaysPreparedSpells: Granting always-prepared spells: %v", spellNames)
+
+	// Load all spells from JSON
+	allSpells, err := LoadSpellsFromJSON("data/spells.json")
+	if err != nil {
+		debug.Log("grantAlwaysPreparedSpells: Error loading spells: %v", err)
+		return
+	}
+
+	for _, spellName := range spellNames {
+		// Find the spell in the allSpells list
+		var foundSpell *Spell
+		for i := range allSpells {
+			if allSpells[i].Name == spellName {
+				foundSpell = &allSpells[i]
+				break
+			}
+		}
+
+		if foundSpell == nil {
+			debug.Log("grantAlwaysPreparedSpells: Warning - spell '%s' not found in spell database", spellName)
+			continue
+		}
+
+		// Check if spell already exists in spellbook
+		spellExists := false
+		for i := range char.SpellBook.Spells {
+			if char.SpellBook.Spells[i].Name == spellName {
+				// Spell exists - mark as always prepared
+				char.SpellBook.Spells[i].AlwaysPrepared = true
+				char.SpellBook.Spells[i].Prepared = true
+				char.SpellBook.Spells[i].Known = true
+				spellExists = true
+				debug.Log("grantAlwaysPreparedSpells: Marked existing spell '%s' as always prepared", spellName)
+				break
+			}
+		}
+
+		if !spellExists {
+			// Add spell to spellbook as always prepared
+			newSpell := *foundSpell
+			newSpell.AlwaysPrepared = true
+			newSpell.Prepared = true
+			newSpell.Known = true
+			char.SpellBook.Spells = append(char.SpellBook.Spells, newSpell)
+			debug.Log("grantAlwaysPreparedSpells: Added spell '%s' as always prepared", spellName)
+		}
+	}
+}
+
 // applySubclassFeatureBenefits applies special benefits for specific subclass features
 func applySubclassFeatureBenefits(char *Character, featureName string, subclassName string) {
 	source := BenefitSource{
@@ -837,6 +904,35 @@ func applySubclassFeatureBenefits(char *Character, featureName string, subclassN
 			debug.Log("  Granted Darkness spell")
 		} else {
 			debug.Log("  Warning: Darkness spell not found")
+		}
+
+	case "Beguiling Magic":
+		// College of Glamour: Grant always-prepared spells (handled in GrantSubclassFeatures)
+		debug.Log("  Beguiling Magic benefits applied (spells granted separately)")
+
+	case "Martial Training":
+		// College of Valor: Grant proficiencies with medium armor, shields, and martial weapons
+		debug.Log("  Applying Martial Training benefits")
+
+		// Add Medium armor proficiency
+		if err := applier.AddArmorProficiency(source, "Medium"); err != nil {
+			debug.Log("  Error adding Medium armor proficiency: %v", err)
+		} else {
+			debug.Log("  Granted Medium armor proficiency")
+		}
+
+		// Add Shields proficiency
+		if err := applier.AddArmorProficiency(source, "Shields"); err != nil {
+			debug.Log("  Error adding Shields proficiency: %v", err)
+		} else {
+			debug.Log("  Granted Shields proficiency")
+		}
+
+		// Add Martial weapons proficiency
+		if err := applier.AddWeaponProficiency(source, "Martial"); err != nil {
+			debug.Log("  Error adding Martial weapons proficiency: %v", err)
+		} else {
+			debug.Log("  Granted Martial weapons proficiency")
 		}
 
 		// Add "Minor Illusion" cantrip
