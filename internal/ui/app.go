@@ -25,6 +25,7 @@ const (
 	FeaturesPanel
 	TraitsPanel
 	OriginPanel
+	CompanionPanel
 )
 
 // Popup size constants for different popup types
@@ -109,6 +110,7 @@ type Model struct {
 	deLevelSelector       *components.DeLevelSelector
 	restPopup             *components.RestPopup
 	messagePopup          *components.MessagePopup
+	beastSelector         *components.BeastSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -118,6 +120,7 @@ type Model struct {
 	featuresPanel  *panels.FeaturesPanel
 	traitsPanel    *panels.TraitsPanel
 	originPanel    *panels.OriginPanel
+	companionPanel *panels.CompanionPanel
 
 	// Fixed Panels (always visible)
 	dicePanel           *panels.DicePanel
@@ -231,6 +234,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 	deLevelSelector := factory.CreateDeLevelSelector(char)
 	restPopup := factory.CreateRestPopup(char, models.NewStandardDiceRoller())
 	messagePopup := factory.CreateMessagePopup()
+	beastSelector := components.NewBeastSelector(char)
 
 	// Register components with priorities (higher number = higher priority)
 	// Highest priority components first
@@ -273,8 +277,9 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 	componentManager.Register(slotRestorer, 64, "slotRestorer")
 	componentManager.Register(classSkillSelector, 63, "classSkillSelector")
 	componentManager.Register(subclassSelector, 62, "subclassSelector")
-	componentManager.Register(classSelector, 61, "classSelector")
-	componentManager.Register(speciesSelector, 60, "speciesSelector")
+	componentManager.Register(beastSelector, 61, "beastSelector")
+	componentManager.Register(classSelector, 60, "classSelector")
+	componentManager.Register(speciesSelector, 59, "speciesSelector")
 	componentManager.Register(restPopup, 59, "restPopup")
 	componentManager.Register(attackMenu, 58, "attackMenu")
 
@@ -333,6 +338,8 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 		featuresPanel:         factory.CreateFeaturesPanel(char),
 		traitsPanel:           factory.CreateTraitsPanel(char),
 		originPanel:           factory.CreateOriginPanel(char),
+		companionPanel:        factory.CreateCompanionPanel(char),
+		beastSelector:         components.NewBeastSelector(char),
 		dicePanel:           factory.CreateDicePanel(char),
 		characterStatsPanel: factory.CreateCharacterStatsPanel(char),
 		actionsPanel:        factory.CreateActionsPanel(char),
@@ -576,6 +583,7 @@ func (m *Model) View() string {
 		m.featuresPanel,
 		m.traitsPanel,
 		m.originPanel,
+		m.companionPanel,
 	)
 	mainPanelView := panelRenderer.RenderPanel(view.PanelType(m.currentPanel), mainWidth, mainContentHeight)
 
@@ -648,6 +656,7 @@ func (m *Model) View() string {
 		m.slotRestorer,
 		m.classSkillSelector,
 		m.subclassSelector,
+		m.beastSelector,
 		m.classSelector,
 		m.speciesSelector,
 		m.messagePopup,

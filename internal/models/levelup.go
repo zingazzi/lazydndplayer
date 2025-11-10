@@ -102,6 +102,12 @@ func LevelUp(char *Character, options LevelUpOptions) (*LevelUpResult, error) {
 	// Step 6: Grant class features for this level
 	result.FeaturesGained = GrantLevelFeatures(char, classData, classLevel.Level)
 
+	// Step 6.5: Update companion HP if ranger leveled up
+	if options.ClassName == "Ranger" && char.HasCompanion() {
+		mechanics := char.GetCompanionMechanics()
+		mechanics.UpdateCompanionHP()
+	}
+
 	// Step 7: Handle skill selection requirements
 	result.RequiresSkills = handleSkillChoices(char, classData, options, isNewClass)
 

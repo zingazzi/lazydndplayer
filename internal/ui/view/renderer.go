@@ -74,6 +74,7 @@ func (pr *PopupRenderer) RenderPopups(
 	slotRestorer *components.SlotRestorer,
 	classSkillSelector *components.ClassSkillSelector,
 	subclassSelector *components.SubclassSelector,
+	beastSelector *components.BeastSelector,
 	classSelector *components.ClassSelector,
 	speciesSelector *components.SpeciesSelector,
 	messagePopup *components.MessagePopup,
@@ -276,6 +277,11 @@ func (pr *PopupRenderer) RenderPopups(
 	// Subclass selector takes priority after skills (Medium)
 	if subclassSelector.IsVisible() {
 		return subclassSelector.View()
+	}
+
+	// Beast selector takes priority after subclass (Medium)
+	if beastSelector.IsVisible() {
+		return beastSelector.View()
 	}
 
 	// Divine Order selector (for Cleric level 1) - show as popup (Medium)

@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
+	"github.com/marcozingoni/lazydndplayer/internal/ui/components"
 )
 
 // handleClassSelectorKeys handles class selector specific keys
@@ -142,6 +143,14 @@ func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 					}
 				}
 
+				// Handle Ranger Beast Master subclass-specific prompts
+				if className == "Ranger" && selectedSubclass.Name == "Beast Master" {
+					debug.Log("Beast Master selected - prompting for beast selection")
+					m.beastSelector.Show()
+					m.message = "Select your beast companion..."
+					return m, cmd
+				}
+
 				// Handle Wizard subclass-specific prompts
 				if className == "Wizard" {
 					debug.Log("Wizard detected, checking for Savant spell selection")
@@ -249,6 +258,103 @@ func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 		m.pendingChanges.RestoreClass(m.character)
 		m.storage.Save(m.character)
 		m.message = "Subclass selection cancelled - restored previous state"
+	}
+
+	return m, cmd
+}
+
+// handleBeastSelectorKeys handles beast selector specific keys
+func (m *Model) handleBeastSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleBeastSelectorKeys: key=%s", msg.String())
+
+	// Delegate navigation to the component's Update method
+	var cmd tea.Cmd
+	*m.beastSelector, cmd = m.beastSelector.Update(tea.KeyMsg(msg))
+
+	switch msg.String() {
+	case "enter":
+		selectedType := m.beastSelector.GetSelectedType()
+		debug.Log("Beast selector: enter pressed, selected=%s", selectedType)
+
+		if selectedType != "" {
+			// Get ranger level
+			rangerLevel := m.character.GetClassLevel("Ranger")
+			if rangerLevel == 0 {
+				rangerLevel = 3 // Default for level 3 selection
+			}
+
+			// Check if this is from long rest (companion already exists)
+			// Store old companion type before replacing
+			wasChangingCompanion := m.character.Companion != nil
+
+			// Initialize companion
+			companion := models.InitializeCompanion(selectedType, rangerLevel)
+			m.character.Companion = companion
+
+			debug.Log("Companion '%s' initialized for Ranger level %d", selectedType, rangerLevel)
+			m.beastSelector.Hide()
+
+			// If companion was already set, this is a change during long rest
+			if wasChangingCompanion {
+				// This is a change during long rest - just update and return to rest popup
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Companion changed to '%s'. Press Enter to complete long rest.", selectedType)
+				// Re-show rest popup
+				m.restPopup.Show(components.LongRestType)
+				return m, cmd
+			}
+
+			// Continue with class setup flow (check for weapon mastery, fighting style, etc.)
+			// Check if we need weapon mastery selection
+			masteryCount := getWeaponMasteryCount(m.character)
+			debug.Log("After beast selection, checking weapon mastery: count=%d", masteryCount)
+
+			if masteryCount > 0 {
+				// Show weapon mastery selector
+				debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+				m.weaponMasterySelector.Show(masteryCount)
+				m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+				return m, cmd
+			}
+
+			// Check if we need fighting style selection
+			if m.character.HasClass("Fighter") || m.character.HasClass("Paladin") || m.character.HasClass("Ranger") {
+				fighterLevel := m.character.GetClassLevel("Fighter")
+				paladinLevel := m.character.GetClassLevel("Paladin")
+				rangerLevel := m.character.GetClassLevel("Ranger")
+				if fighterLevel == 1 || paladinLevel == 2 || rangerLevel == 2 {
+					debug.Log("Showing fighting style selector")
+					m.fightingStyleSelector.Show(m.character.Class)
+					m.message = "Select your fighting style..."
+					return m, cmd
+				}
+			}
+
+			// Complete class selection
+			debug.Log("Saving character and completing class selection")
+			m.pendingChanges.Clear() // Clear backup on successful completion
+			m.storage.Save(m.character)
+
+			// If in wizard mode, check if we can advance
+			if m.IsInWizard() {
+				m.checkAndAdvanceWizardAfterClassSetup()
+				// Return immediately to ensure wizard state is preserved
+				return m, cmd
+			} else {
+				m.message = fmt.Sprintf("Beast companion '%s' selected! Class setup complete. (HP: %d/%d)", selectedType, m.character.CurrentHP, m.character.MaxHP)
+			}
+		}
+	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
+		debug.Log("Beast selector: cancelled - restoring previous state")
+		m.beastSelector.Hide()
+		m.pendingChanges.RestoreClass(m.character)
+		m.message = "Beast selection cancelled - restored previous state"
 	}
 
 	return m, cmd

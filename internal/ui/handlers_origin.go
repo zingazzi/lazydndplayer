@@ -202,6 +202,27 @@ func (m *Model) handleInputPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "weight":
 			m.character.Weight = value
 			m.message = "Weight updated!"
+		case "companion_hp":
+			// Parse HP change (supports +5, -3, or just 5)
+			var amount int
+			_, err := fmt.Sscanf(value, "%d", &amount)
+			if err != nil {
+				m.message = fmt.Sprintf("Invalid HP value: %v", err)
+				m.inputPopup.Hide()
+				m.ClearInputPopupContext()
+				return m, nil
+			}
+			// Apply HP change to companion
+			if m.character.Companion != nil {
+				m.character.Companion.CurrentHP += amount
+				if m.character.Companion.CurrentHP > m.character.Companion.MaxHP {
+					m.character.Companion.CurrentHP = m.character.Companion.MaxHP
+				}
+				if m.character.Companion.CurrentHP < 0 {
+					m.character.Companion.CurrentHP = 0
+				}
+				m.message = fmt.Sprintf("Companion HP adjusted by %+d. Current: %d/%d", amount, m.character.Companion.CurrentHP, m.character.Companion.MaxHP)
+			}
 		}
 		m.inputPopup.Hide()
 		m.ClearInputPopupContext()

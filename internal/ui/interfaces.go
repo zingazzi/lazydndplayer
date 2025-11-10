@@ -75,6 +75,7 @@ type ComponentFactoryInterface interface {
 	CreateFeaturesPanel(character *models.Character) *panels.FeaturesPanel
 	CreateTraitsPanel(character *models.Character) *panels.TraitsPanel
 	CreateOriginPanel(character *models.Character) *panels.OriginPanel
+	CreateCompanionPanel(character *models.Character) *panels.CompanionPanel
 	CreateDicePanel(character *models.Character) *panels.DicePanel
 	CreateCharacterStatsPanel(character *models.Character) *panels.CharacterStatsPanel
 	CreateActionsPanel(character *models.Character) *panels.ActionsPanel
@@ -295,6 +296,10 @@ func (f *ComponentFactory) CreateTraitsPanel(character *models.Character) *panel
 
 func (f *ComponentFactory) CreateOriginPanel(character *models.Character) *panels.OriginPanel {
 	return panels.NewOriginPanel(character)
+}
+
+func (f *ComponentFactory) CreateCompanionPanel(character *models.Character) *panels.CompanionPanel {
+	return panels.NewCompanionPanel(character)
 }
 
 func (f *ComponentFactory) CreateDicePanel(character *models.Character) *panels.DicePanel {

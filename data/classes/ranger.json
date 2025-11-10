@@ -466,6 +466,26 @@
           }
         ]
       }
+    },
+    {
+      "name": "Beast Master",
+      "description": "The Beast Master archetype embodies a friendship between the civilized races and the beasts of the world. United in focus, beast and ranger work as one to fight the monstrous foes that threaten civilization and the wilderness alike.",
+      "subclass_level": 3,
+      "source": "Player's Handbook",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Ranger's Companion",
+            "description": "You gain a beast companion that accompanies you on your adventures and is trained to fight alongside you. Choose a beast that is no larger than Medium and that has a challenge rating of 1/4 or lower. At every long rest, you can change your companion. Your companion acts independently of you, but it always obeys your commands. In combat, it rolls its own initiative and acts on its own turn. A companion can't attack, but it can take other actions as normal.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "companion_selection": true,
+              "companion_change_on_long_rest": true
+            }
+          }
+        ]
+      }
     }
   ]
 }

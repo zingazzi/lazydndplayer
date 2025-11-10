@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/marcozingoni/lazydndplayer/internal/ui/components"
 )
 
 // handleMessagePopupKeys handles message popup keyboard input
@@ -15,6 +16,17 @@ func (m *Model) handleMessagePopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleRestPopupKeys handles rest popup keyboard input
 func (m *Model) handleRestPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle 'c' key for changing companion during long rest
+	if msg.String() == "c" && m.restPopup.IsVisible() {
+		// Check if it's a long rest and character is Beast Master
+		if m.restPopup.GetRestType() == components.LongRestType && m.character.IsBeastMaster() {
+			m.restPopup.Hide()
+			m.beastSelector.Show()
+			m.message = "Select a new beast companion..."
+			return m, nil
+		}
+	}
+
 	cmd := m.restPopup.Update(msg)
 
 	// Check if rest was confirmed

@@ -174,6 +174,10 @@ func (m *Model) routeComponentToHandler(component ComponentHandler, msg tea.KeyM
 		model, cmd := m.handleSubclassSelectorKeys(msg)
 		return model, cmd, true
 
+	case *components.BeastSelector:
+		model, cmd := m.handleBeastSelectorKeys(msg)
+		return model, cmd, true
+
 	case *components.ClassSelector:
 		model, cmd := m.handleClassSelectorKeys(msg)
 		return model, cmd, true

@@ -30,6 +30,7 @@ func NewTabs() *Tabs {
 			{Label: "Features", Key: "5"},
 			{Label: "Traits", Key: "6"},
 			{Label: "Origin", Key: "7"},
+			{Label: "Companion", Key: "8"},
 		},
 		SelectedIndex: 0,
 	}

@@ -76,6 +76,11 @@ func (rp *RestPopup) GetHealing() int {
 	return rp.healing
 }
 
+// GetRestType returns the type of rest
+func (rp *RestPopup) GetRestType() RestType {
+	return rp.restType
+}
+
 // Update handles input
 func (rp *RestPopup) Update(msg tea.Msg) tea.Cmd {
 	if !rp.visible {
@@ -228,7 +233,11 @@ func (rp *RestPopup) View() string {
 		content.WriteString(dimStyle.Render("• All spell slots restored") + "\n")
 		content.WriteString(dimStyle.Render("• All Psi Dice restored (Psi Warrior)") + "\n")
 		content.WriteString(dimStyle.Render("• All Superiority Dice restored (Battle Master)") + "\n")
-		content.WriteString(dimStyle.Render("• All Warrior Dice restored (Zealot)") + "\n\n")
+		content.WriteString(dimStyle.Render("• All Warrior Dice restored (Zealot)") + "\n")
+		if rp.character.IsBeastMaster() {
+			content.WriteString(dimStyle.Render("• Change beast companion (Beast Master)") + "\n")
+		}
+		content.WriteString("\n")
 
 		content.WriteString(labelStyle.Render("Current Status:") + "\n")
 		content.WriteString(dimStyle.Render(fmt.Sprintf("  HP: %d/%d", rp.character.CurrentHP, rp.character.MaxHP)) + "\n")
@@ -250,6 +259,9 @@ func (rp *RestPopup) View() string {
 		errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 		content.WriteString(successStyle.Render("Enter: Confirm") + "  " +
 			errorStyle.Render("Esc: Cancel"))
+		if rp.character.IsBeastMaster() {
+			content.WriteString("\n" + dimStyle.Render("c: Change companion"))
+		}
 	}
 
 	return lipgloss.Place(

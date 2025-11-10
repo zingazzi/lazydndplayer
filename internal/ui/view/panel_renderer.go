@@ -16,6 +16,7 @@ const (
 	FeaturesPanel
 	TraitsPanel
 	OriginPanel
+	CompanionPanel
 )
 
 // PanelRenderer renders panels based on panel type
@@ -59,6 +60,7 @@ func RegisterPanelsFromModel(
 	featuresPanel *panels.FeaturesPanel,
 	traitsPanel *panels.TraitsPanel,
 	originPanel *panels.OriginPanel,
+	companionPanel *panels.CompanionPanel,
 ) *PanelRenderer {
 	renderer := NewPanelRenderer()
 	renderer.RegisterPanel(StatsPanel, statsPanel)
@@ -68,5 +70,6 @@ func RegisterPanelsFromModel(
 	renderer.RegisterPanel(FeaturesPanel, featuresPanel)
 	renderer.RegisterPanel(TraitsPanel, traitsPanel)
 	renderer.RegisterPanel(OriginPanel, originPanel)
+	renderer.RegisterPanel(CompanionPanel, companionPanel)
 	return renderer
 }

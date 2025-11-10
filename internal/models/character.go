@@ -121,6 +121,9 @@ type Character struct {
 		Max     int `json:"max"`     // Max HP (5 × paladin level)
 	} `json:"lay_on_hands,omitempty"` // Lay on Hands pool for Paladin
 
+	// Ranger Companion (Beast Master)
+	Companion *Companion `json:"companion,omitempty"` // Beast companion for Beast Master ranger
+
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
 

@@ -136,6 +136,15 @@ func GenerateAttacks(char *Character) AttackList {
 		})
 	}
 
+	// Add companion Beast Strike attacks if character has a companion
+	if char.HasCompanion() {
+		mechanics := char.GetCompanionMechanics()
+		companionAttack := mechanics.GetCompanionAttack()
+		if companionAttack != nil {
+			attacks.Attacks = append(attacks.Attacks, *companionAttack)
+		}
+	}
+
 	// Add attacks from equipped weapons
 	for i := range char.Inventory.Items {
 		item := &char.Inventory.Items[i]

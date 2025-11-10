@@ -15,7 +15,7 @@ import (
 
 // handleMainPanelKeys handles keys when main panel has focus
 func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	debug.Log("handleMainPanelKeys: key=%s, currentPanel=%d (0=Stats,1=Skills,2=Inv,3=Spells,4=Features,5=Traits,6=Origin)", msg.String(), m.currentPanel)
+	debug.Log("handleMainPanelKeys: key=%s, currentPanel=%d (0=Stats,1=Skills,2=Inv,3=Spells,4=Features,5=Traits,6=Origin,7=Companion)", msg.String(), m.currentPanel)
 	switch m.currentPanel {
 	case StatsPanel:
 		return m.handleStatsPanel(msg)
@@ -31,6 +31,8 @@ func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleTraitsPanel(msg)
 	case OriginPanel:
 		return m.handleOriginPanel(msg)
+	case CompanionPanel:
+		return m.handleCompanionPanel(msg)
 	}
 	return m, nil
 }
@@ -749,6 +751,32 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Save character (Shift+S)
 		m.storage.Save(m.character)
 		m.message = "Character saved!"
+	}
+	return m, nil
+}
+
+// handleCompanionPanel handles companion panel specific keys
+func (m *Model) handleCompanionPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.companionPanel.Prev()
+	case "down", "j":
+		m.companionPanel.Next()
+	case "r":
+		// Roll companion attack
+		attack := m.companionPanel.GetSelectedAttack()
+		if attack != nil {
+			result := m.rollAttackDirect(attack, "normal")
+			m.dicePanel.LastMessage = result
+			m.message = result
+		}
+	case "h":
+		// Edit companion HP
+		if m.character.Companion != nil {
+			m.inputPopup.Show("Edit Companion HP", fmt.Sprintf("%d", m.character.Companion.CurrentHP), "Enter HP change (+/- amount)...")
+			m.SetInputPopupContext("companion_hp")
+			m.message = "Editing companion HP..."
+		}
 	}
 	return m, nil
 }
