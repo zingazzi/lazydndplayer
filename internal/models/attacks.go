@@ -136,10 +136,11 @@ func GenerateAttacks(char *Character) AttackList {
 		})
 	}
 
-	// Add companion Beast Strike attacks if character has a companion
-	if char.HasCompanion() {
-		mechanics := char.GetCompanionMechanics()
-		companionAttack := mechanics.GetCompanionAttack()
+	// Add companion attacks if character has companions
+	mechanics := char.GetCompanionMechanics()
+	for i := range char.Companions {
+		companion := &char.Companions[i]
+		companionAttack := mechanics.GetCompanionAttack(companion)
 		if companionAttack != nil {
 			attacks.Attacks = append(attacks.Attacks, *companionAttack)
 		}

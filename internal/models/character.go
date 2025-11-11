@@ -121,8 +121,11 @@ type Character struct {
 		Max     int `json:"max"`     // Max HP (5 × paladin level)
 	} `json:"lay_on_hands,omitempty"` // Lay on Hands pool for Paladin
 
-	// Ranger Companion (Beast Master)
-	Companion *Companion `json:"companion,omitempty"` // Beast companion for Beast Master ranger
+	// Companions - all characters can have multiple companions
+	Companions []Companion `json:"companions,omitempty"` // All companions (regular beasts and Beast Master special beasts)
+
+	// Deprecated: Legacy field for backward compatibility (migrated to Companions array)
+	Companion *Companion `json:"companion,omitempty"` // DEPRECATED: Use Companions array instead
 
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
@@ -229,6 +232,7 @@ func NewCharacter() *Character {
 		SpeciesSpells: []string{},
 		ClassSkills:   []SkillType{},
 		Choices:       NewCharacterChoices(),
+		Companions:    []Companion{},
 	}
 	char.UpdateDerivedStats()
 	return char

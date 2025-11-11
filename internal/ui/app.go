@@ -111,6 +111,7 @@ type Model struct {
 	restPopup             *components.RestPopup
 	messagePopup          *components.MessagePopup
 	beastSelector         *components.BeastSelector
+	companionSelector     *components.CompanionSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -235,6 +236,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 	restPopup := factory.CreateRestPopup(char, models.NewStandardDiceRoller())
 	messagePopup := factory.CreateMessagePopup()
 	beastSelector := components.NewBeastSelector(char)
+	companionSelector := components.NewCompanionSelector(char)
 
 	// Register components with priorities (higher number = higher priority)
 	// Highest priority components first
@@ -278,7 +280,8 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 	componentManager.Register(classSkillSelector, 63, "classSkillSelector")
 	componentManager.Register(subclassSelector, 62, "subclassSelector")
 	componentManager.Register(beastSelector, 61, "beastSelector")
-	componentManager.Register(classSelector, 60, "classSelector")
+	componentManager.Register(companionSelector, 60, "companionSelector")
+	componentManager.Register(classSelector, 59, "classSelector")
 	componentManager.Register(speciesSelector, 59, "speciesSelector")
 	componentManager.Register(restPopup, 59, "restPopup")
 	componentManager.Register(attackMenu, 58, "attackMenu")
@@ -340,6 +343,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 		originPanel:           factory.CreateOriginPanel(char),
 		companionPanel:        factory.CreateCompanionPanel(char),
 		beastSelector:         components.NewBeastSelector(char),
+		companionSelector:     companionSelector,
 		dicePanel:           factory.CreateDicePanel(char),
 		characterStatsPanel: factory.CreateCharacterStatsPanel(char),
 		actionsPanel:        factory.CreateActionsPanel(char),
@@ -535,6 +539,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			debug.Log("Update: beastSelector is visible, routing key=%s directly to it", msg.String())
 			if model, cmd, handled := m.routeComponentToHandler(m.beastSelector, msg); handled {
 				debug.Log("Update: beastSelector handler returned handled=true for key=%s", msg.String())
+				return model, cmd
+			}
+		}
+
+		// Check if companionSelector is visible - it should take priority when adding companions
+		if m.companionSelector != nil && m.companionSelector.IsVisible() {
+			debug.Log("Update: companionSelector is visible, routing key=%s directly to it", msg.String())
+			if model, cmd, handled := m.routeComponentToHandler(m.companionSelector, msg); handled {
+				debug.Log("Update: companionSelector handler returned handled=true for key=%s", msg.String())
 				return model, cmd
 			}
 		}
@@ -808,6 +821,7 @@ func (m *Model) View() string {
 		m.classSkillSelector,
 		m.subclassSelector,
 		m.beastSelector,
+		m.companionSelector,
 		m.classSelector,
 		m.speciesSelector,
 		m.messagePopup,

@@ -54,6 +54,19 @@ func (s *Storage) Load() (*models.Character, error) {
 		character.Choices = models.NewCharacterChoices()
 	}
 
+	// Initialize Companions array if nil (for backwards compatibility)
+	if character.Companions == nil {
+		character.Companions = []models.Companion{}
+	}
+
+	// Migrate old Companion field to Companions array
+	if character.Companion != nil && len(character.Companions) == 0 {
+		// Add the old companion to the new array
+		character.Companions = append(character.Companions, *character.Companion)
+		// Clear the old field (but don't remove it from struct for JSON compatibility)
+		character.Companion = nil
+	}
+
 	return &character, nil
 }
 

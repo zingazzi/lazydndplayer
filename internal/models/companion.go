@@ -16,6 +16,14 @@ const (
 	CompanionTypeSea  CompanionType = "Beast of Sea"
 )
 
+// CompanionCategory distinguishes between regular companions and Beast Master special beasts
+type CompanionCategory string
+
+const (
+	RegularCompanion   CompanionCategory = "Regular"        // Regular beast from Monster Manual
+	BeastMasterSpecial CompanionCategory = "BeastMaster"    // Beast Master special beast (Beast of Land/Sky/Sea)
+)
+
 // CompanionAbilityScores represents the ability scores of a companion
 type CompanionAbilityScores struct {
 	Strength     int `json:"strength"`
@@ -48,9 +56,12 @@ func (cas *CompanionAbilityScores) GetModifier(ability AbilityType) int {
 	return CalculateModifier(score)
 }
 
-// Companion represents a ranger's beast companion
+// Companion represents a character's companion (regular beast or Beast Master special beast)
 type Companion struct {
-	Type           CompanionType          `json:"type"`
+	Category       CompanionCategory      `json:"category"`        // RegularCompanion or BeastMasterSpecial
+	Type           CompanionType          `json:"type,omitempty"`  // For Beast Master special beasts (Beast of Land/Sky/Sea)
+	BeastName      string                 `json:"beast_name,omitempty"` // For regular companions (e.g., "Mastiff", "Mule", "Black Bear")
+	Name           string                 `json:"name,omitempty"`  // Custom name given by player
 	CurrentHP      int                    `json:"current_hp"`
 	MaxHP          int                    `json:"max_hp"`
 	AC             int                    `json:"ac"`
@@ -59,6 +70,7 @@ type Companion struct {
 	AbilityScores  CompanionAbilityScores `json:"ability_scores"`
 	Traits         []string               `json:"traits"`
 	SpecialNotes   string                 `json:"special_notes,omitempty"` // For Beast of Land charge note
+	Actions        []BeastAction          `json:"actions,omitempty"`       // For regular companions
 }
 
 // CompanionMechanics handles companion-related calculations and state
@@ -71,20 +83,30 @@ func NewCompanionMechanics(char *Character) *CompanionMechanics {
 	return &CompanionMechanics{char: char}
 }
 
-// GetCompanion returns the character's companion, or nil if none
+// GetCompanion returns the character's first companion, or nil if none (for backward compatibility)
 func (cm *CompanionMechanics) GetCompanion() *Companion {
-	if cm.char.Companion == nil {
-		return nil
+	if len(cm.char.Companions) > 0 {
+		return &cm.char.Companions[0]
 	}
-	return cm.char.Companion
+	// Fallback to old field for backward compatibility
+	if cm.char.Companion != nil {
+		return cm.char.Companion
+	}
+	return nil
 }
 
-// InitializeCompanion initializes a companion based on type and ranger level
+// GetCompanionByIndex returns the companion at the given index
+func (cm *CompanionMechanics) GetCompanionByIndex(index int) *Companion {
+	return cm.char.GetCompanion(index)
+}
+
+// InitializeCompanion initializes a Beast Master special companion based on type and ranger level
 func InitializeCompanion(companionType CompanionType, rangerLevel int) *Companion {
 	companion := &Companion{
-		Type:  companionType,
-		AC:    13, // Fixed AC for all types
-		Traits: []string{"Primal Bond"}, // All companions have Primal Bond
+		Category: BeastMasterSpecial,
+		Type:     companionType,
+		AC:       13, // Fixed AC for all types
+		Traits:   []string{"Primal Bond"}, // All companions have Primal Bond
 	}
 
 	switch companionType {
@@ -138,181 +160,355 @@ func InitializeCompanion(companionType CompanionType, rangerLevel int) *Companio
 	return companion
 }
 
-// CalculateCompanionAttackBonus calculates the attack bonus for companion's Beast Strike
-func (cm *CompanionMechanics) CalculateCompanionAttackBonus() int {
-	if cm.char.Companion == nil {
-		return 0
-	}
-
-	// Get ranger level
-	rangerLevel := cm.char.GetClassLevel("Ranger")
-	if rangerLevel == 0 {
-		return 0
-	}
-
-	// Attack bonus = Ranger spell attack modifier (proficiency + WIS mod)
-	profBonus := CalculateProficiencyBonus(rangerLevel)
-	wisMod := cm.char.AbilityScores.GetModifier(Wisdom)
-
-	return profBonus + wisMod
-}
-
-// CalculateCompanionDamageBonus calculates the damage bonus for companion's Beast Strike
-func (cm *CompanionMechanics) CalculateCompanionDamageBonus() int {
-	if cm.char.Companion == nil {
-		return 0
-	}
-
-	// Damage bonus = base bonus (varies by type) + ranger WIS modifier
-	var baseBonus int
-	wisMod := cm.char.AbilityScores.GetModifier(Wisdom)
-
-	switch cm.char.Companion.Type {
-	case CompanionTypeLand:
-		// 1d8+2 + WIS mod
-		baseBonus = 2
-	case CompanionTypeSky:
-		// 1d4+3 + WIS mod
-		baseBonus = 3
-	case CompanionTypeSea:
-		// 1d6+2 + WIS mod
-		baseBonus = 2
-	default:
-		baseBonus = 0
-	}
-
-	return baseBonus + wisMod
-}
-
-// GetCompanionBeastStrikeDamageDice returns the damage dice for Beast Strike
-func (cm *CompanionMechanics) GetCompanionBeastStrikeDamageDice() string {
-	if cm.char.Companion == nil {
-		return "1d4"
-	}
-
-	switch cm.char.Companion.Type {
-	case CompanionTypeLand:
-		return "1d8"
-	case CompanionTypeSky:
-		return "1d4"
-	case CompanionTypeSea:
-		return "1d6"
-	default:
-		return "1d4"
-	}
-}
-
-// GetCompanionAttack creates an Attack struct for the companion's Beast Strike
-func (cm *CompanionMechanics) GetCompanionAttack() *Attack {
-	if cm.char.Companion == nil {
+// InitializeRegularCompanion initializes a regular companion from a beast definition
+func InitializeRegularCompanion(beastName string) *Companion {
+	beastDef := GetBeastDefinition(beastName)
+	if beastDef == nil {
 		return nil
 	}
 
-	attackBonus := cm.CalculateCompanionAttackBonus()
-	damageBonus := cm.CalculateCompanionDamageBonus()
-	damageDice := cm.GetCompanionBeastStrikeDamageDice()
-
-	attackName := fmt.Sprintf("%s - Beast Strike", cm.char.Companion.Type)
-
-	attack := &Attack{
-		Name:        attackName,
-		AttackBonus: attackBonus,
-		DamageDice:  damageDice,
-		DamageBonus: damageBonus,
-		DamageType:  "bludgeoning", // Default, could vary by type
-		IsWeapon:    false,
-		Range:       "5 ft.",
-		Properties:  []string{},
+	companion := &Companion{
+		Category:      RegularCompanion,
+		BeastName:     beastName,
+		AC:            beastDef.AC,
+		MaxHP:         beastDef.HP,
+		CurrentHP:     beastDef.HP,
+		Speed:         beastDef.Speed,
+		Senses:        beastDef.Senses,
+		AbilityScores: beastDef.AbilityScores,
+		Traits:        beastDef.Traits,
+		Actions:       beastDef.Actions,
 	}
 
-	// Add special notes as properties for display
-	if cm.char.Companion.SpecialNotes != "" {
-		attack.Properties = append(attack.Properties, cm.char.Companion.SpecialNotes)
-	}
-
-	return attack
+	return companion
 }
 
-// UpdateCompanionHP updates companion HP when ranger levels up
-func (cm *CompanionMechanics) UpdateCompanionHP() {
-	if cm.char.Companion == nil {
-		return
+// GetDisplayName returns the display name for the companion (custom name, or beast name, or type)
+func (c *Companion) GetDisplayName() string {
+	if c.Name != "" {
+		return c.Name
+	}
+	if c.BeastName != "" {
+		return c.BeastName
+	}
+	return string(c.Type)
+}
+
+// IsBeastMasterSpecial returns true if this is a Beast Master special beast
+func (c *Companion) IsBeastMasterSpecial() bool {
+	return c.Category == BeastMasterSpecial
+}
+
+// IsRegularCompanion returns true if this is a regular companion
+func (c *Companion) IsRegularCompanion() bool {
+	return c.Category == RegularCompanion
+}
+
+// CalculateCompanionAttackBonus calculates the attack bonus for a companion's attack
+// For Beast Master special beasts: scales with ranger level
+// For regular companions: uses fixed attack bonus from beast definition
+func (cm *CompanionMechanics) CalculateCompanionAttackBonus(companion *Companion) int {
+	if companion == nil {
+		return 0
 	}
 
+	// Regular companions use fixed attack bonus from their actions
+	if companion.IsRegularCompanion() {
+		if len(companion.Actions) > 0 {
+			return companion.Actions[0].AttackBonus
+		}
+		return 0
+	}
+
+	// Beast Master special beasts scale with ranger level
+	if companion.IsBeastMasterSpecial() {
+		rangerLevel := cm.char.GetClassLevel("Ranger")
+		if rangerLevel == 0 {
+			return 0
+		}
+
+		// Attack bonus = Ranger spell attack modifier (proficiency + WIS mod)
+		profBonus := CalculateProficiencyBonus(rangerLevel)
+		wisMod := cm.char.AbilityScores.GetModifier(Wisdom)
+
+		return profBonus + wisMod
+	}
+
+	return 0
+}
+
+// CalculateCompanionDamageBonus calculates the damage bonus for a companion's attack
+// For Beast Master special beasts: scales with ranger level
+// For regular companions: uses fixed damage bonus from beast definition
+func (cm *CompanionMechanics) CalculateCompanionDamageBonus(companion *Companion) int {
+	if companion == nil {
+		return 0
+	}
+
+	// Regular companions use fixed damage bonus from their actions
+	if companion.IsRegularCompanion() {
+		if len(companion.Actions) > 0 {
+			return companion.Actions[0].DamageBonus
+		}
+		return 0
+	}
+
+	// Beast Master special beasts scale with ranger level
+	if companion.IsBeastMasterSpecial() {
+		// Damage bonus = base bonus (varies by type) + ranger WIS modifier
+		var baseBonus int
+		wisMod := cm.char.AbilityScores.GetModifier(Wisdom)
+
+		switch companion.Type {
+		case CompanionTypeLand:
+			// 1d8+2 + WIS mod
+			baseBonus = 2
+		case CompanionTypeSky:
+			// 1d4+3 + WIS mod
+			baseBonus = 3
+		case CompanionTypeSea:
+			// 1d6+2 + WIS mod
+			baseBonus = 2
+		default:
+			baseBonus = 0
+		}
+
+		return baseBonus + wisMod
+	}
+
+	return 0
+}
+
+// GetCompanionDamageDice returns the damage dice for a companion's attack
+// For Beast Master special beasts: returns Beast Strike dice
+// For regular companions: returns damage dice from beast definition
+func (cm *CompanionMechanics) GetCompanionDamageDice(companion *Companion) string {
+	if companion == nil {
+		return "1d4"
+	}
+
+	// Regular companions use fixed damage dice from their actions
+	if companion.IsRegularCompanion() {
+		if len(companion.Actions) > 0 {
+			return companion.Actions[0].DamageDice
+		}
+		return "1d4"
+	}
+
+	// Beast Master special beasts use Beast Strike dice
+	if companion.IsBeastMasterSpecial() {
+		switch companion.Type {
+		case CompanionTypeLand:
+			return "1d8"
+		case CompanionTypeSky:
+			return "1d4"
+		case CompanionTypeSea:
+			return "1d6"
+		default:
+			return "1d4"
+		}
+	}
+
+	return "1d4"
+}
+
+// GetCompanionAttack creates an Attack struct for a companion's attack
+// For Beast Master special beasts: creates Beast Strike attack
+// For regular companions: creates attack from beast definition
+func (cm *CompanionMechanics) GetCompanionAttack(companion *Companion) *Attack {
+	if companion == nil {
+		return nil
+	}
+
+	// Regular companions use their defined actions
+	if companion.IsRegularCompanion() {
+		if len(companion.Actions) == 0 {
+			return nil
+		}
+		beastAction := companion.Actions[0] // Use first action
+
+		attack := &Attack{
+			Name:        beastAction.Name,
+			AttackBonus: beastAction.AttackBonus,
+			DamageDice:  beastAction.DamageDice,
+			DamageBonus: beastAction.DamageBonus,
+			DamageType:  beastAction.DamageType,
+			IsWeapon:    false,
+			Range:       beastAction.Range,
+			Properties:  []string{},
+		}
+
+		if beastAction.Description != "" {
+			attack.Properties = append(attack.Properties, beastAction.Description)
+		}
+
+		return attack
+	}
+
+	// Beast Master special beasts use Beast Strike
+	if companion.IsBeastMasterSpecial() {
+		attackBonus := cm.CalculateCompanionAttackBonus(companion)
+		damageBonus := cm.CalculateCompanionDamageBonus(companion)
+		damageDice := cm.GetCompanionDamageDice(companion)
+
+		attackName := fmt.Sprintf("%s - Beast Strike", companion.Type)
+
+		attack := &Attack{
+			Name:        attackName,
+			AttackBonus: attackBonus,
+			DamageDice:  damageDice,
+			DamageBonus: damageBonus,
+			DamageType:  "bludgeoning", // Default, could vary by type
+			IsWeapon:    false,
+			Range:       "5 ft.",
+			Properties:  []string{},
+		}
+
+		// Add special notes as properties for display
+		if companion.SpecialNotes != "" {
+			attack.Properties = append(attack.Properties, companion.SpecialNotes)
+		}
+
+		return attack
+	}
+
+	return nil
+}
+
+// UpdateCompanionHP updates Beast Master special beast HP when ranger levels up
+// Regular companions don't scale, so this only affects Beast Master special beasts
+func (cm *CompanionMechanics) UpdateCompanionHP() {
 	rangerLevel := cm.char.GetClassLevel("Ranger")
 	if rangerLevel == 0 {
 		return
 	}
 
-	// Calculate new max HP
-	var baseHP int
-	switch cm.char.Companion.Type {
-	case CompanionTypeLand, CompanionTypeSea:
-		baseHP = 5
-	case CompanionTypeSky:
-		baseHP = 4
-	default:
-		baseHP = 5
+	// Update all Beast Master special beasts
+	for i := range cm.char.Companions {
+		companion := &cm.char.Companions[i]
+		if !companion.IsBeastMasterSpecial() {
+			continue // Regular companions don't scale
+		}
+
+		// Calculate new max HP
+		var baseHP int
+		switch companion.Type {
+		case CompanionTypeLand, CompanionTypeSea:
+			baseHP = 5
+		case CompanionTypeSky:
+			baseHP = 4
+		default:
+			baseHP = 5
+		}
+
+		newMaxHP := baseHP + (5 * rangerLevel)
+		oldMaxHP := companion.MaxHP
+
+		// Update max HP
+		companion.MaxHP = newMaxHP
+
+		// Adjust current HP proportionally if it was at max
+		if companion.CurrentHP == oldMaxHP {
+			companion.CurrentHP = newMaxHP
+		} else if companion.CurrentHP > newMaxHP {
+			// If current HP exceeds new max, cap it
+			companion.CurrentHP = newMaxHP
+		}
+
+		debug.Log("Updated companion HP: %d/%d (was %d/%d)", companion.CurrentHP, companion.MaxHP, companion.CurrentHP, oldMaxHP)
 	}
-
-	newMaxHP := baseHP + (5 * rangerLevel)
-	oldMaxHP := cm.char.Companion.MaxHP
-
-	// Update max HP
-	cm.char.Companion.MaxHP = newMaxHP
-
-	// Adjust current HP proportionally if it was at max
-	if cm.char.Companion.CurrentHP == oldMaxHP {
-		cm.char.Companion.CurrentHP = newMaxHP
-	} else if cm.char.Companion.CurrentHP > newMaxHP {
-		// If current HP exceeds new max, cap it
-		cm.char.Companion.CurrentHP = newMaxHP
-	}
-
-	debug.Log("Updated companion HP: %d/%d (was %d/%d)", cm.char.Companion.CurrentHP, cm.char.Companion.MaxHP, cm.char.Companion.CurrentHP, oldMaxHP)
 }
 
-// GetCompanionAbilityCheckBonus calculates ability check bonus with Primal Bond
-func (cm *CompanionMechanics) GetCompanionAbilityCheckBonus(ability AbilityType) int {
-	if cm.char.Companion == nil {
+// GetCompanionAbilityCheckBonus calculates ability check bonus for a companion
+// Beast Master special beasts get Primal Bond bonus, regular companions don't
+func (cm *CompanionMechanics) GetCompanionAbilityCheckBonus(companion *Companion, ability AbilityType) int {
+	if companion == nil {
 		return 0
 	}
 
 	// Base ability modifier
-	abilityMod := cm.char.Companion.AbilityScores.GetModifier(ability)
+	abilityMod := companion.AbilityScores.GetModifier(ability)
 
-	// Add ranger proficiency bonus (Primal Bond)
-	rangerLevel := cm.char.GetClassLevel("Ranger")
-	if rangerLevel > 0 {
-		profBonus := CalculateProficiencyBonus(rangerLevel)
-		return abilityMod + profBonus
+	// Beast Master special beasts get Primal Bond (ranger proficiency bonus)
+	if companion.IsBeastMasterSpecial() {
+		rangerLevel := cm.char.GetClassLevel("Ranger")
+		if rangerLevel > 0 {
+			profBonus := CalculateProficiencyBonus(rangerLevel)
+			return abilityMod + profBonus
+		}
 	}
 
 	return abilityMod
 }
 
-// GetCompanionSavingThrowBonus calculates saving throw bonus with Primal Bond
-func (cm *CompanionMechanics) GetCompanionSavingThrowBonus(ability AbilityType) int {
-	if cm.char.Companion == nil {
+// GetCompanionSavingThrowBonus calculates saving throw bonus for a companion
+// Beast Master special beasts get Primal Bond bonus, regular companions don't
+func (cm *CompanionMechanics) GetCompanionSavingThrowBonus(companion *Companion, ability AbilityType) int {
+	if companion == nil {
 		return 0
 	}
 
 	// Base ability modifier
-	abilityMod := cm.char.Companion.AbilityScores.GetModifier(ability)
+	abilityMod := companion.AbilityScores.GetModifier(ability)
 
-	// Add ranger proficiency bonus (Primal Bond)
-	rangerLevel := cm.char.GetClassLevel("Ranger")
-	if rangerLevel > 0 {
-		profBonus := CalculateProficiencyBonus(rangerLevel)
-		return abilityMod + profBonus
+	// Beast Master special beasts get Primal Bond (ranger proficiency bonus)
+	if companion.IsBeastMasterSpecial() {
+		rangerLevel := cm.char.GetClassLevel("Ranger")
+		if rangerLevel > 0 {
+			profBonus := CalculateProficiencyBonus(rangerLevel)
+			return abilityMod + profBonus
+		}
 	}
 
 	return abilityMod
 }
 
-// HasCompanion returns true if the character has a companion
+// HasCompanion returns true if the character has at least one companion
 func (char *Character) HasCompanion() bool {
-	return char.Companion != nil
+	return len(char.Companions) > 0 || char.Companion != nil
+}
+
+// HasCompanions returns true if the character has at least one companion
+func (char *Character) HasCompanions() bool {
+	return len(char.Companions) > 0
+}
+
+// GetCompanion returns the companion at the given index, or nil if invalid
+func (char *Character) GetCompanion(index int) *Companion {
+	if index < 0 || index >= len(char.Companions) {
+		return nil
+	}
+	return &char.Companions[index]
+}
+
+// AddCompanion adds a companion to the character's companions list
+func (char *Character) AddCompanion(companion *Companion) {
+	if companion == nil {
+		return
+	}
+	if char.Companions == nil {
+		char.Companions = []Companion{}
+	}
+	char.Companions = append(char.Companions, *companion)
+}
+
+// RemoveCompanion removes a companion at the given index
+func (char *Character) RemoveCompanion(index int) bool {
+	if index < 0 || index >= len(char.Companions) {
+		return false
+	}
+	char.Companions = append(char.Companions[:index], char.Companions[index+1:]...)
+	return true
+}
+
+// GetBeastMasterCompanion returns the Beast Master special beast companion, if any
+func (char *Character) GetBeastMasterCompanion() *Companion {
+	for i := range char.Companions {
+		if char.Companions[i].IsBeastMasterSpecial() {
+			return &char.Companions[i]
+		}
+	}
+	return nil
 }
 
 // GetCompanionMechanics returns the companion mechanics handler

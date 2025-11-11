@@ -187,9 +187,7 @@ func (bs *BeastSelector) View() string {
 		// Beast Strike details
 		rightContent.WriteString(statStyle.Render("BEAST STRIKE:") + "\n")
 		mechanics := models.NewCompanionMechanics(bs.character)
-		// Temporarily set companion for calculation
-		bs.character.Companion = companion
-		attack := mechanics.GetCompanionAttack()
+		attack := mechanics.GetCompanionAttack(companion)
 		if attack != nil {
 			attackBonusStr := fmt.Sprintf("%+d", attack.AttackBonus)
 			damageBonusStr := fmt.Sprintf("%+d", attack.DamageBonus)
@@ -200,8 +198,6 @@ func (bs *BeastSelector) View() string {
 				rightContent.WriteString(dimStyle.Render("Note: "+companion.SpecialNotes) + "\n")
 			}
 		}
-		// Restore companion state
-		bs.character.Companion = nil
 	}
 
 	// Join left and right in two columns

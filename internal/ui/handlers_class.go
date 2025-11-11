@@ -288,13 +288,26 @@ func (m *Model) handleBeastSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 				rangerLevel = 3 // Default for level 3 selection
 			}
 
-			// Check if this is from long rest (companion already exists)
-			// Store old companion type before replacing
-			wasChangingCompanion := m.character.Companion != nil
+			// Check if this is from long rest (Beast Master companion already exists)
+			// Store old companion before replacing
+			oldBeastMasterCompanion := m.character.GetBeastMasterCompanion()
+			wasChangingCompanion := oldBeastMasterCompanion != nil
 
 			// Initialize companion
 			companion := models.InitializeCompanion(selectedType, rangerLevel)
-			m.character.Companion = companion
+
+			// Remove old Beast Master companion if exists
+			if oldBeastMasterCompanion != nil {
+				for i := range m.character.Companions {
+					if m.character.Companions[i].IsBeastMasterSpecial() {
+						m.character.RemoveCompanion(i)
+						break
+					}
+				}
+			}
+
+			// Add new companion
+			m.character.AddCompanion(companion)
 
 			debug.Log("Companion '%s' initialized for Ranger level %d", selectedType, rangerLevel)
 			m.beastSelector.Hide()

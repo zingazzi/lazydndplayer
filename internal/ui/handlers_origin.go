@@ -212,16 +212,24 @@ func (m *Model) handleInputPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.ClearInputPopupContext()
 				return m, nil
 			}
-			// Apply HP change to companion
-			if m.character.Companion != nil {
-				m.character.Companion.CurrentHP += amount
-				if m.character.Companion.CurrentHP > m.character.Companion.MaxHP {
-					m.character.Companion.CurrentHP = m.character.Companion.MaxHP
+			// Apply HP change to selected companion
+			selectedCompanion := m.companionPanel.GetSelectedCompanion()
+			if selectedCompanion != nil {
+				selectedCompanion.CurrentHP += amount
+				if selectedCompanion.CurrentHP > selectedCompanion.MaxHP {
+					selectedCompanion.CurrentHP = selectedCompanion.MaxHP
 				}
-				if m.character.Companion.CurrentHP < 0 {
-					m.character.Companion.CurrentHP = 0
+				if selectedCompanion.CurrentHP < 0 {
+					selectedCompanion.CurrentHP = 0
 				}
-				m.message = fmt.Sprintf("Companion HP adjusted by %+d. Current: %d/%d", amount, m.character.Companion.CurrentHP, m.character.Companion.MaxHP)
+				m.message = fmt.Sprintf("Companion HP adjusted by %+d. Current: %d/%d", amount, selectedCompanion.CurrentHP, selectedCompanion.MaxHP)
+			}
+		case "companion_rename":
+			// Rename selected companion
+			selectedCompanion := m.companionPanel.GetSelectedCompanion()
+			if selectedCompanion != nil {
+				selectedCompanion.Name = value
+				m.message = fmt.Sprintf("Companion renamed to '%s'!", value)
 			}
 		}
 		m.inputPopup.Hide()

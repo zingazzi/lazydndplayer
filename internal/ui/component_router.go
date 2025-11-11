@@ -184,6 +184,15 @@ func (m *Model) routeComponentToHandler(component ComponentHandler, msg tea.KeyM
 		model, cmd, handled := m.handleBeastSelectorKeys(msg)
 		return model, cmd, handled
 
+	case *components.CompanionSelector:
+		// Only handle if selector is actually visible
+		if m.companionSelector != nil && m.companionSelector.IsVisible() {
+			model, cmd := m.handleCompanionSelectorKeys(msg)
+			return model, cmd, true
+		}
+		// If not visible, don't handle - let keys fall through to panel
+		return m, nil, false
+
 	case *components.ClassSelector:
 		model, cmd := m.handleClassSelectorKeys(msg)
 		return model, cmd, true

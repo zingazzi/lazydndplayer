@@ -757,40 +757,86 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleCompanionPanel handles companion panel specific keys
 func (m *Model) handleCompanionPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Check if companion selector is visible
+	if m.companionSelector != nil && m.companionSelector.IsVisible() {
+		return m.handleCompanionSelectorKeys(msg)
+	}
+
+	panel := m.companionPanel
+	viewMode := panel.GetViewMode()
+
 	switch msg.String() {
 	case "up", "k":
-		// Scroll viewport up (arrow keys scroll, not navigate sections)
-		m.companionPanel.ScrollUp()
-	case "down", "j":
-		// Scroll viewport down (arrow keys scroll, not navigate sections)
-		m.companionPanel.ScrollDown()
-	case "shift+up":
-		// Navigate to previous section (stats/actions)
-		m.companionPanel.Prev()
-	case "shift+down":
-		// Navigate to next section (stats/actions)
-		m.companionPanel.Next()
-	case "ctrl+u", "pgup":
-		// Page up
-		m.companionPanel.PageUp()
-	case "ctrl+d", "pgdown":
-		// Page down
-		m.companionPanel.PageDown()
-	case "c":
-		// Select/Change beast companion (Beast Master only)
-		if m.character.IsBeastMaster() {
-			m.beastSelector.Show()
-			if m.character.Companion != nil {
-				m.message = "Select a new beast companion..."
-			} else {
-				m.message = "Select your beast companion..."
-			}
+		if viewMode == panels.CompanionViewList {
+			panel.Prev()
 		} else {
-			m.message = "Only Beast Master rangers can select a companion"
+			panel.ScrollUp()
+		}
+	case "down", "j":
+		if viewMode == panels.CompanionViewList {
+			panel.Next()
+		} else {
+			panel.ScrollDown()
+		}
+	case "ctrl+u", "pgup":
+		panel.PageUp()
+	case "ctrl+d", "pgdown":
+		panel.PageDown()
+	case "enter":
+		if viewMode == panels.CompanionViewList {
+			// Enter detail view
+			panel.EnterDetailView()
+		}
+	case "esc":
+		if viewMode == panels.CompanionViewDetail {
+			// Return to list view
+			panel.ExitDetailView()
+		}
+	case "a":
+		// Add companion
+		if viewMode == panels.CompanionViewList {
+			if m.companionSelector != nil {
+				m.companionSelector.Show()
+				m.message = "Select a companion to add..."
+			}
+		}
+	case "d":
+		// Delete companion
+		if viewMode == panels.CompanionViewList {
+			selectedCompanion := panel.GetSelectedCompanion()
+			if selectedCompanion != nil {
+				selectedIndex := panel.GetSelectedIndex()
+				// Remove companion at selected index
+				if m.character.RemoveCompanion(selectedIndex) {
+					m.message = "Companion removed."
+					// Adjust selected index if needed
+					if selectedIndex >= len(m.character.Companions) {
+						newIndex := len(m.character.Companions) - 1
+						if newIndex < 0 {
+							newIndex = 0
+						}
+						panel.SetSelectedIndex(newIndex)
+					}
+				}
+			}
+		}
+	case "n":
+		// Rename companion
+		if viewMode == panels.CompanionViewDetail {
+			selectedCompanion := panel.GetSelectedCompanion()
+			if selectedCompanion != nil {
+				currentName := selectedCompanion.Name
+				if currentName == "" {
+					currentName = selectedCompanion.GetDisplayName()
+				}
+				m.inputPopup.Show("Rename Companion", currentName, "Enter new name...")
+				m.SetInputPopupContext("companion_rename")
+				m.message = "Renaming companion..."
+			}
 		}
 	case "r":
 		// Roll companion attack
-		attack := m.companionPanel.GetSelectedAttack()
+		attack := panel.GetSelectedAttack()
 		if attack != nil {
 			result := m.rollAttackDirect(attack, "normal")
 			m.dicePanel.LastMessage = result
@@ -798,13 +844,58 @@ func (m *Model) handleCompanionPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "h":
 		// Edit companion HP
-		if m.character.Companion != nil {
-			m.inputPopup.Show("Edit Companion HP", fmt.Sprintf("%d", m.character.Companion.CurrentHP), "Enter HP change (+/- amount)...")
-			m.SetInputPopupContext("companion_hp")
-			m.message = "Editing companion HP..."
+		if viewMode == panels.CompanionViewDetail {
+			selectedCompanion := panel.GetSelectedCompanion()
+			if selectedCompanion != nil {
+				m.inputPopup.Show("Edit Companion HP", fmt.Sprintf("%d", selectedCompanion.CurrentHP), "Enter HP change (+/- amount)...")
+				m.SetInputPopupContext("companion_hp")
+				m.message = "Editing companion HP..."
+			}
 		}
 	}
 	return m, nil
+}
+
+// handleCompanionSelectorKeys handles companion selector specific keys
+func (m *Model) handleCompanionSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Save state before Update (which might hide the selector)
+	wasVisible := m.companionSelector.IsVisible()
+	selectedBeast := m.companionSelector.GetSelectedBeast()
+
+	updated, cmd := m.companionSelector.Update(msg)
+	m.companionSelector = &updated
+
+	// If selector was visible but is now hidden (user pressed Enter), and we had a selected beast, add it
+	if wasVisible && !m.companionSelector.IsVisible() && selectedBeast != "" {
+		// Companion was selected - add it
+		// Check if it's a Beast Master special beast
+		if selectedBeast == string(models.CompanionTypeLand) ||
+			selectedBeast == string(models.CompanionTypeSky) ||
+			selectedBeast == string(models.CompanionTypeSea) {
+			// Create Beast Master special beast
+			companionType := models.CompanionType(selectedBeast)
+			rangerLevel := m.character.GetClassLevel("Ranger")
+			if rangerLevel == 0 {
+				rangerLevel = 3 // Default
+			}
+			companion := models.InitializeCompanion(companionType, rangerLevel)
+			if companion != nil {
+				m.character.AddCompanion(companion)
+				m.message = fmt.Sprintf("Added %s companion.", selectedBeast)
+			}
+		} else {
+			// Create regular companion
+			companion := models.InitializeRegularCompanion(selectedBeast)
+			if companion != nil {
+				m.character.AddCompanion(companion)
+				m.message = fmt.Sprintf("Added %s companion.", selectedBeast)
+			}
+		}
+		// Ensure selector is fully cleared
+		m.companionSelector.Hide()
+	}
+
+	return m, cmd
 }
 
 // handleActionsPanelKeys handles keys when actions panel has focus
