@@ -1,27 +1,55 @@
 // internal/models/beasts.go
 package models
 
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
 // BeastDefinition represents a regular beast companion definition from the Monster Manual
 type BeastDefinition struct {
-	Name          string                 // e.g., "Mastiff", "Mule", "Black Bear"
-	AC            int                    // Armor Class
-	HP            int                    // Hit Points (fixed, doesn't scale)
-	Speed         string                 // e.g., "40 ft."
-	Senses        string                 // e.g., "Passive Perception 12"
-	AbilityScores CompanionAbilityScores // Ability scores
-	Traits        []string               // Special traits
-	Actions       []BeastAction          // Available actions (simple attacks)
+	Name          string                 `json:"name"`           // e.g., "Mastiff", "Mule", "Black Bear"
+	AC            int                    `json:"ac"`            // Armor Class
+	HP            int                    `json:"hp"`            // Hit Points (fixed, doesn't scale)
+	Speed         string                 `json:"speed"`         // e.g., "40 ft."
+	Senses        string                 `json:"senses"`        // e.g., "Passive Perception 12"
+	AbilityScores CompanionAbilityScores `json:"ability_scores"` // Ability scores
+	Traits        []string               `json:"traits"`        // Special traits
+	Actions       []BeastAction          `json:"actions"`       // Available actions (simple attacks)
 }
 
 // BeastAction represents a simple attack action for a regular beast
 type BeastAction struct {
-	Name        string // e.g., "Bite"
-	AttackBonus int    // Fixed attack bonus
-	DamageDice  string // e.g., "1d6"
-	DamageBonus int    // Fixed damage bonus
-	DamageType  string // e.g., "piercing"
-	Range       string // e.g., "5 ft."
-	Description string // Optional description
+	Name        string `json:"name"`         // e.g., "Bite"
+	AttackBonus int    `json:"attack_bonus"` // Fixed attack bonus
+	DamageDice  string `json:"damage_dice"`  // e.g., "1d6"
+	DamageBonus int    `json:"damage_bonus"` // Fixed damage bonus
+	DamageType  string `json:"damage_type"`  // e.g., "piercing"
+	Range       string `json:"range"`        // e.g., "5 ft."
+	Description string `json:"description"`  // Optional description
+}
+
+// BeastsData represents the root structure of the beasts JSON file
+type BeastsData struct {
+	Beasts []BeastDefinition `json:"beasts"`
+}
+
+var cachedBeasts []BeastDefinition
+
+// LoadBeastsFromJSON loads beast data from the JSON file
+func LoadBeastsFromJSON(filepath string) ([]BeastDefinition, error) {
+	file, err := os.ReadFile(filepath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read beasts file: %w", err)
+	}
+
+	var data BeastsData
+	if err := json.Unmarshal(file, &data); err != nil {
+		return nil, fmt.Errorf("failed to parse beasts JSON: %w", err)
+	}
+
+	return data.Beasts, nil
 }
 
 // GetBeastDefinition returns a beast definition by name
@@ -36,8 +64,22 @@ func GetBeastDefinition(name string) *BeastDefinition {
 }
 
 // GetAllBeastDefinitions returns all available regular beast definitions
+// Loads from JSON file with fallback to hardcoded data
 func GetAllBeastDefinitions() []BeastDefinition {
-	return []BeastDefinition{
+	// Return cached beasts if already loaded
+	if len(cachedBeasts) > 0 {
+		return cachedBeasts
+	}
+
+	// Try to load from JSON file
+	beasts, err := LoadBeastsFromJSON("data/beasts.json")
+	if err == nil {
+		cachedBeasts = beasts
+		return cachedBeasts
+	}
+
+	// Fallback to hardcoded beasts if JSON file is not available
+	cachedBeasts = []BeastDefinition{
 		{
 			Name: "Mastiff",
 			AC:   12,
@@ -233,4 +275,5 @@ func GetAllBeastDefinitions() []BeastDefinition {
 			},
 		},
 	}
+	return cachedBeasts
 }
