@@ -134,16 +134,26 @@ func (cs *CompanionSelector) Update(msg tea.Msg) (CompanionSelector, tea.Cmd) {
 	return *cs, nil
 }
 
-// View renders the companion selector
-func (cs *CompanionSelector) View() string {
+// View renders the companion selector as a popup
+func (cs *CompanionSelector) View(width, height int) string {
 	if !cs.visible {
 		return ""
 	}
 
+	// Popup styling
+	popupStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("205")).
+		Padding(1, 2).
+		Width(width - 4).
+		Background(lipgloss.Color("235"))
+
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("205")).
 		Bold(true).
-		Padding(0, 1)
+		Align(lipgloss.Center).
+		Width(width - 8).
+		Padding(0, 0, 1, 0)
 
 	selectedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("205")).
@@ -269,5 +279,9 @@ func (cs *CompanionSelector) View() string {
 	content.WriteString("\n\n")
 	content.WriteString(dimStyle.Render("Enter: Select • Esc: Cancel"))
 
-	return content.String()
+	// Render as popup with border
+	popupContent := popupStyle.Render(content.String())
+
+	// Center the popup on screen
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, popupContent)
 }

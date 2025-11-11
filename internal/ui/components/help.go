@@ -148,6 +148,22 @@ func GetFeaturesBindings() []HelpBinding {
 	}
 }
 
+// GetCompanionBindings returns companion panel bindings
+func GetCompanionBindings() []HelpBinding {
+	return []HelpBinding{
+		{"↑/↓ or j/k", "Navigate companions (list) / Scroll (detail)"},
+		{"Enter", "View companion details"},
+		{"Esc", "Back to list (from detail view)"},
+		{"a", "Add new companion"},
+		{"d", "Delete selected companion"},
+		{"+/-", "Add/remove 1 HP (list view)"},
+		{"r", "Roll companion attack"},
+		{"n", "Rename companion (detail view)"},
+		{"h", "Edit HP (detail view, popup)"},
+		{"Ctrl+D/U", "Page down/up"},
+	}
+}
+
 // GetDiceBindings returns dice roller panel bindings
 func GetDiceBindings(mode string) []HelpBinding {
 	bindings := []HelpBinding{

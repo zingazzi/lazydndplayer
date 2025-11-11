@@ -181,7 +181,7 @@ func (p *CompanionPanel) View(width, height int) string {
 			}
 
 			lines = append(lines, "")
-			lines = append(lines, dimStyle.Render("Enter: View details • a: Add companion • d: Remove companion"))
+			lines = append(lines, dimStyle.Render("Enter: View details • a: Add • d: Remove • +/-: HP • r: Roll attack"))
 		}
 	} else {
 		// DETAIL VIEW

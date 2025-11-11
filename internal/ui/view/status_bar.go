@@ -152,6 +152,8 @@ func GetContextualHelp(
 			return "Traits", bindings
 		case OriginPanel:
 			return "Origin", components.GetGeneralBindings()
+		case CompanionPanel:
+			return "Companions", components.GetCompanionBindings()
 		}
 	case FocusCharStats:
 		return "Character Info", components.GetCharacterStatsBindings()

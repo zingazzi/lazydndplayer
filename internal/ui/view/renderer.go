@@ -287,7 +287,7 @@ func (pr *PopupRenderer) RenderPopups(
 
 	// Companion selector (Medium)
 	if companionSelector != nil && companionSelector.IsVisible() {
-		return companionSelector.View()
+		return companionSelector.View(pr.layout.PopupMediumWidth, pr.layout.PopupMediumHeight)
 	}
 
 	// Divine Order selector (for Cleric level 1) - show as popup (Medium)

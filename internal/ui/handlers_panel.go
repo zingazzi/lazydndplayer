@@ -852,6 +852,38 @@ func (m *Model) handleCompanionPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.message = "Editing companion HP..."
 			}
 		}
+	case "+", "=":
+		// Add 1 HP to selected companion (list view only)
+		if viewMode == panels.CompanionViewList {
+			selectedCompanion := panel.GetSelectedCompanion()
+			if selectedCompanion != nil {
+				oldHP := selectedCompanion.CurrentHP
+				selectedCompanion.CurrentHP++
+				if selectedCompanion.CurrentHP > selectedCompanion.MaxHP {
+					selectedCompanion.CurrentHP = selectedCompanion.MaxHP
+				}
+				if selectedCompanion.CurrentHP != oldHP {
+					m.message = fmt.Sprintf("%s HP: %d/%d", selectedCompanion.GetDisplayName(), selectedCompanion.CurrentHP, selectedCompanion.MaxHP)
+					m.storage.Save(m.character)
+				}
+			}
+		}
+	case "-", "_":
+		// Remove 1 HP from selected companion (list view only)
+		if viewMode == panels.CompanionViewList {
+			selectedCompanion := panel.GetSelectedCompanion()
+			if selectedCompanion != nil {
+				oldHP := selectedCompanion.CurrentHP
+				selectedCompanion.CurrentHP--
+				if selectedCompanion.CurrentHP < 0 {
+					selectedCompanion.CurrentHP = 0
+				}
+				if selectedCompanion.CurrentHP != oldHP {
+					m.message = fmt.Sprintf("%s HP: %d/%d", selectedCompanion.GetDisplayName(), selectedCompanion.CurrentHP, selectedCompanion.MaxHP)
+					m.storage.Save(m.character)
+				}
+			}
+		}
 	}
 	return m, nil
 }
