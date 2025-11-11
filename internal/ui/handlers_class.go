@@ -318,7 +318,16 @@ func (m *Model) handleBeastSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 		}
 
 		// Check if we're in a level-up flow - if so, complete level-up instead of class setup
-		if m.levelUpSelector.IsVisible() {
+		// During level-up, levelUpSelector is hidden when beast selector is shown, so we check:
+		// 1. If levelUpSelector was visible (might still be)
+		// 2. If character is Ranger level 3 with Beast Master and NOT in wizard mode
+		//    (indicates level-up, not initial class selection)
+		rangerClass := m.character.GetClassLevelStruct("Ranger")
+		isLevelUp := m.levelUpSelector.IsVisible() ||
+			(rangerClass != nil && rangerClass.Level == 3 &&
+			 rangerClass.Subclass == "Beast Master" && !m.IsInWizard())
+
+		if isLevelUp {
 			debug.Log("Beast selection during level-up - completing level-up process")
 			m.storage.Save(m.character)
 			m.message = fmt.Sprintf("Beast companion '%s' selected! Level-up complete. (HP: %d/%d)", selectedType, m.character.CurrentHP, m.character.MaxHP)
@@ -327,6 +336,7 @@ func (m *Model) handleBeastSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 		}
 
 		// Continue with class setup flow (check for weapon mastery, fighting style, etc.)
+		// This should only happen during initial class selection or wizard mode
 		// Check if we need weapon mastery selection
 		masteryCount := getWeaponMasteryCount(m.character)
 		debug.Log("After beast selection, checking weapon mastery: count=%d", masteryCount)

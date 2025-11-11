@@ -374,6 +374,29 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		return m, nil
 
+	case tea.MouseMsg:
+		// Forward mouse messages to active panel viewports for scrolling
+		if m.focusArea == FocusMain {
+			switch m.currentPanel {
+			case CompanionPanel:
+				m.companionPanel.UpdateViewport(msg)
+				return m, nil
+			case FeaturesPanel:
+				m.featuresPanel.Update(msg)
+				return m, nil
+			case TraitsPanel:
+				m.traitsPanel.Update(msg)
+				return m, nil
+			case OriginPanel:
+				m.originPanel.Update(msg)
+				return m, nil
+			}
+		} else if m.focusArea == FocusDice {
+			m.dicePanel.Update(msg)
+			return m, nil
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		// Help overlay takes priority
 		if m.help.Visible {

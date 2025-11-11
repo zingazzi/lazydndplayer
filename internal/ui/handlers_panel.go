@@ -759,15 +759,17 @@ func (m *Model) handleOriginPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleCompanionPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
-		m.companionPanel.Prev()
-	case "down", "j":
-		m.companionPanel.Next()
-	case "shift+up":
-		// Scroll viewport up
+		// Scroll viewport up (arrow keys scroll, not navigate sections)
 		m.companionPanel.ScrollUp()
-	case "shift+down":
-		// Scroll viewport down
+	case "down", "j":
+		// Scroll viewport down (arrow keys scroll, not navigate sections)
 		m.companionPanel.ScrollDown()
+	case "shift+up":
+		// Navigate to previous section (stats/actions)
+		m.companionPanel.Prev()
+	case "shift+down":
+		// Navigate to next section (stats/actions)
+		m.companionPanel.Next()
 	case "ctrl+u", "pgup":
 		// Page up
 		m.companionPanel.PageUp()
