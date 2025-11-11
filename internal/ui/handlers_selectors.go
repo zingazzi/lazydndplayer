@@ -117,9 +117,78 @@ func (m *Model) handleLanguageSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 	switch msg.String() {
 	case "up", "k":
 		m.languageSelector.Prev()
+		return m, nil
 	case "down", "j":
 		m.languageSelector.Next()
+		return m, nil
+	case " ": // Space to toggle (for multi-select mode)
+		if m.languageSelector.IsMultiSelectMode() {
+			m.languageSelector.ToggleLanguage()
+		}
+		return m, nil
 	case "enter":
+		// Check if in multi-select mode
+		if m.languageSelector.IsMultiSelectMode() {
+			// Multi-select mode: confirm all selected languages
+			if !m.languageSelector.CanConfirm() {
+				// Not enough languages selected yet
+				return m, nil
+			}
+
+			selectedLanguages := m.languageSelector.GetSelectedLanguages()
+			if len(selectedLanguages) == 0 {
+				return m, nil
+			}
+
+			// Check if this is for Deft Explorer feature
+			isDeftExplorer := false
+			for i := range m.character.Features.Features {
+				if m.character.Features.Features[i].Name == "Deft Explorer" && m.character.Features.Features[i].Mechanics != nil {
+					skillSelected, _ := m.character.Features.Features[i].Mechanics["skill_selected"].(bool)
+					if skillSelected {
+						isDeftExplorer = true
+						// Add all selected languages
+						for _, lang := range selectedLanguages {
+							m.character.Languages = append(m.character.Languages, lang)
+						}
+						// Update language count in feature mechanics
+						if m.character.Features.Features[i].Mechanics["languages_selected"] == nil {
+							m.character.Features.Features[i].Mechanics["languages_selected"] = 0.0
+						}
+						currentCount := m.character.Features.Features[i].Mechanics["languages_selected"].(float64)
+						m.character.Features.Features[i].Mechanics["languages_selected"] = currentCount + float64(len(selectedLanguages))
+						break
+					}
+				}
+			}
+
+			m.languageSelector.Hide()
+			m.storage.Save(m.character)
+
+			if isDeftExplorer {
+				// All languages selected, check for fighting style
+				rangerLevel := m.character.GetClassLevel("Ranger")
+				if rangerLevel == 2 {
+					debug.Log("Ranger level 2 - checking for fighting style selection after Deft Explorer")
+					m.levelUpSelector.Hide() // Hide level up selector so fighting style selector can receive keys
+					m.fightingStyleSelector.Show("Ranger")
+					m.message = "Select your fighting style..."
+					return m, nil
+				}
+				m.message = fmt.Sprintf("Deft Explorer complete! Learned %d languages.", len(selectedLanguages))
+				return m, nil
+			}
+
+			// Not Deft Explorer - just add languages
+			for _, lang := range selectedLanguages {
+				m.character.Languages = append(m.character.Languages, lang)
+			}
+			m.message = fmt.Sprintf("Languages learned: %s!", strings.Join(selectedLanguages, ", "))
+			m.storage.Save(m.character)
+			return m, nil
+		}
+
+		// Single selection mode (original behavior)
 		selectedLanguage := m.languageSelector.GetSelectedLanguage()
 		if selectedLanguage != "" {
 			// Check if we're in delete mode

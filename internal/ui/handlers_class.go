@@ -364,13 +364,21 @@ func (m *Model) handleBeastSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleClassSkillSelectorKeys: key=%s", msg.String())
 
-	// Delegate navigation and selection to the component's Update method
 	var cmd tea.Cmd
-	*m.classSkillSelector, cmd = m.classSkillSelector.Update(tea.KeyMsg(msg))
 
 	switch msg.String() {
-	case " ": // Space to toggle - provide feedback
+	case "up", "k":
+		debug.Log("ClassSkillSelector: up/k pressed, calling Prev()")
+		m.classSkillSelector.Prev()
+		return m, nil
+	case "down", "j":
+		debug.Log("ClassSkillSelector: down/j pressed, calling Next()")
+		m.classSkillSelector.Next()
+		return m, nil
+	case " ": // Space to toggle
+		m.classSkillSelector.ToggleSkill()
 		debug.Log("Skill selector: selected=%d/%d", len(m.classSkillSelector.SelectedSkills), m.classSkillSelector.MaxChoices)
+		return m, nil
 	case "enter":
 		canConfirm := m.classSkillSelector.CanConfirm()
 		debug.Log("Skill selector: enter pressed, canConfirm=%v", canConfirm)
@@ -378,6 +386,105 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		if canConfirm {
 			selectedSkills := m.classSkillSelector.GetSelectedSkills()
 			selectedClassName := m.classSkillSelector.ClassName
+			debug.Log("Skill selector confirmed: class=%s, skills=%v", selectedClassName, selectedSkills)
+
+			// Check if this is for a feature (Deft Explorer or Scholar) rather than class selection
+			// If character already has this class, it's likely a feature selection
+			isFeatureSelection := false
+			var featureName string
+			if m.character.HasClass(selectedClassName) {
+				// Check if we're selecting skills for Deft Explorer
+				for _, feature := range m.character.Features.Features {
+					if feature.Name == "Deft Explorer" && feature.Mechanics != nil {
+						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+							skillSelected, _ := feature.Mechanics["skill_selected"].(bool)
+							if !skillSelected {
+								isFeatureSelection = true
+								featureName = "Deft Explorer"
+								break
+							}
+						}
+					}
+					if feature.Name == "Scholar" && feature.Mechanics != nil {
+						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+							isFeatureSelection = true
+							featureName = "Scholar"
+							break
+						}
+					}
+				}
+			}
+
+			if isFeatureSelection {
+				// Handle feature-based skill selection
+				debug.Log("Feature-based skill selection for %s", featureName)
+				for _, skillName := range selectedSkills {
+					skillType := models.SkillType(skillName)
+					skill := m.character.Skills.GetSkill(skillType)
+					if skill != nil && skill.Proficiency == 0 {
+						skill.Proficiency = 1 // Grant proficiency
+						debug.Log("Granted proficiency in %s from %s", skillName, featureName)
+					}
+					// Track this skill as coming from class
+					m.character.ClassSkills = append(m.character.ClassSkills, skillType)
+				}
+
+				// Mark skill as selected in feature mechanics
+				for i := range m.character.Features.Features {
+					if m.character.Features.Features[i].Name == featureName {
+						if m.character.Features.Features[i].Mechanics == nil {
+							m.character.Features.Features[i].Mechanics = make(map[string]interface{})
+						}
+						m.character.Features.Features[i].Mechanics["skill_selected"] = true
+						break
+					}
+				}
+
+				m.classSkillSelector.Hide()
+				m.storage.Save(m.character)
+
+				// For Deft Explorer, check if we need language selection
+				if featureName == "Deft Explorer" {
+					// Find the feature to check language count
+					for _, feature := range m.character.Features.Features {
+						if feature.Name == "Deft Explorer" && feature.Mechanics != nil {
+							langCount := 2 // default
+							if count, ok := feature.Mechanics["languages"].(float64); ok {
+								langCount = int(count)
+							}
+							languagesSelected := 0
+							if count, ok := feature.Mechanics["languages_selected"].(float64); ok {
+								languagesSelected = int(count)
+							}
+
+							if languagesSelected < langCount {
+								// Prompt for language selection (multi-select mode)
+								remainingCount := langCount - languagesSelected
+								m.languageSelector.ShowForMultiSelect(m.character.Languages, remainingCount, true) // excludeCommon=true
+								m.message = fmt.Sprintf("Select %d language(s) for Deft Explorer (Common excluded)...", remainingCount)
+								return m, cmd
+							}
+						}
+					}
+				}
+
+				// Check if we need fighting style selection (for Ranger level 2)
+				if selectedClassName == "Ranger" {
+					rangerLevel := m.character.GetClassLevel("Ranger")
+					if rangerLevel == 2 {
+						debug.Log("Ranger level 2 - checking for fighting style selection")
+						m.levelUpSelector.Hide() // Hide level up selector so fighting style selector can receive keys
+						m.fightingStyleSelector.Show("Ranger")
+						m.message = "Select your fighting style..."
+						return m, cmd
+					}
+				}
+
+				m.message = fmt.Sprintf("%s skill selection complete!", featureName)
+				return m, cmd
+			}
+
+			// Original class selection logic
 			debug.Log("Applying class %s with skills: %v", selectedClassName, selectedSkills)
 
 			// Apply the class first
@@ -499,11 +606,15 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleFightingStyleSelectorKeys: key=%s", msg.String())
 
-	// Delegate navigation to the component's Update method
 	var cmd tea.Cmd
-	*m.fightingStyleSelector, cmd = m.fightingStyleSelector.Update(tea.KeyMsg(msg))
 
 	switch msg.String() {
+	case "up", "k":
+		m.fightingStyleSelector.Prev()
+		return m, nil
+	case "down", "j":
+		m.fightingStyleSelector.Next()
+		return m, nil
 	case "enter":
 		selectedStyle := m.fightingStyleSelector.GetSelectedStyle()
 		debug.Log("Fighting style selector: enter pressed, selected=%s", selectedStyle)
@@ -534,8 +645,43 @@ func (m *Model) handleFightingStyleSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.
 					m.message = "Select 2 cantrips from the druid spell list for Druidic Warrior..."
 					m.fightingStyleSelector.Hide()
 					return m, cmd
-				} else {
-					// Check if character also needs weapon mastery selection
+				}
+
+				// Check if this is Ranger level 2 and we just completed Deft Explorer
+				rangerLevel := m.character.GetClassLevel("Ranger")
+				if rangerLevel == 2 {
+					// Check if Deft Explorer is complete
+					deftExplorerComplete := false
+					for _, feature := range m.character.Features.Features {
+						if feature.Name == "Deft Explorer" && feature.Mechanics != nil {
+							skillSelected, _ := feature.Mechanics["skill_selected"].(bool)
+							if skillSelected {
+								langCount := 2 // default
+								if count, ok := feature.Mechanics["languages"].(float64); ok {
+									langCount = int(count)
+								}
+								languagesSelected := 0
+								if count, ok := feature.Mechanics["languages_selected"].(float64); ok {
+									languagesSelected = int(count)
+								}
+								if languagesSelected >= langCount {
+									deftExplorerComplete = true
+								}
+							}
+						}
+					}
+
+					if deftExplorerComplete {
+						// Level 2 setup complete (only if not Blessed/Druidic Warrior which need cantrips)
+						m.fightingStyleSelector.Hide()
+						m.storage.Save(m.character)
+						m.message = fmt.Sprintf("Fighting style '%s' selected! Ranger level 2 setup complete.", selectedStyle)
+						return m, cmd
+					}
+				}
+
+				// Check if character also needs weapon mastery selection
+				{
 					masteryCount := getWeaponMasteryCount(m.character)
 					debug.Log("After fighting style, checking weapon mastery: count=%d", masteryCount)
 

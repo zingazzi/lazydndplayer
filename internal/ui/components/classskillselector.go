@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
@@ -32,6 +33,7 @@ func NewClassSkillSelector() *ClassSkillSelector {
 
 // Show displays the skill selector for a specific class
 func (css *ClassSkillSelector) Show(className string, availableSkills []string, maxChoices int, char *models.Character) {
+	debug.Log("ClassSkillSelector.Show(): className=%s, availableSkills=%d, maxChoices=%d", className, len(availableSkills), maxChoices)
 	css.ClassName = className
 	css.availableSkills = availableSkills
 	css.MaxChoices = maxChoices
@@ -56,6 +58,7 @@ func (css *ClassSkillSelector) Show(className string, availableSkills []string, 
 	}
 
 	css.visible = true
+	debug.Log("ClassSkillSelector.Show(): Set visible=true, currentIndex=%d, availableSkills=%v", css.currentIndex, css.availableSkills)
 }
 
 // Hide closes the skill selector
@@ -65,20 +68,32 @@ func (css *ClassSkillSelector) Hide() {
 
 // IsVisible returns whether the selector is visible
 func (css *ClassSkillSelector) IsVisible() bool {
+	// Only log when visible to reduce log spam
+	if css.visible {
+		debug.Log("ClassSkillSelector.IsVisible(): returning true (currentIndex=%d, availableSkills=%d)", css.currentIndex, len(css.availableSkills))
+	}
 	return css.visible
 }
 
 // Next moves to the next skill
 func (css *ClassSkillSelector) Next() {
+	debug.Log("ClassSkillSelector.Next(): currentIndex=%d, availableSkills=%d", css.currentIndex, len(css.availableSkills))
 	if css.currentIndex < len(css.availableSkills)-1 {
 		css.currentIndex++
+		debug.Log("ClassSkillSelector.Next(): Updated currentIndex to %d", css.currentIndex)
+	} else {
+		debug.Log("ClassSkillSelector.Next(): Already at end, cannot move forward")
 	}
 }
 
 // Prev moves to the previous skill
 func (css *ClassSkillSelector) Prev() {
+	debug.Log("ClassSkillSelector.Prev(): currentIndex=%d, availableSkills=%d", css.currentIndex, len(css.availableSkills))
 	if css.currentIndex > 0 {
 		css.currentIndex--
+		debug.Log("ClassSkillSelector.Prev(): Updated currentIndex to %d", css.currentIndex)
+	} else {
+		debug.Log("ClassSkillSelector.Prev(): Already at start, cannot move backward")
 	}
 }
 

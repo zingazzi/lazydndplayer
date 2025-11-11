@@ -1,6 +1,8 @@
 // internal/ui/component_manager.go
 package ui
 
+import "github.com/marcozingoni/lazydndplayer/internal/debug"
+
 // ComponentHandler defines the interface that all UI components must implement
 type ComponentHandler interface {
 	IsVisible() bool
@@ -38,12 +40,19 @@ func (cm *ComponentManager) Register(component ComponentHandler, priority int, n
 func (cm *ComponentManager) GetVisibleComponent() ComponentHandler {
 	highestPriority := -1
 	var result ComponentHandler
+	var resultName string
 
 	for _, entry := range cm.components {
 		if entry.Component.IsVisible() && entry.Priority > highestPriority {
 			highestPriority = entry.Priority
 			result = entry.Component
+			resultName = entry.Name
 		}
+	}
+
+	// Only log when we have a result to reduce log spam
+	if result != nil {
+		debug.Log("ComponentManager: Returning visible component '%s' (priority %d)", resultName, highestPriority)
 	}
 
 	return result

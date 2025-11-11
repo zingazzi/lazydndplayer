@@ -13,11 +13,18 @@ import (
 func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleCantripSelectorKeys: key=%s", msg.String())
 
-	// Delegate navigation to the component's Update method
 	var cmd tea.Cmd
-	*m.cantripSelector, cmd = m.cantripSelector.Update(tea.KeyMsg(msg))
 
 	switch msg.String() {
+	case "up", "k":
+		m.cantripSelector.Prev()
+		return m, nil
+	case "down", "j":
+		m.cantripSelector.Next()
+		return m, nil
+	case " ":
+		m.cantripSelector.ToggleSelection()
+		return m, nil
 	case "enter":
 		if m.cantripSelector.CanConfirm() {
 			selectedCantrips := m.cantripSelector.GetSelectedCantrips()
@@ -28,6 +35,39 @@ func (m *Model) handleCantripSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			copy(m.character.SpellBook.Cantrips, selectedCantrips)
 
 			m.cantripSelector.Hide()
+
+			// Check if this is Ranger level 2 with Druidic Warrior (after Deft Explorer)
+			rangerLevel := m.character.GetClassLevel("Ranger")
+			if rangerLevel == 2 {
+				// Check if Deft Explorer is complete
+				deftExplorerComplete := false
+				for _, feature := range m.character.Features.Features {
+					if feature.Name == "Deft Explorer" && feature.Mechanics != nil {
+						skillSelected, _ := feature.Mechanics["skill_selected"].(bool)
+						if skillSelected {
+							langCount := 2 // default
+							if count, ok := feature.Mechanics["languages"].(float64); ok {
+								langCount = int(count)
+							}
+							languagesSelected := 0
+							if count, ok := feature.Mechanics["languages_selected"].(float64); ok {
+								languagesSelected = int(count)
+							}
+							if languagesSelected >= langCount {
+								deftExplorerComplete = true
+							}
+						}
+					}
+				}
+
+				if deftExplorerComplete {
+					// Level 2 setup complete (Deft Explorer + Fighting Style with Druidic Warrior)
+					debug.Log("Ranger level 2 setup complete after Druidic Warrior cantrips")
+					m.storage.Save(m.character)
+					m.message = fmt.Sprintf("Druidic Warrior cantrips selected! Ranger level 2 setup complete. (Total: %d cantrips)", len(selectedCantrips))
+					return m, cmd
+				}
+			}
 
 			// Check if we need weapon mastery selection next
 			masteryCount := getWeaponMasteryCount(m.character)

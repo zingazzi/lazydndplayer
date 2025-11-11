@@ -456,12 +456,68 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return model, cmd
 		}
 
+		// Check if levelUpSelector is visible and in class selection mode - it should get priority
+		// when selecting a class to level up
+		if m.levelUpSelector.IsVisible() && m.levelUpSelector.GetState() == components.LevelUpSelectClass {
+			debug.Log("Update: levelUpSelector is visible in class selection mode, routing key=%s directly to it", msg.String())
+			if model, cmd, handled := m.routeComponentToHandler(m.levelUpSelector, msg); handled {
+				debug.Log("Update: levelUpSelector handler returned handled=true for key=%s", msg.String())
+				return model, cmd
+			}
+		}
+
+		// Check if classSkillSelector is visible - it should take priority over levelUpSelector
+		// when Deft Explorer/Scholar selection is needed
+		if m.classSkillSelector.IsVisible() {
+			debug.Log("Update: classSkillSelector is visible, routing key=%s directly to it", msg.String())
+			if model, cmd, handled := m.routeComponentToHandler(m.classSkillSelector, msg); handled {
+				debug.Log("Update: classSkillSelector handler returned handled=true for key=%s", msg.String())
+				return model, cmd
+			}
+		}
+
+		// Check if languageSelector is visible in multi-select mode - it should take priority over levelUpSelector
+		// when Deft Explorer language selection is needed
+		if m.languageSelector.IsVisible() && m.languageSelector.IsMultiSelectMode() {
+			debug.Log("Update: languageSelector (multi-select) is visible, routing key=%s directly to it", msg.String())
+			if model, cmd, handled := m.routeComponentToHandler(m.languageSelector, msg); handled {
+				debug.Log("Update: languageSelector handler returned handled=true for key=%s", msg.String())
+				return model, cmd
+			}
+		}
+
+		// Check if fightingStyleSelector is visible - it should take priority over levelUpSelector
+		// when fighting style selection is needed (e.g., Ranger level 2)
+		if m.fightingStyleSelector.IsVisible() {
+			debug.Log("Update: fightingStyleSelector is visible, routing key=%s directly to it", msg.String())
+			if model, cmd, handled := m.routeComponentToHandler(m.fightingStyleSelector, msg); handled {
+				debug.Log("Update: fightingStyleSelector handler returned handled=true for key=%s", msg.String())
+				return model, cmd
+			}
+		}
+
+		// Check if cantripSelector is visible - it should take priority over levelUpSelector
+		// when cantrip selection is needed (e.g., Druidic Warrior, Blessed Warrior)
+		if m.cantripSelector.IsVisible() {
+			debug.Log("Update: cantripSelector is visible, routing key=%s directly to it", msg.String())
+			if model, cmd, handled := m.routeComponentToHandler(m.cantripSelector, msg); handled {
+				debug.Log("Update: cantripSelector handler returned handled=true for key=%s", msg.String())
+				return model, cmd
+			}
+		}
+
 		// Use ComponentManager to route to the highest priority visible component
 		// This replaces 30+ individual if statements with a single priority-based routing
 		if visibleComponent := m.componentManager.GetVisibleComponent(); visibleComponent != nil {
+			debug.Log("Update: Found visible component, routing key=%s", msg.String())
 			if model, cmd, handled := m.routeComponentToHandler(visibleComponent, msg); handled {
+				debug.Log("Update: Component handler returned handled=true for key=%s", msg.String())
 				return model, cmd
+			} else {
+				debug.Log("Update: Component handler returned handled=false for key=%s", msg.String())
 			}
+		} else {
+			debug.Log("Update: No visible component found for key=%s", msg.String())
 		}
 
 		// Panel navigation (AFTER all popups, only when focused on main and no popups active)

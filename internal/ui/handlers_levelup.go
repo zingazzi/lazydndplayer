@@ -10,6 +10,87 @@ import (
 
 // handleLevelUpSelectorKeys handles level-up selector keys
 func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Check for Deft Explorer/Scholar BEFORE processing keys - these need to intercept
+	// Check if Deft Explorer skill/language selection is needed (Ranger level 2)
+	if m.character.HasClass("Ranger") {
+		rangerLevel := m.character.GetClassLevel("Ranger")
+		if rangerLevel == 2 {
+			// Check if Deft Explorer feature exists and needs skill/language selection
+			for _, feature := range m.character.Features.Features {
+				if feature.Name == "Deft Explorer" && feature.Mechanics != nil {
+					if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+						// Check if we've already selected the skill
+						skillCount := 1 // default
+						if count, ok := feature.Mechanics["skill_count"].(float64); ok {
+							skillCount = int(count)
+						}
+						langCount := 2 // default
+						if count, ok := feature.Mechanics["languages"].(float64); ok {
+							langCount = int(count)
+						}
+
+						// Check if skill was already selected (stored in feature mechanics)
+						skillSelected := false
+						if selected, ok := feature.Mechanics["skill_selected"].(bool); ok {
+							skillSelected = selected
+						}
+
+						// Check how many languages were selected
+						languagesSelected := 0
+						if count, ok := feature.Mechanics["languages_selected"].(float64); ok {
+							languagesSelected = int(count)
+						}
+
+						if !skillSelected {
+							// Prompt for skill selection
+							rangerSkills := []string{"Animal Handling", "Athletics", "Insight", "Investigation", "Nature", "Perception", "Stealth", "Survival"}
+							debug.Log("Deft Explorer feature needs skill selection: %v", rangerSkills)
+							m.levelUpSelector.Hide() // Hide level up selector so skill selector can receive keys
+							m.classSkillSelector.Show("Ranger", rangerSkills, skillCount, m.character)
+							m.message = "Select 1 skill from the Ranger skill list for Deft Explorer..."
+							return m, nil
+						} else if languagesSelected < langCount {
+							// Prompt for language selection (multi-select mode)
+							remainingCount := langCount - languagesSelected
+							debug.Log("Deft Explorer feature needs language selection: %d remaining of %d total", remainingCount, langCount)
+							m.levelUpSelector.Hide() // Hide level up selector so language selector can receive keys
+							m.languageSelector.ShowForMultiSelect(m.character.Languages, remainingCount, true) // excludeCommon=true
+							m.message = fmt.Sprintf("Select %d language(s) for Deft Explorer (Common excluded)...", remainingCount)
+							return m, nil
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Check if Scholar skill selection is needed (Wizard level 2)
+	if m.character.HasClass("Wizard") {
+		wizardLevel := m.character.GetClassLevel("Wizard")
+		if wizardLevel == 2 {
+			// Check if Scholar feature exists and needs skill selection
+			for _, feature := range m.character.Features.Features {
+				if feature.Name == "Scholar" && feature.Mechanics != nil {
+					if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+						if skillList, ok := feature.Mechanics["skill_list"].([]interface{}); ok {
+							skills := []string{}
+							for _, s := range skillList {
+								if skillStr, ok := s.(string); ok {
+									skills = append(skills, skillStr)
+								}
+							}
+							debug.Log("Scholar feature needs skill selection: %v", skills)
+							m.levelUpSelector.Hide() // Hide level up selector so skill selector can receive keys
+							m.classSkillSelector.Show("Wizard", skills, 1, m.character)
+							m.message = "Select 1 skill for Scholar feature..."
+							return m, nil
+						}
+					}
+				}
+			}
+		}
+	}
+
 	updated, cmd := m.levelUpSelector.Update(msg)
 	m.levelUpSelector = &updated
 
@@ -36,32 +117,9 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-		// Check if Scholar skill selection is needed (Wizard level 2)
+		// Check if Savant spell selection is needed (Wizard level 3 with subclass)
 		if m.character.HasClass("Wizard") {
 			wizardLevel := m.character.GetClassLevel("Wizard")
-			if wizardLevel == 2 {
-				// Check if Scholar feature exists and needs skill selection
-				for _, feature := range m.character.Features.Features {
-					if feature.Name == "Scholar" && feature.Mechanics != nil {
-						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
-							if skillList, ok := feature.Mechanics["skill_list"].([]interface{}); ok {
-								skills := []string{}
-								for _, s := range skillList {
-									if skillStr, ok := s.(string); ok {
-										skills = append(skills, skillStr)
-									}
-								}
-								debug.Log("Scholar feature needs skill selection: %v", skills)
-								m.classSkillSelector.Show("Wizard", skills, 1, m.character)
-								m.message = "Select 1 skill for Scholar feature..."
-								return m, cmd
-							}
-						}
-					}
-				}
-			}
-
-			// Check if Savant spell selection is needed (Wizard level 3 with subclass)
 			if wizardLevel == 3 {
 				debug.Log("Wizard level 3 detected - checking for Savant spell selection")
 				// Check for Savant features that require spell selection

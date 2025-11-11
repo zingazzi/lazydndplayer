@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
@@ -79,6 +80,7 @@ func (ls *LevelUpSelector) Show() {
 
 // Hide hides the level-up selector
 func (ls *LevelUpSelector) Hide() {
+	debug.Log("LevelUpSelector.Hide(): Setting visible=false (was %v)", ls.visible)
 	ls.visible = false
 	ls.state = LevelUpSelectClass
 	ls.selectedClass = ""
@@ -88,7 +90,16 @@ func (ls *LevelUpSelector) Hide() {
 
 // IsVisible returns whether the selector is visible
 func (ls *LevelUpSelector) IsVisible() bool {
-	return ls.visible
+	result := ls.visible
+	if result {
+		debug.Log("LevelUpSelector.IsVisible(): returning true")
+	}
+	return result
+}
+
+// GetState returns the current state of the level-up selector
+func (ls *LevelUpSelector) GetState() LevelUpState {
+	return ls.state
 }
 
 // loadAvailableClasses loads classes that can be leveled up

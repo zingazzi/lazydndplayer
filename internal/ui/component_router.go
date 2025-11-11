@@ -3,6 +3,7 @@ package ui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/marcozingoni/lazydndplayer/internal/debug"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/components"
 	"github.com/marcozingoni/lazydndplayer/internal/ui/handlers"
 )
@@ -167,6 +168,7 @@ func (m *Model) routeComponentToHandler(component ComponentHandler, msg tea.KeyM
 		return model, cmd, true
 
 	case *components.ClassSkillSelector:
+		debug.Log("ComponentRouter: routing to ClassSkillSelector handler, key=%s", msg.String())
 		model, cmd := m.handleClassSkillSelectorKeys(msg)
 		return model, cmd, true
 
