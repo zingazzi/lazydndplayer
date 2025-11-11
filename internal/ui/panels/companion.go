@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
@@ -13,6 +15,8 @@ import (
 type CompanionPanel struct {
 	character    *models.Character
 	selectedItem int // 0 = stats, 1 = actions
+	viewport     viewport.Model
+	ready        bool
 }
 
 // NewCompanionPanel creates a new companion panel
@@ -47,6 +51,20 @@ func (p *CompanionPanel) GetSelectedAttack() *models.Attack {
 
 // View renders the companion panel
 func (p *CompanionPanel) View(width, height int) string {
+	// Use all available height for the viewport
+	viewportHeight := height
+
+	if !p.ready {
+		p.viewport = viewport.New(width, viewportHeight)
+		p.viewport.Style = lipgloss.NewStyle()
+		p.ready = true
+	}
+
+	if p.viewport.Width != width || p.viewport.Height != viewportHeight {
+		p.viewport.Width = width
+		p.viewport.Height = viewportHeight
+	}
+
 	if p.character.Companion == nil {
 		titleStyle := lipgloss.NewStyle().
 			Bold(true).
@@ -63,7 +81,9 @@ func (p *CompanionPanel) View(width, height int) string {
 		lines = append(lines, "")
 		lines = append(lines, dimStyle.Render("Beast Master rangers can select a companion at level 3."))
 
-		return strings.Join(lines, "\n")
+		contentStr := strings.Join(lines, "\n")
+		p.viewport.SetContent(contentStr)
+		return p.viewport.View()
 	}
 
 	companion := p.character.Companion
@@ -143,11 +163,71 @@ func (p *CompanionPanel) View(width, height int) string {
 		lines = append(lines, fmt.Sprintf("    %s %s", dimStyle.Render("Damage:"), valueStyle.Render(fmt.Sprintf("%s%s %s", attack.DamageDice, damageBonusStr, attack.DamageType))))
 		lines = append(lines, fmt.Sprintf("    %s %s", dimStyle.Render("Range:"), valueStyle.Render(attack.Range)))
 	}
+	lines = append(lines, "")
 
-	return strings.Join(lines, "\n")
+	// Help text - show different message based on whether companion exists
+	helpText := "c: Select beast • r: Roll attack • h: Edit HP"
+	if companion != nil {
+		helpText = "c: Change beast • r: Roll attack • h: Edit HP"
+	}
+	lines = append(lines, dimStyle.Render(helpText))
+
+	contentStr := strings.Join(lines, "\n")
+	p.viewport.SetContent(contentStr)
+
+	// Render viewport
+	viewportContent := p.viewport.View()
+
+	// Overlay scroll indicator if content is scrollable
+	if p.viewport.TotalLineCount() > p.viewport.Height {
+		scrollPercentage := int(p.viewport.ScrollPercent() * 100)
+		scrollInfo := fmt.Sprintf("[%d%%]", scrollPercentage)
+
+		scrollStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Align(lipgloss.Right)
+
+		lines := strings.Split(viewportContent, "\n")
+		if len(lines) > 0 {
+			paddedLine := lipgloss.NewStyle().Width(width).Render(lines[len(lines)-1])
+			lines[len(lines)-1] = lipgloss.JoinHorizontal(lipgloss.Top, paddedLine)
+			lines = append(lines[:len(lines)-1],
+				lipgloss.PlaceHorizontal(width, lipgloss.Right, scrollStyle.Render(scrollInfo)))
+			viewportContent = strings.Join(lines, "\n")
+		}
+	}
+
+	return viewportContent
 }
 
 // Update updates the panel with character data
 func (p *CompanionPanel) Update(char *models.Character) {
 	p.character = char
+}
+
+// Update handles viewport updates
+func (p *CompanionPanel) UpdateViewport(msg tea.Msg) {
+	var cmd tea.Cmd
+	p.viewport, cmd = p.viewport.Update(msg)
+	_ = cmd
+}
+
+// ScrollDown scrolls the viewport down
+func (p *CompanionPanel) ScrollDown() {
+	p.viewport.LineDown(1)
+}
+
+// ScrollUp scrolls the viewport up
+func (p *CompanionPanel) ScrollUp() {
+	p.viewport.LineUp(1)
+}
+
+// PageDown scrolls down by half a page
+func (p *CompanionPanel) PageDown() {
+	p.viewport.HalfViewDown()
+}
+
+// PageUp scrolls up by half a page
+func (p *CompanionPanel) PageUp() {
+	p.viewport.HalfViewUp()
 }

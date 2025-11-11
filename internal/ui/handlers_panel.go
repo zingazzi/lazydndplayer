@@ -762,6 +762,30 @@ func (m *Model) handleCompanionPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.companionPanel.Prev()
 	case "down", "j":
 		m.companionPanel.Next()
+	case "shift+up":
+		// Scroll viewport up
+		m.companionPanel.ScrollUp()
+	case "shift+down":
+		// Scroll viewport down
+		m.companionPanel.ScrollDown()
+	case "ctrl+u", "pgup":
+		// Page up
+		m.companionPanel.PageUp()
+	case "ctrl+d", "pgdown":
+		// Page down
+		m.companionPanel.PageDown()
+	case "c":
+		// Select/Change beast companion (Beast Master only)
+		if m.character.IsBeastMaster() {
+			m.beastSelector.Show()
+			if m.character.Companion != nil {
+				m.message = "Select a new beast companion..."
+			} else {
+				m.message = "Select your beast companion..."
+			}
+		} else {
+			m.message = "Only Beast Master rangers can select a companion"
+		}
 	case "r":
 		// Roll companion attack
 		attack := m.companionPanel.GetSelectedAttack()

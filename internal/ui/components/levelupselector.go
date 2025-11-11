@@ -51,6 +51,7 @@ type LevelUpSelector struct {
 	// Fighter subclass flags
 	NeedsManeuverSelection bool // Battle Master needs maneuvers
 	NeedsCantripSelection  bool // Eldritch Knight needs cantrips
+	NeedsBeastSelection    bool // Ranger Beast Master needs beast companion
 }
 
 // NewLevelUpSelector creates a new level-up selector
@@ -223,6 +224,14 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 							ls.state = LevelUpComplete
 							return *ls, cmd
 						}
+					}
+
+					// Check if Ranger Beast Master needs beast selection
+					if ls.selectedClass == "Ranger" && ls.selectedSubclass == "Beast Master" {
+						// Beast Master needs beast companion selection - set flag for app.go to handle
+						ls.NeedsBeastSelection = true
+						ls.state = LevelUpComplete
+						return *ls, cmd
 					}
 
 					// Check if Wizard subclass needs Savant spell selection

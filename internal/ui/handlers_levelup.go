@@ -117,6 +117,16 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		// Check if Beast Master needs beast selection
+		if m.levelUpSelector.NeedsBeastSelection {
+			debug.Log("Beast Master detected - prompting for beast selection")
+			m.levelUpSelector.NeedsBeastSelection = false // Clear flag
+			m.levelUpSelector.Hide() // Hide level up selector so beast selector can receive keys
+			m.beastSelector.Show()
+			m.message = "Select your beast companion..."
+			return m, cmd
+		}
+
 		// Check if Savant spell selection is needed (Wizard level 3 with subclass)
 		if m.character.HasClass("Wizard") {
 			wizardLevel := m.character.GetClassLevel("Wizard")

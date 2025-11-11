@@ -506,35 +506,101 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// Check if beastSelector is visible - it should take priority over levelUpSelector
+		// when beast selection is needed (e.g., Beast Master level 3)
+		if m.beastSelector.IsVisible() {
+			debug.Log("Update: beastSelector is visible, routing key=%s directly to it", msg.String())
+			if model, cmd, handled := m.routeComponentToHandler(m.beastSelector, msg); handled {
+				debug.Log("Update: beastSelector handler returned handled=true for key=%s", msg.String())
+				return model, cmd
+			}
+		}
+
+		// Panel navigation (BEFORE component routing, but only when focused on main)
+		// This ensures tab navigation works even if components are visible
+		if m.focusArea == FocusMain {
+			switch msg.String() {
+			case "tab":
+				// Check if any component should handle tab for its own navigation
+				// Components that use tab internally: SpellPrepSelector, SpellbookEditor
+				shouldBlockTab := false
+				if visibleComponent := m.componentManager.GetVisibleComponent(); visibleComponent != nil {
+					switch visibleComponent.(type) {
+					case *components.SpellPrepSelector, *components.SpellbookEditor:
+						// These components use tab for internal navigation - let them handle it
+						shouldBlockTab = true
+					case *components.LevelUpSelector, *components.DeLevelSelector:
+						// Block tab navigation during level up/de-level (only if actually visible)
+						if visibleComponent.(interface{ IsVisible() bool }).IsVisible() {
+							shouldBlockTab = true
+						}
+					case *components.SpeciesSelector, *components.SubtypeSelector:
+						// Block tab navigation during character creation (only if actually visible)
+						if visibleComponent.(interface{ IsVisible() bool }).IsVisible() {
+							shouldBlockTab = true
+						}
+					case *components.ClassSelector:
+						// Block tab navigation during class selection (only if actually visible)
+						if visibleComponent.(interface{ IsVisible() bool }).IsVisible() {
+							shouldBlockTab = true
+						}
+					// All other components should allow tab to pass through for panel navigation
+					}
+				}
+
+				if !shouldBlockTab {
+					m.tabs.Next()
+					m.currentPanel = PanelType(m.tabs.SelectedIndex)
+					debug.Log("Tab navigation: moved to panel %d", m.currentPanel)
+					return m, nil
+				}
+
+			case "shift+tab":
+				// Same logic for shift+tab
+				shouldBlockTab := false
+				if visibleComponent := m.componentManager.GetVisibleComponent(); visibleComponent != nil {
+					switch visibleComponent.(type) {
+					case *components.SpellPrepSelector, *components.SpellbookEditor:
+						// These components use shift+tab for internal navigation
+						shouldBlockTab = true
+					case *components.LevelUpSelector, *components.DeLevelSelector:
+						if visibleComponent.(interface{ IsVisible() bool }).IsVisible() {
+							shouldBlockTab = true
+						}
+					case *components.SpeciesSelector, *components.SubtypeSelector:
+						if visibleComponent.(interface{ IsVisible() bool }).IsVisible() {
+							shouldBlockTab = true
+						}
+					case *components.ClassSelector:
+						if visibleComponent.(interface{ IsVisible() bool }).IsVisible() {
+							shouldBlockTab = true
+						}
+					}
+				}
+
+				if !shouldBlockTab {
+					m.tabs.Prev()
+					m.currentPanel = PanelType(m.tabs.SelectedIndex)
+					debug.Log("Shift+Tab navigation: moved to panel %d", m.currentPanel)
+					return m, nil
+				}
+			}
+		}
+
 		// Use ComponentManager to route to the highest priority visible component
 		// This replaces 30+ individual if statements with a single priority-based routing
+		// If a component doesn't handle the key (returns handled=false), it falls through to panel handlers
 		if visibleComponent := m.componentManager.GetVisibleComponent(); visibleComponent != nil {
 			debug.Log("Update: Found visible component, routing key=%s", msg.String())
 			if model, cmd, handled := m.routeComponentToHandler(visibleComponent, msg); handled {
 				debug.Log("Update: Component handler returned handled=true for key=%s", msg.String())
 				return model, cmd
 			} else {
-				debug.Log("Update: Component handler returned handled=false for key=%s", msg.String())
+				debug.Log("Update: Component handler returned handled=false for key=%s, falling through to panel handlers", msg.String())
+				// Key not handled by component - continue to panel handlers below
 			}
 		} else {
 			debug.Log("Update: No visible component found for key=%s", msg.String())
-		}
-
-		// Panel navigation (AFTER all popups, only when focused on main and no popups active)
-		switch msg.String() {
-		case "tab":
-			if m.focusArea == FocusMain {
-				m.tabs.Next()
-				m.currentPanel = PanelType(m.tabs.SelectedIndex)
-			}
-			return m, nil
-
-		case "shift+tab":
-			if m.focusArea == FocusMain {
-				m.tabs.Prev()
-				m.currentPanel = PanelType(m.tabs.SelectedIndex)
-			}
-			return m, nil
 		}
 
 		// Handle input based on current focus
@@ -543,19 +609,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case FocusMain:
 			return m.handleMainPanelKeys(msg)
 		case FocusCharStats:
+			// When in CharStats panel, tab should switch focus back to main and navigate tabs
+			if msg.String() == "tab" {
+				m.focusArea = FocusMain
+				m.tabs.Next()
+				m.currentPanel = PanelType(m.tabs.SelectedIndex)
+				debug.Log("Tab navigation: switched from CharStats to Main, moved to panel %d", m.currentPanel)
+				return m, nil
+			} else if msg.String() == "shift+tab" {
+				m.focusArea = FocusMain
+				m.tabs.Prev()
+				m.currentPanel = PanelType(m.tabs.SelectedIndex)
+				debug.Log("Shift+Tab navigation: switched from CharStats to Main, moved to panel %d", m.currentPanel)
+				return m, nil
+			}
 			return m.handleCharStatsPanelKeys(msg)
 		case FocusActions:
 			return m.handleActionsPanelKeys(msg)
 		case FocusDice:
 			return m.handleDicePanelKeys(msg)
-		}
-
-		// Global key 'R' for rest (affects actions and spells)
-		switch msg.String() {
-		case "R": // Shift+R for rest
-			m.character.LongRest()
-			m.message = "Long rest completed! HP, spells, and abilities restored."
-			return m, nil
 		}
 	}
 

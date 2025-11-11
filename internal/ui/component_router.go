@@ -16,30 +16,34 @@ func (m *Model) routeComponentToHandler(component ComponentHandler, msg tea.KeyM
 
 	switch comp := component.(type) {
 	case *components.StatGenerator:
+		// TODO: Update handler to return bool
 		model, cmd := m.handleStatGeneratorKeys(msg)
 		return model, cmd, true
 
 	case *components.AbilityRoller:
-		model, cmd := m.handleAbilityRollerKeys(msg)
-		return model, cmd, true
+		model, cmd, handled := m.handleAbilityRollerKeys(msg)
+		return model, cmd, handled
 
 	case *components.AttackRoller:
+		// TODO: Update handler to return bool
 		model, cmd := m.handleAttackRollerKeys(msg)
 		return model, cmd, true
 
 	case *components.RestPopup:
-		model, cmd := m.handleRestPopupKeys(msg)
-		return model, cmd, true
+		model, cmd, handled := m.handleRestPopupKeys(msg)
+		return model, cmd, handled
 
 	case *components.MessagePopup:
-		model, cmd := m.handleMessagePopupKeys(msg)
-		return model, cmd, true
+		model, cmd, handled := m.handleMessagePopupKeys(msg)
+		return model, cmd, handled
 
 	case *components.SpellSelector:
+		// TODO: Update handler to return bool
 		model, cmd := m.handleSpellSelectorKeys(msg)
 		return model, cmd, true
 
 	case *components.FeatSelector:
+		// TODO: Update handler to return bool
 		model, cmd := m.handleFeatSelectorKeys(msg)
 		return model, cmd, true
 
@@ -177,8 +181,8 @@ func (m *Model) routeComponentToHandler(component ComponentHandler, msg tea.KeyM
 		return model, cmd, true
 
 	case *components.BeastSelector:
-		model, cmd := m.handleBeastSelectorKeys(msg)
-		return model, cmd, true
+		model, cmd, handled := m.handleBeastSelectorKeys(msg)
+		return model, cmd, handled
 
 	case *components.ClassSelector:
 		model, cmd := m.handleClassSelectorKeys(msg)

@@ -9,13 +9,16 @@ import (
 )
 
 // handleMessagePopupKeys handles message popup keyboard input
-func (m *Model) handleMessagePopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// Returns (model, cmd, handled) where handled indicates if the key was processed
+func (m *Model) handleMessagePopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
+	// Message popup handles all keys (esc, enter, space)
 	cmd := m.messagePopup.Update(msg)
-	return m, cmd
+	return m, cmd, true
 }
 
 // handleRestPopupKeys handles rest popup keyboard input
-func (m *Model) handleRestPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// Returns (model, cmd, handled) where handled indicates if the key was processed
+func (m *Model) handleRestPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
 	// Handle 'c' key for changing companion during long rest
 	if msg.String() == "c" && m.restPopup.IsVisible() {
 		// Check if it's a long rest and character is Beast Master
@@ -23,7 +26,7 @@ func (m *Model) handleRestPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.restPopup.Hide()
 			m.beastSelector.Show()
 			m.message = "Select a new beast companion..."
-			return m, nil
+			return m, nil, true
 		}
 	}
 
@@ -40,10 +43,13 @@ func (m *Model) handleRestPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.storage.Save(m.character)
 		m.restPopup.Hide()
+		return m, cmd, true
 	} else if m.restPopup.IsCancelled() {
 		m.message = "Rest cancelled"
 		m.restPopup.Hide()
+		return m, cmd, true
 	}
 
-	return m, cmd
+	// Rest popup handles all keys when visible
+	return m, cmd, true
 }

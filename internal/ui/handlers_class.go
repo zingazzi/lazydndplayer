@@ -264,14 +264,19 @@ func (m *Model) handleSubclassSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 }
 
 // handleBeastSelectorKeys handles beast selector specific keys
-func (m *Model) handleBeastSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// Returns (model, cmd, handled) where handled indicates if the key was processed
+func (m *Model) handleBeastSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
 	debug.Log("handleBeastSelectorKeys: key=%s", msg.String())
 
-	// Delegate navigation to the component's Update method
 	var cmd tea.Cmd
-	*m.beastSelector, cmd = m.beastSelector.Update(tea.KeyMsg(msg))
 
 	switch msg.String() {
+	case "up", "k":
+		m.beastSelector.Prev()
+		return m, nil, true
+	case "down", "j":
+		m.beastSelector.Next()
+		return m, nil, true
 	case "enter":
 		selectedType := m.beastSelector.GetSelectedType()
 		debug.Log("Beast selector: enter pressed, selected=%s", selectedType)
@@ -294,70 +299,89 @@ func (m *Model) handleBeastSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			debug.Log("Companion '%s' initialized for Ranger level %d", selectedType, rangerLevel)
 			m.beastSelector.Hide()
 
-			// If companion was already set, this is a change during long rest
+			// If companion was already set, this is a change (from long rest or companion panel)
 			if wasChangingCompanion {
-				// This is a change during long rest - just update and return to rest popup
-				m.storage.Save(m.character)
-				m.message = fmt.Sprintf("Companion changed to '%s'. Press Enter to complete long rest.", selectedType)
+				// Check if we're in a long rest
+				if m.restPopup.IsVisible() && m.restPopup.GetRestType() == components.LongRestType {
+					// This is a change during long rest - just update and return to rest popup
+					m.storage.Save(m.character)
+					m.message = fmt.Sprintf("Companion changed to '%s'. Press Enter to complete long rest.", selectedType)
 				// Re-show rest popup
 				m.restPopup.Show(components.LongRestType)
-				return m, cmd
-			}
-
-			// Continue with class setup flow (check for weapon mastery, fighting style, etc.)
-			// Check if we need weapon mastery selection
-			masteryCount := getWeaponMasteryCount(m.character)
-			debug.Log("After beast selection, checking weapon mastery: count=%d", masteryCount)
-
-			if masteryCount > 0 {
-				// Show weapon mastery selector
-				debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
-				m.weaponMasterySelector.Show(masteryCount)
-				m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
-				return m, cmd
-			}
-
-			// Check if we need fighting style selection
-			if m.character.HasClass("Fighter") || m.character.HasClass("Paladin") || m.character.HasClass("Ranger") {
-				fighterLevel := m.character.GetClassLevel("Fighter")
-				paladinLevel := m.character.GetClassLevel("Paladin")
-				rangerLevel := m.character.GetClassLevel("Ranger")
-				if fighterLevel == 1 || paladinLevel == 2 || rangerLevel == 2 {
-					debug.Log("Showing fighting style selector")
-					m.fightingStyleSelector.Show(m.character.Class)
-					m.message = "Select your fighting style..."
-					return m, cmd
-				}
-			}
-
-			// Complete class selection
-			debug.Log("Saving character and completing class selection")
-			m.pendingChanges.Clear() // Clear backup on successful completion
-			m.storage.Save(m.character)
-
-			// If in wizard mode, check if we can advance
-			if m.IsInWizard() {
-				m.checkAndAdvanceWizardAfterClassSetup()
-				// Return immediately to ensure wizard state is preserved
-				return m, cmd
+				return m, cmd, true
 			} else {
-				m.message = fmt.Sprintf("Beast companion '%s' selected! Class setup complete. (HP: %d/%d)", selectedType, m.character.CurrentHP, m.character.MaxHP)
+				// This is a change from companion panel - just update and save
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Companion changed to '%s'!", selectedType)
+				return m, cmd, true
 			}
 		}
+
+		// Check if we're in a level-up flow - if so, complete level-up instead of class setup
+		if m.levelUpSelector.IsVisible() {
+			debug.Log("Beast selection during level-up - completing level-up process")
+			m.storage.Save(m.character)
+			m.message = fmt.Sprintf("Beast companion '%s' selected! Level-up complete. (HP: %d/%d)", selectedType, m.character.CurrentHP, m.character.MaxHP)
+			// Level-up completion will be handled by the level-up handler
+			return m, cmd, true
+		}
+
+		// Continue with class setup flow (check for weapon mastery, fighting style, etc.)
+		// Check if we need weapon mastery selection
+		masteryCount := getWeaponMasteryCount(m.character)
+		debug.Log("After beast selection, checking weapon mastery: count=%d", masteryCount)
+
+		if masteryCount > 0 {
+			// Show weapon mastery selector
+			debug.Log("Showing weapon mastery selector for %d weapons", masteryCount)
+			m.weaponMasterySelector.Show(masteryCount)
+			m.message = fmt.Sprintf("Select up to %d weapons to master...", masteryCount)
+			return m, cmd, true
+		}
+
+		// Check if we need fighting style selection
+		if m.character.HasClass("Fighter") || m.character.HasClass("Paladin") || m.character.HasClass("Ranger") {
+			fighterLevel := m.character.GetClassLevel("Fighter")
+			paladinLevel := m.character.GetClassLevel("Paladin")
+			rangerLevel := m.character.GetClassLevel("Ranger")
+			if fighterLevel == 1 || paladinLevel == 2 || rangerLevel == 2 {
+				debug.Log("Showing fighting style selector")
+				m.fightingStyleSelector.Show(m.character.Class)
+				m.message = "Select your fighting style..."
+				return m, cmd, true
+			}
+		}
+
+		// Complete class selection
+		debug.Log("Saving character and completing class selection")
+		m.pendingChanges.Clear() // Clear backup on successful completion
+		m.storage.Save(m.character)
+
+		// If in wizard mode, check if we can advance
+		if m.IsInWizard() {
+			m.checkAndAdvanceWizardAfterClassSetup()
+			// Return immediately to ensure wizard state is preserved
+			return m, cmd, true
+		} else {
+			m.message = fmt.Sprintf("Beast companion '%s' selected! Class setup complete. (HP: %d/%d)", selectedType, m.character.CurrentHP, m.character.MaxHP)
+		}
+		return m, cmd, true
+	}
 	case "esc":
 		// Check if in wizard mode
 		if m.IsInWizard() {
 			m.cancelWizard()
-			return m, nil
+			return m, nil, true
 		}
 
 		debug.Log("Beast selector: cancelled - restoring previous state")
 		m.beastSelector.Hide()
 		m.pendingChanges.RestoreClass(m.character)
 		m.message = "Beast selection cancelled - restored previous state"
+		return m, nil, true
 	}
 
-	return m, cmd
+	return m, nil, false
 }
 
 // handleClassSkillSelectorKeys handles class skill selector specific keys
