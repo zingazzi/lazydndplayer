@@ -965,3 +965,74 @@ func (m *Model) renderDivineOrderSelector() string {
 		box,
 	)
 }
+
+// handleOptionSelectorKeys handles option selector specific keys
+func (m *Model) handleOptionSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	debug.Log("handleOptionSelectorKeys: key=%s", msg.String())
+
+	var cmd tea.Cmd
+	updated, cmd := m.optionSelector.Update(msg)
+	m.optionSelector = &updated
+
+	switch msg.String() {
+	case "enter":
+		selectedValue := m.optionSelector.GetSelectedValue()
+		debug.Log("Option selector: enter pressed, selected=%s", selectedValue)
+
+		if selectedValue != "" {
+			m.optionSelector.Hide()
+
+			// Determine selection type from message
+			// Check if we're selecting Fey Gift
+			if m.message == "Select your Fey Gift..." {
+				// Add Fey Gift to character's Personality traits
+				m.character.Personality = append(m.character.Personality, selectedValue)
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Fey Gift selected: %s", selectedValue)
+
+				// Check if we need Otherworldly Glamour skill selection next
+				if m.levelUpSelector.NeedsGlamourSkillSelection {
+					m.levelUpSelector.NeedsGlamourSkillSelection = false
+					glamourSkills := []string{"Deception", "Performance", "Persuasion"}
+					m.classSkillSelector.Show("Ranger", glamourSkills, 1, m.character)
+					m.message = "Select 1 skill for Otherworldly Glamour (Deception, Performance, or Persuasion)..."
+					return m, cmd
+				}
+			} else if m.message == "Select your Hunter's Prey option..." {
+				// Store Hunter's Prey selection in feature mechanics
+				rangerClass := m.character.GetClassLevelStruct("Ranger")
+				if rangerClass != nil {
+					// Find the Hunter's Prey feature and update its mechanics
+					for i := range m.character.Features.Features {
+						feature := &m.character.Features.Features[i]
+						if feature.Name == "Hunter's Prey" {
+							if feature.Mechanics == nil {
+								feature.Mechanics = make(map[string]interface{})
+							}
+							feature.Mechanics["selected_option"] = selectedValue
+							debug.Log("Stored Hunter's Prey selection: %s", selectedValue)
+							break
+						}
+					}
+				}
+				m.storage.Save(m.character)
+				m.message = fmt.Sprintf("Hunter's Prey selected: %s", selectedValue)
+			}
+
+			// Complete level-up if needed
+			if !m.levelUpSelector.IsVisible() {
+				m.character.UpdateDerivedStats()
+				m.message += " Level-up complete!"
+				// Ensure focusArea is set to FocusMain after selection
+				m.focusArea = FocusMain
+			}
+		}
+	case "esc":
+		m.optionSelector.Hide()
+		m.message = "Selection cancelled"
+		// Ensure focusArea is set to FocusMain after cancellation
+		m.focusArea = FocusMain
+	}
+
+	return m, cmd
+}

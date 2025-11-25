@@ -127,6 +127,50 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		// Check if Fey Wanderer needs Fey Gift selection
+		if m.levelUpSelector.NeedsFeyGiftSelection {
+			debug.Log("Fey Wanderer detected - prompting for Fey Gift selection")
+			m.levelUpSelector.NeedsFeyGiftSelection = false // Clear flag
+			m.levelUpSelector.Hide() // Hide level up selector so option selector can receive keys
+			feyGiftOptions := []string{
+				"Illusory butterflies flutter around you while you take a short or long rest",
+				"Fresh, seasonal flowers sprout from your hair each dawn",
+				"You faintly smell of cinnamon, lavender, nutmeg, or another comforting herb or spice",
+				"Your shadow dances while no one is looking directly at it",
+				"Horns or antlers sprout from your head",
+				"Your skin and hair change color to match the season at each dawn",
+			}
+			m.optionSelector.Show("Select Fey Gift", feyGiftOptions)
+			m.message = "Select your Fey Gift..."
+			return m, cmd
+		}
+
+		// Check if Fey Wanderer needs Otherworldly Glamour skill selection
+		if m.levelUpSelector.NeedsGlamourSkillSelection {
+			debug.Log("Fey Wanderer detected - prompting for Otherworldly Glamour skill selection")
+			m.levelUpSelector.NeedsGlamourSkillSelection = false // Clear flag
+			m.levelUpSelector.Hide() // Hide level up selector so skill selector can receive keys
+			glamourSkills := []string{"Deception", "Performance", "Persuasion"}
+			m.classSkillSelector.Show("Ranger", glamourSkills, 1, m.character)
+			m.message = "Select 1 skill for Otherworldly Glamour (Deception, Performance, or Persuasion)..."
+			return m, cmd
+		}
+
+		// Check if Hunter needs Hunter's Prey selection
+		if m.levelUpSelector.NeedsHunterPreySelection {
+			debug.Log("Hunter detected - prompting for Hunter's Prey selection")
+			m.levelUpSelector.NeedsHunterPreySelection = false // Clear flag
+			m.levelUpSelector.Hide() // Hide level up selector so option selector can receive keys
+			hunterPreyOptions := []string{
+				"Colossus Slayer",
+				"Giant Killer",
+				"Horde Breaker",
+			}
+			m.optionSelector.Show("Select Hunter's Prey", hunterPreyOptions)
+			m.message = "Select your Hunter's Prey option..."
+			return m, cmd
+		}
+
 		// Check if Savant spell selection is needed (Wizard level 3 with subclass)
 		if m.character.HasClass("Wizard") {
 			wizardLevel := m.character.GetClassLevel("Wizard")
@@ -174,6 +218,9 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.message = "Character updated!"
 		}
+
+		// Ensure focusArea is set to FocusMain after level-up completes
+		m.focusArea = FocusMain
 	}
 
 	return m, cmd

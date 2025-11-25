@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/marcozingoni/lazydndplayer/internal/debug"
@@ -486,8 +487,9 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 						grantDivineSmite(char)
 					}
 
-					// Check for always-prepared spells (College of Glamour)
+					// Check for always-prepared spells (College of Glamour, Fey Wanderer, Gloom Stalker)
 					if featureDef.Mechanics != nil {
+						// Handle simple array format (e.g., College of Glamour)
 						if alwaysPreparedSpells, ok := featureDef.Mechanics["always_prepared_spells"].([]interface{}); ok {
 							spellNames := make([]string, len(alwaysPreparedSpells))
 							for i, spell := range alwaysPreparedSpells {
@@ -497,6 +499,32 @@ func GrantSubclassFeatures(char *Character, className string, subclassName strin
 							}
 							if len(spellNames) > 0 {
 								grantAlwaysPreparedSpells(char, spellNames)
+							}
+						} else if levelBasedSpells, ok := featureDef.Mechanics["always_prepared_spells"].(map[string]interface{}); ok {
+							// Handle level-based format (e.g., Fey Wanderer, Gloom Stalker)
+							// Grant spells for current level and all previous levels
+							rangerLevel := char.GetClassLevel(className)
+							for levelStr, spellsInterface := range levelBasedSpells {
+								spellLevel, err := strconv.Atoi(levelStr)
+								if err != nil {
+									debug.Log("  Invalid level in always_prepared_spells: %s", levelStr)
+									continue
+								}
+								// Only grant spells for levels we've reached
+								if spellLevel <= rangerLevel {
+									if spellsArray, ok := spellsInterface.([]interface{}); ok {
+										spellNames := make([]string, len(spellsArray))
+										for i, spell := range spellsArray {
+											if spellName, ok := spell.(string); ok {
+												spellNames[i] = spellName
+											}
+										}
+										if len(spellNames) > 0 {
+											debug.Log("  Granting level %d always-prepared spells: %v", spellLevel, spellNames)
+											grantAlwaysPreparedSpells(char, spellNames)
+										}
+									}
+								}
 							}
 						}
 					}
@@ -1102,6 +1130,60 @@ func applySubclassFeatureBenefits(char *Character, featureName string, subclassN
 			debug.Log("  Granted Poisoner's Kit proficiency")
 		}
 
+	// === RANGER SUBCLASS FEATURES ===
+	case "Otherworldly Glamour":
+		// Fey Wanderer: Charisma check bonus and skill proficiency (handled in UI)
+		debug.Log("  Otherworldly Glamour benefits will be handled in UI (skill choice)")
+
+	case "Umbral Sight":
+		// Gloom Stalker: Grant Darkvision (60ft or +60ft)
+		debug.Log("  Applying Umbral Sight benefits")
+
+		if char.Darkvision == 0 {
+			// No darkvision, grant 60ft
+			char.Darkvision = 60
+			debug.Log("  Granted Darkvision 60ft")
+		} else {
+			// Already has darkvision, increase by 60ft
+			oldDarkvision := char.Darkvision
+			char.Darkvision += 60
+			debug.Log("  Increased Darkvision from %dft to %dft", oldDarkvision, char.Darkvision)
+		}
+
+		// Track darkvision benefit
+		char.BenefitTracker.AddBenefit(GrantedBenefit{
+			Source:      source,
+			Type:        "Darkvision",
+			Target:      "Darkvision",
+			Value:       60,
+			Description: "Darkvision 60ft (or +60ft)",
+		})
+
+	case "Dread Ambusher":
+		// Gloom Stalker: Initiative bonus (Wisdom modifier)
+		debug.Log("  Applying Dread Ambusher benefits")
+
+		wisMod := char.AbilityScores.GetModifier(Wisdom)
+		if wisMod > 0 {
+			if err := applier.AddInitiative(source, wisMod); err != nil {
+				debug.Log("  Error adding initiative bonus: %v", err)
+			} else {
+				debug.Log("  Granted +%d initiative (Wisdom modifier)", wisMod)
+			}
+		}
+
+	case "Fey Gift":
+		// Fey Wanderer: Trait selection (handled in UI)
+		debug.Log("  Fey Gift benefits will be handled in UI (trait selection)")
+
+	case "Hunter's Lore":
+		// Hunter: Display creature info when Hunter's Mark is active (no mechanical benefit to apply)
+		debug.Log("  Hunter's Lore: Creature info display (handled in UI)")
+
+	case "Hunter's Prey":
+		// Hunter: Choice between Colossus Slayer, Giant Killer, or Horde Breaker (handled in UI)
+		debug.Log("  Hunter's Prey benefits will be handled in UI (option selection)")
+
 	}
 
 }
@@ -1255,6 +1337,45 @@ func removeSubclassFeatureBenefits(char *Character, featureName string, subclass
 		// Battle Master: Remove tool/skill proficiency
 		// Note: This is handled by the benefit tracker in RemoveAllBenefits
 		debug.Log("  Removing Student of War benefits")
+		remover.RemoveAllBenefits(source.Type, source.Name)
+
+	// === RANGER SUBCLASS FEATURES ===
+	case "Umbral Sight":
+		// Gloom Stalker: Remove Darkvision increase
+		debug.Log("  Removing Umbral Sight benefits")
+
+		// Reduce darkvision by 60ft
+		if char.Darkvision >= 60 {
+			oldDarkvision := char.Darkvision
+			char.Darkvision -= 60
+			debug.Log("  Reduced Darkvision from %dft to %dft", oldDarkvision, char.Darkvision)
+		}
+
+		// Remove benefits from tracker
+		remover.RemoveAllBenefits(source.Type, source.Name)
+
+	case "Dread Ambusher":
+		// Gloom Stalker: Remove initiative bonus
+		debug.Log("  Removing Dread Ambusher benefits")
+		remover.RemoveAllBenefits(source.Type, source.Name)
+
+	case "Otherworldly Glamour":
+		// Fey Wanderer: Remove skill proficiency and charisma bonus
+		debug.Log("  Removing Otherworldly Glamour benefits")
+		remover.RemoveAllBenefits(source.Type, source.Name)
+
+	case "Fey Gift":
+		// Fey Wanderer: Remove trait (handled by benefit tracker if stored)
+		debug.Log("  Removing Fey Gift benefits")
+		remover.RemoveAllBenefits(source.Type, source.Name)
+
+	case "Hunter's Lore":
+		// Hunter: No mechanical benefits to remove (just UI display)
+		debug.Log("  Removing Hunter's Lore benefits (no mechanical changes)")
+
+	case "Hunter's Prey":
+		// Hunter: Remove selected option benefits
+		debug.Log("  Removing Hunter's Prey benefits")
 		remover.RemoveAllBenefits(source.Type, source.Name)
 	}
 }

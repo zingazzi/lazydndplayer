@@ -52,6 +52,9 @@ type LevelUpSelector struct {
 	NeedsManeuverSelection bool // Battle Master needs maneuvers
 	NeedsCantripSelection  bool // Eldritch Knight needs cantrips
 	NeedsBeastSelection    bool // Ranger Beast Master needs beast companion
+	NeedsFeyGiftSelection  bool // Fey Wanderer needs Fey Gift trait selection
+	NeedsGlamourSkillSelection bool // Fey Wanderer needs Otherworldly Glamour skill choice
+	NeedsHunterPreySelection   bool // Hunter needs Hunter's Prey option selection
 }
 
 // NewLevelUpSelector creates a new level-up selector
@@ -230,6 +233,21 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 					if ls.selectedClass == "Ranger" && ls.selectedSubclass == "Beast Master" {
 						// Beast Master needs beast companion selection - set flag for app.go to handle
 						ls.NeedsBeastSelection = true
+						ls.state = LevelUpComplete
+						return *ls, cmd
+					}
+
+					// Check if Ranger Fey Wanderer needs Fey Gift and Otherworldly Glamour selections
+					if ls.selectedClass == "Ranger" && ls.selectedSubclass == "Fey Wanderer" {
+						ls.NeedsFeyGiftSelection = true
+						ls.NeedsGlamourSkillSelection = true
+						ls.state = LevelUpComplete
+						return *ls, cmd
+					}
+
+					// Check if Ranger Hunter needs Hunter's Prey selection
+					if ls.selectedClass == "Ranger" && ls.selectedSubclass == "Hunter" {
+						ls.NeedsHunterPreySelection = true
 						ls.state = LevelUpComplete
 						return *ls, cmd
 					}

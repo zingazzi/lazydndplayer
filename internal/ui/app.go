@@ -112,6 +112,7 @@ type Model struct {
 	messagePopup          *components.MessagePopup
 	beastSelector         *components.BeastSelector
 	companionSelector     *components.CompanionSelector
+	optionSelector        *components.OptionSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -237,6 +238,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 	messagePopup := factory.CreateMessagePopup()
 	beastSelector := components.NewBeastSelector(char)
 	companionSelector := components.NewCompanionSelector(char)
+	optionSelector := components.NewOptionSelector()
 
 	// Register components with priorities (higher number = higher priority)
 	// Highest priority components first
@@ -344,6 +346,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 		companionPanel:        factory.CreateCompanionPanel(char),
 		beastSelector:         components.NewBeastSelector(char),
 		companionSelector:     companionSelector,
+		optionSelector:        optionSelector,
 		dicePanel:           factory.CreateDicePanel(char),
 		characterStatsPanel: factory.CreateCharacterStatsPanel(char),
 		actionsPanel:        factory.CreateActionsPanel(char),
@@ -541,6 +544,33 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				debug.Log("Update: beastSelector handler returned handled=true for key=%s", msg.String())
 				return model, cmd
 			}
+		}
+
+		// Check if optionSelector is visible - it should take priority over levelUpSelector
+		// when option selection is needed (e.g., Fey Gift, Hunter's Prey)
+		// But allow Tab to pass through for panel navigation when focusArea is FocusMain
+		if m.optionSelector.IsVisible() {
+			// Allow Tab navigation to pass through for panel navigation
+			if (msg.String() == "tab" || msg.String() == "shift+tab") && m.focusArea == FocusMain {
+				// Tab navigation should work even when optionSelector is visible
+				// Hide the selector first to avoid conflicts
+				m.optionSelector.Hide()
+				// Let Tab be handled by the panel navigation logic above
+				// We need to re-check the Tab key here
+				if msg.String() == "tab" {
+					m.tabs.Next()
+					m.currentPanel = PanelType(m.tabs.SelectedIndex)
+					debug.Log("Tab navigation: moved to panel %d (optionSelector was visible)", m.currentPanel)
+					return m, nil
+				} else if msg.String() == "shift+tab" {
+					m.tabs.Prev()
+					m.currentPanel = PanelType(m.tabs.SelectedIndex)
+					debug.Log("Shift+Tab navigation: moved to panel %d (optionSelector was visible)", m.currentPanel)
+					return m, nil
+				}
+			}
+			debug.Log("Update: optionSelector is visible, routing key=%s directly to it", msg.String())
+			return m.handleOptionSelectorKeys(msg)
 		}
 
 		// Check if companionSelector is visible - it should take priority when adding companions
@@ -822,6 +852,7 @@ func (m *Model) View() string {
 		m.subclassSelector,
 		m.beastSelector,
 		m.companionSelector,
+		m.optionSelector,
 		m.classSelector,
 		m.speciesSelector,
 		m.messagePopup,

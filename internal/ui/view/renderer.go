@@ -76,6 +76,7 @@ func (pr *PopupRenderer) RenderPopups(
 	subclassSelector *components.SubclassSelector,
 	beastSelector *components.BeastSelector,
 	companionSelector *components.CompanionSelector,
+	optionSelector *components.OptionSelector,
 	classSelector *components.ClassSelector,
 	speciesSelector *components.SpeciesSelector,
 	messagePopup *components.MessagePopup,
@@ -283,6 +284,11 @@ func (pr *PopupRenderer) RenderPopups(
 	// Beast selector takes priority after subclass (Medium)
 	if beastSelector.IsVisible() {
 		return beastSelector.View()
+	}
+
+	// Option selector (for Fey Gift, Hunter's Prey, etc.) (Medium)
+	if optionSelector != nil && optionSelector.IsVisible() {
+		return optionSelector.View(pr.layout.PopupMediumWidth, pr.layout.PopupMediumHeight)
 	}
 
 	// Companion selector (Medium)

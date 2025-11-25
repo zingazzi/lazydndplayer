@@ -459,10 +459,137 @@
       "features_by_level": {
         "3": [
           {
-            "name": "Hunter's Prey",
-            "description": "You gain one of the following features of your choice: Colossus Slayer (Once per turn when you hit with a weapon attack, deal extra 1d8 damage if target is below max HP), Giant Killer (When a Large+ creature attacks you, use reaction to attack it), or Horde Breaker (Once per turn, make extra attack against different creature within 5 feet of original target).",
+            "name": "Hunter's Lore",
+            "description": "If you add a Hunter's Mark, you know also all creature immunities, resistances, or vulnerabilities.",
             "uses_formula": "0",
-            "rest_type": "None"
+            "rest_type": "None",
+            "mechanics": {
+              "hunters_lore": true
+            }
+          },
+          {
+            "name": "Hunter's Prey",
+            "description": "You gain one of the following features of your choice: Colossus Slayer (Once per turn when you hit with a weapon attack, deal extra 1d8 damage if target is below max HP. If you miss, you still do this damage once per turn), Giant Killer (When a Large+ creature attacks you, use reaction to attack it), or Horde Breaker (Once per turn, when you make an attack and hit, you can make another attack to another creature 5ft from the first one). You can replace your choice at a long or short rest.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "hunters_prey_choice",
+              "options": ["Colossus Slayer", "Giant Killer", "Horde Breaker"]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Fey Wanderer",
+      "description": "A fey mystique surrounds you, thanks to the boon of an archfey, the touch of a god, a blessing from a dryad, or some other fey magic. You might have spent time in the Feywild, growing so close to the fey that some of their magic has become yours.",
+      "subclass_level": 3,
+      "source": "Tasha's Cauldron of Everything",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Dreadful Strikes",
+            "description": "When you hit a creature with a weapon, you can add 1d4 psychic damage (once per turn). The damage increases to 1d6 at level 11.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "dreadful_strikes": true,
+              "damage_dice": "1d4",
+              "damage_type": "psychic"
+            }
+          },
+          {
+            "name": "Fey Wanderer Spells",
+            "description": "You learn additional spells when you reach certain levels in this class, as shown in the Fey Wanderer Spells table. These spells are always prepared and don't count against the number of spells you know.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "always_prepared_spells": {
+                "3": ["Charm Person"],
+                "5": ["Misty Step"],
+                "9": ["Summon Fey"],
+                "13": ["Dimension Door"],
+                "17": ["Mislead"]
+              }
+            }
+          },
+          {
+            "name": "Fey Gift",
+            "description": "You add a fey gift. Select one of: Illusory butterflies flutter around you while you take a short or long rest; Fresh, seasonal flowers sprout from your hair each dawn; You faintly smell of cinnamon, lavender, nutmeg, or another comforting herb or spice; Your shadow dances while no one is looking directly at it; Horns or antlers sprout from your head; Your skin and hair change color to match the season at each dawn.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "fey_gift_choice",
+              "options": [
+                "Illusory butterflies flutter around you while you take a short or long rest",
+                "Fresh, seasonal flowers sprout from your hair each dawn",
+                "You faintly smell of cinnamon, lavender, nutmeg, or another comforting herb or spice",
+                "Your shadow dances while no one is looking directly at it",
+                "Horns or antlers sprout from your head",
+                "Your skin and hair change color to match the season at each dawn"
+              ]
+            }
+          },
+          {
+            "name": "Otherworldly Glamour",
+            "description": "When you make a Charisma check, you gain a bonus equal to your Wisdom modifier (minimum +1). You also gain proficiency in one of: Deception, Performance, or Persuasion.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "type": "skill_choice",
+              "skill_count": 1,
+              "skill_options": ["Deception", "Performance", "Persuasion"],
+              "charisma_bonus": "wisdom_modifier"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Gloom Stalker",
+      "description": "Gloom Stalkers are at home in the darkest places: deep under the earth, in gloomy alleyways, in primeval forests, and wherever else the light dims. Most folk enter such places with trepidation, but a Gloom Stalker ventures boldly into the darkness, seeking to ambush threats before they can reach the broader world.",
+      "subclass_level": 3,
+      "source": "Xanathar's Guide to Everything",
+      "features_by_level": {
+        "3": [
+          {
+            "name": "Dread Ambusher",
+            "description": "At the start of your first turn, your speed increases by 10ft. When you attack a creature and hit, you can add 2d6 physical damage (once per turn). You can use this a number of times equal to your Wisdom modifier. You regain all uses when you finish a long rest. You also add your Wisdom modifier to your initiative.",
+            "uses_formula": "wisdom_modifier",
+            "rest_type": "Long Rest",
+            "mechanics": {
+              "dread_ambusher": true,
+              "ambush_leap": true,
+              "dreadful_strike": true,
+              "damage_dice": "2d6",
+              "damage_type": "physical",
+              "initiative_bonus": "wisdom_modifier"
+            }
+          },
+          {
+            "name": "Gloom Stalker Spells",
+            "description": "You learn additional spells when you reach certain levels in this class, as shown in the Gloom Stalker Spells table. These spells are always prepared and don't count against the number of spells you know.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "always_prepared_spells": {
+                "3": ["Disguise Self"],
+                "5": ["Rope Trick"],
+                "9": ["Fear"],
+                "13": ["Greater Invisibility"],
+                "17": ["Seeming"]
+              }
+            }
+          },
+          {
+            "name": "Umbral Sight",
+            "description": "You gain darkvision of 60ft. If you already have darkvision, add 60ft to it.",
+            "uses_formula": "0",
+            "rest_type": "None",
+            "mechanics": {
+              "umbral_sight": true,
+              "darkvision": 60
+            }
           }
         ]
       }
