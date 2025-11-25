@@ -435,11 +435,13 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			selectedClassName := m.classSkillSelector.ClassName
 			debug.Log("Skill selector confirmed: class=%s, skills=%v", selectedClassName, selectedSkills)
 
-			// Check if this is for a feature (Deft Explorer or Scholar) rather than class selection
+			// Check if this is for a feature (Deft Explorer, Scholar, or Otherworldly Glamour) rather than class selection
 			// If character already has this class, it's likely a feature selection
 			isFeatureSelection := false
 			var featureName string
-			if m.character.HasClass(selectedClassName) {
+			isLevelUpFlow := m.levelUpSelector.IsVisible() || m.levelUpSelector.NeedsGlamourSkillSelection
+
+			if m.character.HasClass(selectedClassName) || isLevelUpFlow {
 				// Check if we're selecting skills for Deft Explorer
 				for _, feature := range m.character.Features.Features {
 					if feature.Name == "Deft Explorer" && feature.Mechanics != nil {
@@ -459,6 +461,24 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 							break
 						}
 					}
+					// Check if we're selecting skills for Otherworldly Glamour (Fey Wanderer)
+					if feature.Name == "Otherworldly Glamour" && feature.Mechanics != nil {
+						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
+							// Check if skill_options contains the selected skills
+							if skillOptions, ok := feature.Mechanics["skill_options"].([]interface{}); ok {
+								// This is Otherworldly Glamour skill selection
+								isFeatureSelection = true
+								featureName = "Otherworldly Glamour"
+								break
+							}
+						}
+					}
+				}
+
+				// Also check if we're in level-up flow and selecting for Otherworldly Glamour
+				if !isFeatureSelection && isLevelUpFlow && m.message == "Select 1 skill for Otherworldly Glamour (Deception, Performance, or Persuasion)..." {
+					isFeatureSelection = true
+					featureName = "Otherworldly Glamour"
 				}
 			}
 
@@ -489,6 +509,15 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 				m.classSkillSelector.Hide()
 				m.storage.Save(m.character)
+
+				// For Otherworldly Glamour, complete level-up if in level-up flow
+				if featureName == "Otherworldly Glamour" && isLevelUpFlow {
+					debug.Log("Otherworldly Glamour skill selection complete - completing level-up")
+					m.character.UpdateDerivedStats()
+					m.focusArea = FocusMain
+					m.message = fmt.Sprintf("Otherworldly Glamour skill selected! Level-up complete.")
+					return m, cmd
+				}
 
 				// For Deft Explorer, check if we need language selection
 				if featureName == "Deft Explorer" {
