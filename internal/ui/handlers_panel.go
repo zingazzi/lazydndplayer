@@ -892,6 +892,11 @@ func (m *Model) handleCompanionPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleWildShapePanel handles wild shape panel specific keys
 func (m *Model) handleWildShapePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Check if wild shape form selector is visible
+	if m.wildShapeFormSelector.IsVisible() {
+		return m.handleWildShapeFormSelectorKeys(msg)
+	}
+
 	panel := m.wildShapePanel
 	viewMode := panel.GetViewMode()
 
@@ -925,6 +930,61 @@ func (m *Model) handleWildShapePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Return to list view
 			panel.ExitDetailView()
 		}
+	case "a":
+		// Add new wild shape form
+		if viewMode == panels.WildShapeViewList {
+			// Check if we're at max forms
+			druidLevel := m.character.GetClassLevel("Druid")
+			var maxForms int
+			if druidLevel >= 8 {
+				maxForms = 8
+			} else if druidLevel >= 4 {
+				maxForms = 6
+			} else if druidLevel >= 2 {
+				maxForms = 4
+			} else {
+				m.message = "Wild Shape is not available at this level"
+				return m, nil
+			}
+
+			currentForms := len(m.character.WildShape.KnownForms)
+			if currentForms >= maxForms {
+				m.message = fmt.Sprintf("Maximum forms reached (%d/%d). Remove a form first.", currentForms, maxForms)
+				return m, nil
+			}
+
+			// Show wild shape form selector
+			m.wildShapeFormSelector.Show()
+			m.message = "Select a beast form to add..."
+		}
+	case "d":
+		// Delete selected wild shape form
+		if viewMode == panels.WildShapeViewList {
+			forms := m.character.WildShape.KnownForms
+			if len(forms) == 0 {
+				m.message = "No forms to remove"
+				return m, nil
+			}
+
+			selectedIndex := panel.GetSelectedIndex()
+			if selectedIndex >= 0 && selectedIndex < len(forms) {
+				formName := forms[selectedIndex]
+				// Remove form from list
+				m.character.WildShape.KnownForms = append(forms[:selectedIndex], forms[selectedIndex+1:]...)
+				m.message = fmt.Sprintf("Removed form: %s", formName)
+
+				// Adjust selected index if needed
+				if selectedIndex >= len(m.character.WildShape.KnownForms) {
+					newIndex := len(m.character.WildShape.KnownForms) - 1
+					if newIndex < 0 {
+						newIndex = 0
+					}
+					panel.SetSelectedIndex(newIndex)
+				}
+
+				m.storage.Save(m.character)
+			}
+		}
 	case "r":
 		// Long rest - regain wild shape uses
 		if viewMode == panels.WildShapeViewList {
@@ -940,6 +1000,47 @@ func (m *Model) handleWildShapePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// handleWildShapeFormSelectorKeys handles wild shape form selector specific keys
+func (m *Model) handleWildShapeFormSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Save state before Update (which might hide the selector)
+	wasVisible := m.wildShapeFormSelector.IsVisible()
+	selectedForm := m.wildShapeFormSelector.GetSelectedForm()
+
+	updated, cmd := m.wildShapeFormSelector.Update(msg)
+	m.wildShapeFormSelector = &updated
+
+	// If selector was visible but is now hidden (user pressed Enter), and we had a selected form, add it
+	if wasVisible && !m.wildShapeFormSelector.IsVisible() && selectedForm != "" {
+		// Check if we're at max forms
+		druidLevel := m.character.GetClassLevel("Druid")
+		var maxForms int
+		if druidLevel >= 8 {
+			maxForms = 8
+		} else if druidLevel >= 4 {
+			maxForms = 6
+		} else if druidLevel >= 2 {
+			maxForms = 4
+		}
+
+		currentForms := len(m.character.WildShape.KnownForms)
+		if currentForms >= maxForms {
+			m.message = fmt.Sprintf("Maximum forms reached (%d/%d). Remove a form first.", currentForms, maxForms)
+			m.wildShapeFormSelector.Hide()
+			return m, cmd
+		}
+
+		// Add form to known forms
+		m.character.WildShape.KnownForms = append(m.character.WildShape.KnownForms, selectedForm)
+		m.message = fmt.Sprintf("Added wild shape form: %s (%d/%d)", selectedForm, len(m.character.WildShape.KnownForms), maxForms)
+		m.storage.Save(m.character)
+
+		// Update panel to reflect new form
+		m.wildShapePanel.Update(m.character)
+	}
+
+	return m, cmd
 }
 
 // handleCompanionSelectorKeys handles companion selector specific keys

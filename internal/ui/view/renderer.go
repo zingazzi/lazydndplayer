@@ -76,6 +76,7 @@ func (pr *PopupRenderer) RenderPopups(
 	subclassSelector *components.SubclassSelector,
 	beastSelector *components.BeastSelector,
 	companionSelector *components.CompanionSelector,
+	wildShapeFormSelector *components.WildShapeFormSelector,
 	optionSelector *components.OptionSelector,
 	classSelector *components.ClassSelector,
 	speciesSelector *components.SpeciesSelector,
@@ -296,6 +297,11 @@ func (pr *PopupRenderer) RenderPopups(
 	// Companion selector (Medium)
 	if companionSelector != nil && companionSelector.IsVisible() {
 		return companionSelector.View(pr.layout.PopupMediumWidth, pr.layout.PopupMediumHeight)
+	}
+
+	// Wild Shape form selector (Medium)
+	if wildShapeFormSelector != nil && wildShapeFormSelector.IsVisible() {
+		return wildShapeFormSelector.View(pr.layout.PopupMediumWidth, pr.layout.PopupMediumHeight)
 	}
 
 	// Divine Order selector (for Cleric level 1) - show as popup (Medium)

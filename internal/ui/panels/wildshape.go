@@ -235,7 +235,7 @@ func (p *WildShapePanel) View(width, height int) string {
 			}
 
 			lines = append(lines, "")
-			lines = append(lines, dimStyle.Render("Enter: View details • r: Long rest (regain uses)"))
+			lines = append(lines, dimStyle.Render("Enter: View details • a: Add form • d: Delete form • r: Long rest (regain uses)"))
 		} else {
 			// DETAIL VIEW
 			formName := p.GetSelectedForm()

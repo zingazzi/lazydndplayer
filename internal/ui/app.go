@@ -113,6 +113,7 @@ type Model struct {
 	messagePopup          *components.MessagePopup
 	beastSelector         *components.BeastSelector
 	companionSelector     *components.CompanionSelector
+	wildShapeFormSelector *components.WildShapeFormSelector
 	optionSelector        *components.OptionSelector
 
 	// Main Panels (switchable)
@@ -243,6 +244,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 	messagePopup := factory.CreateMessagePopup()
 	beastSelector := components.NewBeastSelector(char)
 	companionSelector := components.NewCompanionSelector(char)
+	wildShapeFormSelector := components.NewWildShapeFormSelector(char)
 	optionSelector := components.NewOptionSelector()
 
 	// Register components with priorities (higher number = higher priority)
@@ -352,6 +354,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 		wildShapePanel:        panels.NewWildShapePanel(char),
 		beastSelector:         components.NewBeastSelector(char),
 		companionSelector:     companionSelector,
+		wildShapeFormSelector: wildShapeFormSelector,
 		optionSelector:        optionSelector,
 		dicePanel:           factory.CreateDicePanel(char),
 		characterStatsPanel: factory.CreateCharacterStatsPanel(char),
@@ -897,6 +900,7 @@ func (m *Model) View() string {
 		m.subclassSelector,
 		m.beastSelector,
 		m.companionSelector,
+		m.wildShapeFormSelector,
 		m.optionSelector,
 		m.classSelector,
 		m.speciesSelector,
