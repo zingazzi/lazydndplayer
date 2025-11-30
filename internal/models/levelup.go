@@ -409,6 +409,11 @@ func GrantLevelFeatures(char *Character, class *Class, level int) []string {
 				if class.Name == "Paladin" && level == 2 && feature.Name == "Paladin Smite" {
 					grantDivineSmite(char)
 				}
+
+				// Grant Wild Shape forms for Druid at levels 2, 4, and 8
+				if class.Name == "Druid" && feature.Name == "Wild Shape" {
+					grantWildShapeForms(char, level)
+				}
 			}
 			break
 		}
@@ -648,6 +653,48 @@ func grantDivineSmite(char *Character) {
 		newSpell.Known = true
 		char.SpellBook.Spells = append(char.SpellBook.Spells, newSpell)
 		debug.Log("grantDivineSmite: Added Divine Smite as always prepared")
+	}
+}
+
+// grantWildShapeForms grants wild shape forms to a druid character
+func grantWildShapeForms(char *Character, druidLevel int) {
+	debug.Log("grantWildShapeForms: Granting wild shape forms for druid level %d", druidLevel)
+
+	// Determine number of forms based on level
+	var maxForms int
+	if druidLevel >= 8 {
+		maxForms = 8
+	} else if druidLevel >= 4 {
+		maxForms = 6
+	} else if druidLevel >= 2 {
+		maxForms = 4
+	} else {
+		// Level 1 or below - no wild shape
+		return
+	}
+
+	// Update max forms
+	char.WildShape.MaxForms = maxForms
+
+	// If this is the first time gaining wild shape (level 2), initialize with default forms
+	if len(char.WildShape.KnownForms) == 0 {
+		// Default CR 1/4 animals
+		defaultForms := []string{
+			"Boar", "Camel", "Constrictor snake", "Draft horse", "Elk",
+			"Giant badger", "Giant crab", "Giant weasel", "Mastiff", "Mule",
+			"Panther", "Pony", "Riding horse", "Venomous snake", "Wolf",
+		}
+
+		// Take up to maxForms forms
+		if len(defaultForms) > maxForms {
+			char.WildShape.KnownForms = defaultForms[:maxForms]
+		} else {
+			char.WildShape.KnownForms = defaultForms
+		}
+		debug.Log("grantWildShapeForms: Initialized %d wild shape forms", len(char.WildShape.KnownForms))
+	} else {
+		// Already have forms - just update max (forms can be replaced on long rest)
+		debug.Log("grantWildShapeForms: Updated max forms to %d (already have %d forms)", maxForms, len(char.WildShape.KnownForms))
 	}
 }
 

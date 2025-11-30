@@ -102,36 +102,13 @@ func (p *WildShapePanel) ExitDetailView() {
 
 // getKnownForms returns the list of known wild shape forms
 func (p *WildShapePanel) getKnownForms() []string {
-	// Get druid level
-	druidLevel := p.character.GetClassLevel("Druid")
-	if druidLevel < 2 {
-		return []string{}
+	// Get forms from character's wild shape data
+	if len(p.character.WildShape.KnownForms) > 0 {
+		return p.character.WildShape.KnownForms
 	}
 
-	// Determine number of known forms based on level
-	var knownFormsCount int
-	if druidLevel >= 8 {
-		knownFormsCount = 8
-	} else if druidLevel >= 4 {
-		knownFormsCount = 6
-	} else {
-		knownFormsCount = 4
-	}
-
-	// Get forms from character's wild shape data (if stored)
-	// For now, return default list of CR 1/4 animals
-	// TODO: Load from character's stored wild shape forms
-	defaultForms := []string{
-		"Boar", "Camel", "Constrictor snake", "Draft horse", "Elk",
-		"Giant badger", "Giant crab", "Giant weasel", "Mastiff", "Mule",
-		"Panther", "Pony", "Riding horse", "Venomous snake", "Wolf",
-	}
-
-	// Return up to knownFormsCount forms
-	if len(defaultForms) > knownFormsCount {
-		return defaultForms[:knownFormsCount]
-	}
-	return defaultForms
+	// Fallback: return empty list if no forms stored
+	return []string{}
 }
 
 // getWildShapeUses returns current and max wild shape uses

@@ -14,6 +14,12 @@ type HitDicePool struct {
 	DieSize int `json:"die_size"` // Size of the die (6, 8, 10, 12)
 }
 
+// WildShapeData tracks wild shape forms for Druids
+type WildShapeData struct {
+	KnownForms []string `json:"known_forms,omitempty"` // List of beast names the druid knows
+	MaxForms   int      `json:"max_forms"`             // Maximum number of forms known (4 at level 2, 6 at level 4, 8 at level 8)
+}
+
 // Character represents a D&D 5e character
 type Character struct {
 	// Basic Info
@@ -127,6 +133,9 @@ type Character struct {
 	// Deprecated: Legacy field for backward compatibility (migrated to Companions array)
 	Companion *Companion `json:"companion,omitempty"` // DEPRECATED: Use Companions array instead
 
+	// Wild Shape - for Druids
+	WildShape WildShapeData `json:"wild_shape,omitempty"` // Wild shape forms and tracking
+
 	// Equipment & Inventory
 	Inventory Inventory `json:"inventory"`
 
@@ -233,6 +242,7 @@ func NewCharacter() *Character {
 		ClassSkills:   []SkillType{},
 		Choices:       NewCharacterChoices(),
 		Companions:    []Companion{},
+		WildShape:     WildShapeData{MaxForms: 0, KnownForms: []string{}},
 	}
 	char.UpdateDerivedStats()
 	return char

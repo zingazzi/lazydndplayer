@@ -811,5 +811,13 @@ func applyFeatureBenefits(char *Character, featureName string, className string)
 		}
 		applier.AddLanguage(source, "Thieves' Cant")
 		debug.Log("applyFeatureBenefits: Thieves' Cant language added")
+
+	case "Wild Companion":
+		// Wild Companion works like Find Familiar - allows druid to add a familiar companion
+		// The actual companion selection will be handled by the UI (companion selector)
+		// This feature just grants the ability to use the companion selector for familiars
+		debug.Log("applyFeatureBenefits: Wild Companion granted - druid can now summon a familiar")
+		// No mechanical benefits to apply here - the feature itself is tracked in Features
+		// The UI will handle showing the companion selector when Wild Companion is available
 	}
 }
