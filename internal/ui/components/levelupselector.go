@@ -55,6 +55,7 @@ type LevelUpSelector struct {
 	NeedsFeyGiftSelection  bool // Fey Wanderer needs Fey Gift trait selection
 	NeedsGlamourSkillSelection bool // Fey Wanderer needs Otherworldly Glamour skill choice
 	NeedsHunterPreySelection   bool // Hunter needs Hunter's Prey option selection
+	NeedsWildShapeFormSelection bool // Druid needs wild shape form selection
 }
 
 // NewLevelUpSelector creates a new level-up selector
@@ -355,6 +356,14 @@ func (ls *LevelUpSelector) handleConfirmation(msg tea.KeyMsg) (LevelUpSelector, 
 
 		ls.preview = result
 
+		// Check if wild shape form selection is needed (Druid level 2, 4, or 8)
+		if result.RequiresWildShapeForms {
+			// Set flag for app.go to handle
+			ls.NeedsWildShapeFormSelection = true
+			ls.state = LevelUpComplete
+			return *ls, nil
+		}
+
 		// Check if subclass selection is needed
 		if result.RequiresSubclass {
 			// Determine which class level we're at
@@ -556,6 +565,9 @@ func (ls *LevelUpSelector) View() string {
 			}
 			if ls.preview.RequiresSpells {
 				content += dimStyle.Render("  ⚠ Spell selection required after confirmation") + "\n"
+			}
+			if ls.preview.RequiresWildShapeForms {
+				content += dimStyle.Render("  ⚠ Wild shape form selection required after confirmation") + "\n"
 			}
 		}
 

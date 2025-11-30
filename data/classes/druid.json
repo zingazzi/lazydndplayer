@@ -87,13 +87,6 @@
             "works_like": "find_familiar"
           }
         },
-        {
-          "name": "Druid Circle",
-          "description": "At 2nd level, you choose to identify with a circle of druids. Your choice grants you features at 2nd level and again at 6th, 10th, and 14th level.",
-          "uses_formula": "0",
-          "rest_type": "None",
-          "subclass_choice": true
-        }
       ],
       "spellcasting_info": {
         "cantrips_known": 2,
@@ -107,7 +100,15 @@
     {
       "level": 3,
       "proficiency_bonus": 2,
-      "features": [],
+      "features": [
+        {
+          "name": "Druid Circle",
+          "description": "At 3rd level, you choose to identify with a circle of druids. Your choice grants you features at 3rd level and again at 6th, 10th, and 14th level.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "subclass_choice": true
+        }
+      ],
       "spellcasting_info": {
         "cantrips_known": 2,
         "spells_prepared": 6,
@@ -510,7 +511,7 @@
     {
       "name": "Circle of the Land",
       "description": "The Circle of the Land is made up of mystics and sages who safeguard ancient knowledge and rites through a vast oral tradition. These druids meet within sacred circles of trees or standing stones to whisper primal secrets in Druidic.",
-      "subclass_level": 2,
+      "subclass_level": 3,
       "source": "Player's Handbook",
       "features_by_level": {
         "2": [

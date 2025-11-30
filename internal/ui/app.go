@@ -112,9 +112,10 @@ type Model struct {
 	restPopup             *components.RestPopup
 	messagePopup          *components.MessagePopup
 	beastSelector         *components.BeastSelector
-	companionSelector     *components.CompanionSelector
-	wildShapeFormSelector *components.WildShapeFormSelector
-	optionSelector        *components.OptionSelector
+	companionSelector          *components.CompanionSelector
+	wildShapeFormSelector      *components.WildShapeFormSelector
+	wildShapeFormLevelUpSelector *components.WildShapeFormLevelUpSelector
+	optionSelector             *components.OptionSelector
 
 	// Main Panels (switchable)
 	statsPanel     *panels.StatsPanel
@@ -245,6 +246,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 	beastSelector := components.NewBeastSelector(char)
 	companionSelector := components.NewCompanionSelector(char)
 	wildShapeFormSelector := components.NewWildShapeFormSelector(char)
+	wildShapeFormLevelUpSelector := components.NewWildShapeFormLevelUpSelector(char)
 	optionSelector := components.NewOptionSelector()
 
 	// Register components with priorities (higher number = higher priority)
@@ -352,10 +354,11 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 		originPanel:           factory.CreateOriginPanel(char),
 		companionPanel:        factory.CreateCompanionPanel(char),
 		wildShapePanel:        panels.NewWildShapePanel(char),
-		beastSelector:         components.NewBeastSelector(char),
-		companionSelector:     companionSelector,
-		wildShapeFormSelector: wildShapeFormSelector,
-		optionSelector:        optionSelector,
+		beastSelector:                components.NewBeastSelector(char),
+		companionSelector:            companionSelector,
+		wildShapeFormSelector:        wildShapeFormSelector,
+		wildShapeFormLevelUpSelector: wildShapeFormLevelUpSelector,
+		optionSelector:               optionSelector,
 		dicePanel:           factory.CreateDicePanel(char),
 		characterStatsPanel: factory.CreateCharacterStatsPanel(char),
 		actionsPanel:        factory.CreateActionsPanel(char),
@@ -544,6 +547,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			debug.Log("Update: cantripSelector is visible, routing key=%s directly to it", msg.String())
 			if model, cmd, handled := m.routeComponentToHandler(m.cantripSelector, msg); handled {
 				debug.Log("Update: cantripSelector handler returned handled=true for key=%s", msg.String())
+				return model, cmd
+			}
+		}
+
+		// Check if wildShapeFormLevelUpSelector is visible - it should take priority
+		// when wild shape form selection is needed (Druid level 2, 4, or 8)
+		if m.wildShapeFormLevelUpSelector != nil && m.wildShapeFormLevelUpSelector.IsVisible() {
+			debug.Log("Update: wildShapeFormLevelUpSelector is visible, routing key=%s directly to it", msg.String())
+			if model, cmd, handled := m.routeComponentToHandler(m.wildShapeFormLevelUpSelector, msg); handled {
+				debug.Log("Update: wildShapeFormLevelUpSelector handler returned handled=true for key=%s", msg.String())
 				return model, cmd
 			}
 		}
@@ -891,6 +904,7 @@ func (m *Model) View() string {
 		m.itemSelector,
 		m.fightingStyleSelector,
 		m.cantripSelector,
+		m.wildShapeFormLevelUpSelector,
 		m.leveledSpellSelector,
 		m.schoolSpellSelector,
 		m.spellbookEditor,

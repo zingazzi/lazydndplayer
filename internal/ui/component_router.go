@@ -151,6 +151,10 @@ func (m *Model) routeComponentToHandler(component ComponentHandler, msg tea.KeyM
 		model, cmd := m.handleCantripSelectorKeys(msg)
 		return model, cmd, true
 
+	case *components.WildShapeFormLevelUpSelector:
+		model, cmd := m.handleWildShapeFormLevelUpSelectorKeys(msg)
+		return model, cmd, true
+
 	case *components.LeveledSpellSelector:
 		model, cmd := m.handleLeveledSpellSelectorKeys(msg)
 		return model, cmd, true

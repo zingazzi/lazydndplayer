@@ -21,9 +21,10 @@ type LevelUpResult struct {
 	ProficienciesGained []string
 	SpellSlotsGained string
 	IsNewClass       bool
-	RequiresSubclass bool
-	RequiresSkills   bool
-	RequiresSpells   bool
+	RequiresSubclass      bool
+	RequiresSkills        bool
+	RequiresSpells        bool
+	RequiresWildShapeForms bool
 }
 
 // DeLevelResult contains information about what was removed when de-leveling
@@ -1619,16 +1620,8 @@ func RequiresSubclassAtLevel(class *Class, level int) bool {
 		}
 	}
 
-	// Classes that get subclass at level 2
-	level2Subclasses := []string{"Druid"}
-	for _, name := range level2Subclasses {
-		if class.Name == name && level == 2 {
-			return true
-		}
-	}
-
 	// Classes that get subclass at level 3
-	level3Subclasses := []string{"Bard", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Barbarian", "Wizard", "Cleric"}
+	level3Subclasses := []string{"Bard", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Barbarian", "Wizard", "Cleric", "Druid"}
 	for _, name := range level3Subclasses {
 		if class.Name == name && level == 3 {
 			return true
@@ -1702,6 +1695,11 @@ func GetLevelUpPreview(char *Character, className string) (*LevelUpResult, error
 		if casterInfo != nil && (casterInfo.Method == KnownCaster || casterInfo.Method == SpellbookCaster) {
 			preview.RequiresSpells = true
 		}
+	}
+
+	// Check if wild shape form selection is needed (Druid level 2, 4, or 8)
+	if className == "Druid" && (newClassLevel == 2 || newClassLevel == 4 || newClassLevel == 8) {
+		preview.RequiresWildShapeForms = true
 	}
 
 	return preview, nil

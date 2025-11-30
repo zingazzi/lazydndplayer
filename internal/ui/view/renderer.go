@@ -67,6 +67,7 @@ func (pr *PopupRenderer) RenderPopups(
 	itemSelector *components.ItemSelector,
 	fightingStyleSelector *components.FightingStyleSelector,
 	cantripSelector *components.CantripSelector,
+	wildShapeFormLevelUpSelector *components.WildShapeFormLevelUpSelector,
 	leveledSpellSelector *components.LeveledSpellSelector,
 	schoolSpellSelector *components.SchoolSpellSelector,
 	spellbookEditor *components.SpellbookEditor,
@@ -242,6 +243,11 @@ func (pr *PopupRenderer) RenderPopups(
 	// Cantrip selector takes seventh priority (Medium)
 	if cantripSelector.IsVisible() {
 		return cantripSelector.View()
+	}
+
+	// Wild shape form level-up selector (Medium)
+	if wildShapeFormLevelUpSelector != nil && wildShapeFormLevelUpSelector.IsVisible() {
+		return wildShapeFormLevelUpSelector.View()
 	}
 
 	// Message popup takes highest priority (shown after selections complete)
