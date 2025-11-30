@@ -2,9 +2,12 @@
   "beasts": [
     {
       "name": "Mastiff",
+      "cr": 0.125,
       "ac": 12,
       "hp": 5,
       "speed": "40 ft.",
+      "can_fly": false,
+      "can_swim": false,
       "senses": "Passive Perception 12",
       "ability_scores": {
         "strength": 13,
@@ -31,9 +34,12 @@
     },
     {
       "name": "Mule",
+      "cr": 0.125,
       "ac": 10,
       "hp": 11,
       "speed": "40 ft.",
+      "can_fly": false,
+      "can_swim": false,
       "senses": "Passive Perception 10",
       "ability_scores": {
         "strength": 14,
@@ -61,9 +67,12 @@
     },
     {
       "name": "Black Bear",
+      "cr": 0.5,
       "ac": 11,
       "hp": 19,
       "speed": "40 ft., climb 30 ft.",
+      "can_fly": false,
+      "can_swim": false,
       "senses": "Passive Perception 13",
       "ability_scores": {
         "strength": 15,
@@ -108,9 +117,12 @@
     },
     {
       "name": "Wolf",
+      "cr": 0.25,
       "ac": 13,
       "hp": 11,
       "speed": "40 ft.",
+      "can_fly": false,
+      "can_swim": false,
       "senses": "Passive Perception 13",
       "ability_scores": {
         "strength": 12,
@@ -138,9 +150,12 @@
     },
     {
       "name": "Hawk",
+      "cr": 0,
       "ac": 13,
       "hp": 1,
       "speed": "10 ft., fly 60 ft.",
+      "can_fly": true,
+      "can_swim": false,
       "senses": "Passive Perception 14",
       "ability_scores": {
         "strength": 5,
@@ -167,9 +182,12 @@
     },
     {
       "name": "Cat",
+      "cr": 0,
       "ac": 12,
       "hp": 2,
       "speed": "40 ft., climb 30 ft.",
+      "can_fly": false,
+      "can_swim": false,
       "senses": "Passive Perception 13",
       "ability_scores": {
         "strength": 3,
@@ -191,6 +209,415 @@
           "damage_type": "slashing",
           "range": "5 ft.",
           "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Boar",
+      "cr": 0.25,
+      "ac": 11,
+      "hp": 11,
+      "speed": "40 ft.",
+      "senses": "Passive Perception 10",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 13,
+        "dexterity": 11,
+        "constitution": 12,
+        "intelligence": 2,
+        "wisdom": 9,
+        "charisma": 5
+      },
+      "traits": [
+        "Charge: If the boar moves at least 20 feet straight toward a target and then hits it with a tusk attack on the same turn, the target takes an extra 3 (1d6) slashing damage. If the target is a creature, it must succeed on a DC 11 Strength saving throw or be knocked prone."
+      ],
+      "actions": [
+        {
+          "name": "Tusk",
+          "attack_bonus": 3,
+          "damage_dice": "1d6",
+          "damage_bonus": 1,
+          "damage_type": "slashing",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Camel",
+      "cr": 0.125,
+      "ac": 9,
+      "hp": 15,
+      "speed": "50 ft.",
+      "senses": "Passive Perception 8",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 16,
+        "dexterity": 8,
+        "constitution": 14,
+        "intelligence": 2,
+        "wisdom": 8,
+        "charisma": 5
+      },
+      "traits": [],
+      "actions": [
+        {
+          "name": "Bite",
+          "attack_bonus": 5,
+          "damage_dice": "1d4",
+          "damage_bonus": 3,
+          "damage_type": "bludgeoning",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Constrictor snake",
+      "cr": 0.25,
+      "ac": 12,
+      "hp": 13,
+      "speed": "30 ft., swim 30 ft.",
+      "senses": "Blindsight 10 ft., Passive Perception 10",
+      "can_fly": false,
+      "can_swim": true,
+      "ability_scores": {
+        "strength": 15,
+        "dexterity": 14,
+        "constitution": 13,
+        "intelligence": 1,
+        "wisdom": 10,
+        "charisma": 3
+      },
+      "traits": [],
+      "actions": [
+        {
+          "name": "Bite",
+          "attack_bonus": 4,
+          "damage_dice": "1d4",
+          "damage_bonus": 2,
+          "damage_type": "piercing",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        },
+        {
+          "name": "Constrict",
+          "attack_bonus": 4,
+          "damage_dice": "1d6",
+          "damage_bonus": 2,
+          "damage_type": "bludgeoning",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack. The target is grappled (escape DC 14). Until this grapple ends, the creature is restrained, and the snake can't constrict another target."
+        }
+      ]
+    },
+    {
+      "name": "Draft horse",
+      "cr": 0.25,
+      "ac": 10,
+      "hp": 19,
+      "speed": "40 ft.",
+      "senses": "Passive Perception 10",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 18,
+        "dexterity": 10,
+        "constitution": 12,
+        "intelligence": 2,
+        "wisdom": 11,
+        "charisma": 7
+      },
+      "traits": [],
+      "actions": [
+        {
+          "name": "Hooves",
+          "attack_bonus": 6,
+          "damage_dice": "2d4",
+          "damage_bonus": 4,
+          "damage_type": "bludgeoning",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Elk",
+      "cr": 0.25,
+      "ac": 10,
+      "hp": 13,
+      "speed": "50 ft.",
+      "senses": "Passive Perception 10",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 16,
+        "dexterity": 10,
+        "constitution": 12,
+        "intelligence": 2,
+        "wisdom": 10,
+        "charisma": 6
+      },
+      "traits": [
+        "Charge: If the elk moves at least 20 feet straight toward a target and then hits it with a ram attack on the same turn, the target takes an extra 7 (2d6) damage. If the target is a creature, it must succeed on a DC 13 Strength saving throw or be knocked prone."
+      ],
+      "actions": [
+        {
+          "name": "Ram",
+          "attack_bonus": 5,
+          "damage_dice": "1d6",
+          "damage_bonus": 3,
+          "damage_type": "bludgeoning",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        },
+        {
+          "name": "Hooves",
+          "attack_bonus": 5,
+          "damage_dice": "2d4",
+          "damage_bonus": 3,
+          "damage_type": "bludgeoning",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Giant badger",
+      "cr": 0.25,
+      "ac": 10,
+      "hp": 13,
+      "speed": "30 ft., burrow 10 ft.",
+      "senses": "Darkvision 30 ft., Passive Perception 11",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 13,
+        "dexterity": 10,
+        "constitution": 15,
+        "intelligence": 2,
+        "wisdom": 12,
+        "charisma": 5
+      },
+      "traits": [
+        "Keen Smell: The badger has advantage on Wisdom (Perception) checks that rely on smell."
+      ],
+      "actions": [
+        {
+          "name": "Bite",
+          "attack_bonus": 3,
+          "damage_dice": "1d6",
+          "damage_bonus": 1,
+          "damage_type": "piercing",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        },
+        {
+          "name": "Claws",
+          "attack_bonus": 3,
+          "damage_dice": "2d4",
+          "damage_bonus": 1,
+          "damage_type": "slashing",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Giant crab",
+      "cr": 0.125,
+      "ac": 15,
+      "hp": 13,
+      "speed": "30 ft., swim 30 ft.",
+      "senses": "Blindsight 30 ft., Passive Perception 11",
+      "can_fly": false,
+      "can_swim": true,
+      "ability_scores": {
+        "strength": 13,
+        "dexterity": 15,
+        "constitution": 11,
+        "intelligence": 1,
+        "wisdom": 9,
+        "charisma": 3
+      },
+      "traits": [
+        "Amphibious: The crab can breathe air and water."
+      ],
+      "actions": [
+        {
+          "name": "Claw",
+          "attack_bonus": 3,
+          "damage_dice": "1d6",
+          "damage_bonus": 1,
+          "damage_type": "bludgeoning",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack. The target is grappled (escape DC 11). The crab has two claws, each of which can grapple only one target."
+        }
+      ]
+    },
+    {
+      "name": "Giant weasel",
+      "cr": 0.125,
+      "ac": 13,
+      "hp": 9,
+      "speed": "40 ft.",
+      "senses": "Darkvision 60 ft., Passive Perception 12",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 11,
+        "dexterity": 16,
+        "constitution": 10,
+        "intelligence": 4,
+        "wisdom": 12,
+        "charisma": 5
+      },
+      "traits": [
+        "Keen Hearing and Smell: The weasel has advantage on Wisdom (Perception) checks that rely on hearing or smell."
+      ],
+      "actions": [
+        {
+          "name": "Bite",
+          "attack_bonus": 5,
+          "damage_dice": "1d4",
+          "damage_bonus": 3,
+          "damage_type": "piercing",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Panther",
+      "cr": 0.25,
+      "ac": 12,
+      "hp": 13,
+      "speed": "50 ft., climb 40 ft.",
+      "senses": "Passive Perception 13",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 14,
+        "dexterity": 15,
+        "constitution": 10,
+        "intelligence": 3,
+        "wisdom": 14,
+        "charisma": 7
+      },
+      "traits": [
+        "Keen Smell: The panther has advantage on Wisdom (Perception) checks that rely on smell.",
+        "Pounce: If the panther moves at least 20 feet straight toward a creature and then hits it with a claw attack on the same turn, that target must succeed on a DC 12 Strength saving throw or be knocked prone. If the target is prone, the panther can make one bite attack against it as a bonus action."
+      ],
+      "actions": [
+        {
+          "name": "Bite",
+          "attack_bonus": 4,
+          "damage_dice": "1d6",
+          "damage_bonus": 2,
+          "damage_type": "piercing",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        },
+        {
+          "name": "Claw",
+          "attack_bonus": 4,
+          "damage_dice": "1d4",
+          "damage_bonus": 2,
+          "damage_type": "slashing",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Pony",
+      "cr": 0.125,
+      "ac": 10,
+      "hp": 11,
+      "speed": "40 ft.",
+      "senses": "Passive Perception 10",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 15,
+        "dexterity": 10,
+        "constitution": 13,
+        "intelligence": 2,
+        "wisdom": 11,
+        "charisma": 7
+      },
+      "traits": [],
+      "actions": [
+        {
+          "name": "Hooves",
+          "attack_bonus": 4,
+          "damage_dice": "1d4",
+          "damage_bonus": 2,
+          "damage_type": "bludgeoning",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Riding horse",
+      "cr": 0.25,
+      "ac": 10,
+      "hp": 13,
+      "speed": "60 ft.",
+      "senses": "Passive Perception 10",
+      "can_fly": false,
+      "can_swim": false,
+      "ability_scores": {
+        "strength": 16,
+        "dexterity": 10,
+        "constitution": 12,
+        "intelligence": 2,
+        "wisdom": 11,
+        "charisma": 7
+      },
+      "traits": [],
+      "actions": [
+        {
+          "name": "Hooves",
+          "attack_bonus": 5,
+          "damage_dice": "2d4",
+          "damage_bonus": 3,
+          "damage_type": "bludgeoning",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack"
+        }
+      ]
+    },
+    {
+      "name": "Venomous snake",
+      "cr": 0.125,
+      "ac": 13,
+      "hp": 2,
+      "speed": "30 ft., swim 30 ft.",
+      "senses": "Blindsight 10 ft., Passive Perception 10",
+      "can_fly": false,
+      "can_swim": true,
+      "ability_scores": {
+        "strength": 2,
+        "dexterity": 16,
+        "constitution": 11,
+        "intelligence": 1,
+        "wisdom": 10,
+        "charisma": 3
+      },
+      "traits": [],
+      "actions": [
+        {
+          "name": "Bite",
+          "attack_bonus": 5,
+          "damage_dice": "1",
+          "damage_bonus": 0,
+          "damage_type": "piercing",
+          "range": "5 ft.",
+          "description": "Melee Weapon Attack. The target must make a DC 10 Constitution saving throw, taking 5 (2d4) poison damage on a failed save, or half as much damage on a successful one."
         }
       ]
     }

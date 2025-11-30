@@ -10,6 +10,7 @@ import (
 // BeastDefinition represents a regular beast companion definition from the Monster Manual
 type BeastDefinition struct {
 	Name          string                 `json:"name"`           // e.g., "Mastiff", "Mule", "Black Bear"
+	CR            float64                `json:"cr,omitempty"`  // Challenge Rating (for wild shape filtering)
 	AC            int                    `json:"ac"`            // Armor Class
 	HP            int                    `json:"hp"`            // Hit Points (fixed, doesn't scale)
 	Speed         string                 `json:"speed"`         // e.g., "40 ft."
@@ -17,6 +18,8 @@ type BeastDefinition struct {
 	AbilityScores CompanionAbilityScores `json:"ability_scores"` // Ability scores
 	Traits        []string               `json:"traits"`        // Special traits
 	Actions       []BeastAction          `json:"actions"`       // Available actions (simple attacks)
+	CanFly        bool                   `json:"can_fly,omitempty"` // Whether the beast has a flying speed
+	CanSwim       bool                   `json:"can_swim,omitempty"` // Whether the beast has a swimming speed
 }
 
 // BeastAction represents a simple attack action for a regular beast
@@ -63,6 +66,55 @@ func GetBeastDefinition(name string) *BeastDefinition {
 	return nil
 }
 
+// GetBeastsByCR returns all beasts with a CR less than or equal to maxCR
+func GetBeastsByCR(maxCR float64, allowFlying bool, allowSwimming bool) []BeastDefinition {
+	beasts := GetAllBeastDefinitions()
+	var filtered []BeastDefinition
+
+	for _, beast := range beasts {
+		// Check CR limit
+		if beast.CR > maxCR {
+			continue
+		}
+
+		// Check flying restriction
+		if !allowFlying && beast.CanFly {
+			continue
+		}
+
+		// Check swimming restriction
+		if !allowSwimming && beast.CanSwim {
+			continue
+		}
+
+		filtered = append(filtered, beast)
+	}
+
+	return filtered
+}
+
+// GetWildShapeForms returns beasts suitable for wild shape based on druid level
+func GetWildShapeForms(druidLevel int) []BeastDefinition {
+	var maxCR float64
+	allowFlying := false
+	allowSwimming := false
+
+	if druidLevel >= 8 {
+		maxCR = 1.0
+		allowFlying = true
+		allowSwimming = true
+	} else if druidLevel >= 4 {
+		maxCR = 0.5
+		allowSwimming = true
+	} else if druidLevel >= 2 {
+		maxCR = 0.25
+	} else {
+		return []BeastDefinition{} // No wild shape at level 1
+	}
+
+	return GetBeastsByCR(maxCR, allowFlying, allowSwimming)
+}
+
 // GetAllBeastDefinitions returns all available regular beast definitions
 // Loads from JSON file with fallback to hardcoded data
 func GetAllBeastDefinitions() []BeastDefinition {
@@ -81,11 +133,14 @@ func GetAllBeastDefinitions() []BeastDefinition {
 	// Fallback to hardcoded beasts if JSON file is not available
 	cachedBeasts = []BeastDefinition{
 		{
-			Name: "Mastiff",
-			AC:   12,
-			HP:   5,
-			Speed: "40 ft.",
+			Name:   "Mastiff",
+			CR:     0.125,
+			AC:     12,
+			HP:     5,
+			Speed:  "40 ft.",
 			Senses: "Passive Perception 12",
+			CanFly: false,
+			CanSwim: false,
 			AbilityScores: CompanionAbilityScores{
 				Strength:     13,
 				Dexterity:    14,
@@ -110,11 +165,14 @@ func GetAllBeastDefinitions() []BeastDefinition {
 			},
 		},
 		{
-			Name: "Mule",
-			AC:   10,
-			HP:   11,
-			Speed: "40 ft.",
+			Name:   "Mule",
+			CR:     0.125,
+			AC:     10,
+			HP:     11,
+			Speed:  "40 ft.",
 			Senses: "Passive Perception 10",
+			CanFly: false,
+			CanSwim: false,
 			AbilityScores: CompanionAbilityScores{
 				Strength:     14,
 				Dexterity:    10,
@@ -140,11 +198,14 @@ func GetAllBeastDefinitions() []BeastDefinition {
 			},
 		},
 		{
-			Name: "Black Bear",
-			AC:   11,
-			HP:   19,
-			Speed: "40 ft., climb 30 ft.",
+			Name:   "Black Bear",
+			CR:     0.5,
+			AC:     11,
+			HP:     19,
+			Speed:  "40 ft., climb 30 ft.",
 			Senses: "Passive Perception 13",
+			CanFly: false,
+			CanSwim: false,
 			AbilityScores: CompanionAbilityScores{
 				Strength:     15,
 				Dexterity:    10,
@@ -187,11 +248,14 @@ func GetAllBeastDefinitions() []BeastDefinition {
 			},
 		},
 		{
-			Name: "Wolf",
-			AC:   13,
-			HP:   11,
-			Speed: "40 ft.",
+			Name:   "Wolf",
+			CR:     0.25,
+			AC:     13,
+			HP:     11,
+			Speed:  "40 ft.",
 			Senses: "Passive Perception 13",
+			CanFly: false,
+			CanSwim: false,
 			AbilityScores: CompanionAbilityScores{
 				Strength:     12,
 				Dexterity:    15,
@@ -217,11 +281,14 @@ func GetAllBeastDefinitions() []BeastDefinition {
 			},
 		},
 		{
-			Name: "Hawk",
-			AC:   13,
-			HP:   1,
-			Speed: "10 ft., fly 60 ft.",
+			Name:   "Hawk",
+			CR:     0,
+			AC:     13,
+			HP:     1,
+			Speed:  "10 ft., fly 60 ft.",
 			Senses: "Passive Perception 14",
+			CanFly: true,
+			CanSwim: false,
 			AbilityScores: CompanionAbilityScores{
 				Strength:     5,
 				Dexterity:    16,
@@ -246,11 +313,14 @@ func GetAllBeastDefinitions() []BeastDefinition {
 			},
 		},
 		{
-			Name: "Cat",
-			AC:   12,
-			HP:   2,
-			Speed: "40 ft., climb 30 ft.",
+			Name:   "Cat",
+			CR:     0,
+			AC:     12,
+			HP:     2,
+			Speed:  "40 ft., climb 30 ft.",
 			Senses: "Passive Perception 13",
+			CanFly: false,
+			CanSwim: false,
 			AbilityScores: CompanionAbilityScores{
 				Strength:     3,
 				Dexterity:    15,
