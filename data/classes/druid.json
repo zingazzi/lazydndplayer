@@ -39,11 +39,22 @@
           "description": "Drawing on the divine essence of nature itself, you can cast spells to shape that essence to your will. Wisdom is your spellcasting ability for your druid spells.",
           "uses_formula": "0",
           "rest_type": "None"
+        },
+        {
+          "name": "Primal Order",
+          "description": "At 1st level, you choose a primal order that shapes how you channel your connection to nature. Choose Magician or Warden.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "type": "primal_order_choice",
+            "choices": ["Magician", "Warden"],
+            "must_complete_before": "cantrip_selection"
+          }
         }
       ],
       "spellcasting_info": {
         "cantrips_known": 2,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 4,
         "spell_slots": {
           "1": 2
         }
@@ -56,9 +67,25 @@
       "features": [
         {
           "name": "Wild Shape",
-          "description": "Starting at 2nd level, you can use your action to magically assume the shape of a beast that you have seen before. You can use this feature twice. You regain expended uses when you finish a short or long rest. You can stay in a beast shape for a number of hours equal to half your druid level (rounded down).",
-          "uses_formula": "2",
-          "rest_type": "Short Rest"
+          "description": "Starting at 2nd level, you can use your bonus action to magically assume the shape of a beast that you know. You can use this feature a number of times based on your druid level. You regain all expended uses when you finish a long rest. You can stay in a beast shape for a number of hours equal to half your druid level (rounded down). At 2nd level, you know 4 forms and can transform into beasts with a challenge rating of 1/4 or lower.",
+          "uses_formula": "wild_shape_scaling",
+          "rest_type": "Long Rest",
+          "mechanics": {
+            "type": "wild_shape",
+            "known_forms": 4,
+            "max_cr": 0.25,
+            "can_fly": false
+          }
+        },
+        {
+          "name": "Wild Companion",
+          "description": "At 2nd level, you can summon a nature spirit that takes an animal form. This works like the Find Familiar spell, but you don't need material components. The familiar is a fey instead of a beast.",
+          "uses_formula": "0",
+          "rest_type": "None",
+          "mechanics": {
+            "type": "wild_companion",
+            "works_like": "find_familiar"
+          }
         },
         {
           "name": "Druid Circle",
@@ -70,7 +97,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 2,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 5,
         "spell_slots": {
           "1": 3
         }
@@ -83,7 +110,7 @@
       "features": [],
       "spellcasting_info": {
         "cantrips_known": 2,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 6,
         "spell_slots": {
           "1": 4,
           "2": 2
@@ -97,10 +124,11 @@
       "features": [
         {
           "name": "Wild Shape Improvement",
-          "description": "You can now transform into beasts with CR 1/2 or lower.",
+          "description": "You can now transform into beasts with CR 1/2 or lower. You know 6 forms instead of 4.",
           "mechanics": {
             "max_cr": 0.5,
-            "no_flying": true
+            "known_forms": 6,
+            "can_fly": false
           }
         },
         {
@@ -110,7 +138,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 3,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 7,
         "spell_slots": {
           "1": 4,
           "2": 3
@@ -124,7 +152,7 @@
       "features": [],
       "spellcasting_info": {
         "cantrips_known": 3,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 9,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -145,7 +173,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 3,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 10,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -160,7 +188,7 @@
       "features": [],
       "spellcasting_info": {
         "cantrips_known": 3,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 11,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -176,9 +204,11 @@
       "features": [
         {
           "name": "Wild Shape Improvement",
-          "description": "You can now transform into beasts with CR 1 or lower.",
+          "description": "You can now transform into beasts with CR 1 or lower. You know 8 forms instead of 6. You can now transform into beasts that have a flying speed.",
           "mechanics": {
-            "max_cr": 1
+            "max_cr": 1,
+            "known_forms": 8,
+            "can_fly": true
           }
         },
         {
@@ -188,7 +218,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 3,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 12,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -204,7 +234,7 @@
       "features": [],
       "spellcasting_info": {
         "cantrips_known": 3,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 14,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -227,7 +257,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 15,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -244,7 +274,7 @@
       "features": [],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 16,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -267,7 +297,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 16,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -285,7 +315,7 @@
       "features": [],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 17,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -310,7 +340,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 17,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -329,7 +359,7 @@
       "features": [],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 18,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -354,7 +384,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 18,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -374,7 +404,7 @@
       "features": [],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 19,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -404,7 +434,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 20,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -430,7 +460,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 21,
         "spell_slots": {
           "1": 4,
           "2": 3,
@@ -460,7 +490,7 @@
       ],
       "spellcasting_info": {
         "cantrips_known": 4,
-        "spells_prepared": "Wis mod + level",
+        "spells_prepared": 22,
         "spell_slots": {
           "1": 4,
           "2": 3,

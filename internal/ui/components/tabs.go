@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/marcozingoni/lazydndplayer/internal/models"
 )
 
 // Tab represents a single tab
@@ -33,6 +34,50 @@ func NewTabs() *Tabs {
 			{Label: "Companion", Key: "8"},
 		},
 		SelectedIndex: 0,
+	}
+}
+
+// UpdateTabsForCharacter updates tabs based on character class
+// This allows conditional tabs like Wild Shape for Druids and Companion for Rangers/companions
+func (t *Tabs) UpdateTabsForCharacter(char *models.Character) {
+	baseTabs := []Tab{
+		{Label: "Stats", Key: "1"},
+		{Label: "Skills", Key: "2"},
+		{Label: "Inventory", Key: "3"},
+		{Label: "Spells", Key: "4"},
+		{Label: "Features", Key: "5"},
+		{Label: "Traits", Key: "6"},
+		{Label: "Origin", Key: "7"},
+	}
+
+	// Add Companion tab if character has companions or is a Ranger
+	hasCompanions := len(char.Companions) > 0 || char.HasClass("Ranger")
+	if hasCompanions {
+		baseTabs = append(baseTabs, Tab{Label: "Companion", Key: "8"})
+	}
+
+	// Add Wild Shape tab if character is a Druid (level 2+)
+	hasDruid := char.HasClass("Druid") && char.GetClassLevel("Druid") >= 2
+	if hasDruid {
+		key := "8"
+		if hasCompanions {
+			key = "9"
+		}
+		baseTabs = append(baseTabs, Tab{Label: "Wild Shape", Key: key})
+	}
+
+	// Preserve selected index if possible
+	oldSelectedIndex := t.SelectedIndex
+	t.Items = baseTabs
+
+	// Adjust selected index if it's out of bounds
+	if oldSelectedIndex >= len(t.Items) {
+		t.SelectedIndex = len(t.Items) - 1
+		if t.SelectedIndex < 0 {
+			t.SelectedIndex = 0
+		}
+	} else {
+		t.SelectedIndex = oldSelectedIndex
 	}
 }
 

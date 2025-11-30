@@ -116,6 +116,52 @@ func (m *Model) SetDivineOrderSelectorVisible(visible bool) {
 	m.divineOrderSelectorVisible = visible // Keep legacy field in sync for now
 }
 
+// PrimalOrder methods
+func (m *Model) GetPendingPrimalOrder() string {
+	if order, ok := m.stateMachine.GetContext("pendingPrimalOrder").(string); ok {
+		return order
+	}
+	return m.pendingPrimalOrder // Fallback to legacy field
+}
+
+func (m *Model) SetPendingPrimalOrder(order string) {
+	m.stateMachine.SetContext("pendingPrimalOrder", order)
+	m.stateMachine.Transition(state.StatePrimalOrderSelection, map[string]interface{}{"pendingPrimalOrder": order})
+	m.pendingPrimalOrder = order // Keep legacy field in sync for now
+}
+
+func (m *Model) GetPendingPrimalOrderSkill() string {
+	if skill, ok := m.stateMachine.GetContext("pendingPrimalOrderSkill").(string); ok {
+		return skill
+	}
+	return m.pendingPrimalOrderSkill // Fallback to legacy field
+}
+
+func (m *Model) SetPendingPrimalOrderSkill(skill string) {
+	m.stateMachine.SetContext("pendingPrimalOrderSkill", skill)
+	m.pendingPrimalOrderSkill = skill // Keep legacy field in sync for now
+}
+
+func (m *Model) IsPrimalOrderSelectorVisible() bool {
+	if visible, ok := m.stateMachine.GetContext("primalOrderSelectorVisible").(bool); ok {
+		return visible
+	}
+	return m.primalOrderSelectorVisible // Fallback to legacy field
+}
+
+func (m *Model) SetPrimalOrderSelectorVisible(visible bool) {
+	m.stateMachine.SetContext("primalOrderSelectorVisible", visible)
+	if visible {
+		m.stateMachine.Transition(state.StatePrimalOrderSelection, map[string]interface{}{"primalOrderSelectorVisible": true})
+	} else {
+		m.stateMachine.ClearContext("primalOrderSelectorVisible")
+		if m.stateMachine.GetState() == state.StatePrimalOrderSelection {
+			m.stateMachine.Transition(state.StateIdle, nil)
+		}
+	}
+	m.primalOrderSelectorVisible = visible // Keep legacy field in sync for now
+}
+
 // EldritchKnightSpells methods
 func (m *Model) GetEldritchKnightSpellsSelected() int {
 	if count, ok := m.stateMachine.GetContext("eldritchKnightSpellsSelected").(int); ok {

@@ -170,9 +170,10 @@ func (m *Model) checkAndAdvanceWizardAfterClassSetup() {
 	weaponMasteryVisible := m.weaponMasterySelector.IsVisible()
 	expertiseVisible := m.expertiseSelector.IsVisible()
 	divineOrderVisible := m.IsDivineOrderSelectorVisible()
+	primalOrderVisible := m.IsPrimalOrderSelectorVisible()
 
-	debug.Log("checkAndAdvanceWizardAfterClassSetup: Selector visibility - class=%v, skill=%v, subclass=%v, cantrip=%v, fightingStyle=%v, weaponMastery=%v, expertise=%v, divineOrder=%v",
-		classVisible, skillVisible, subclassVisible, cantripVisible, fightingStyleVisible, weaponMasteryVisible, expertiseVisible, divineOrderVisible)
+	debug.Log("checkAndAdvanceWizardAfterClassSetup: Selector visibility - class=%v, skill=%v, subclass=%v, cantrip=%v, fightingStyle=%v, weaponMastery=%v, expertise=%v, divineOrder=%v, primalOrder=%v",
+		classVisible, skillVisible, subclassVisible, cantripVisible, fightingStyleVisible, weaponMasteryVisible, expertiseVisible, divineOrderVisible, primalOrderVisible)
 
 	if classVisible ||
 		skillVisible ||
@@ -181,7 +182,8 @@ func (m *Model) checkAndAdvanceWizardAfterClassSetup() {
 		fightingStyleVisible ||
 		weaponMasteryVisible ||
 		expertiseVisible ||
-		divineOrderVisible {
+		divineOrderVisible ||
+		primalOrderVisible {
 		// Still have class setup to do, don't advance yet
 		debug.Log("checkAndAdvanceWizardAfterClassSetup: Class setup not complete, waiting for more selections")
 		return

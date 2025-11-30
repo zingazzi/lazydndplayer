@@ -76,7 +76,10 @@ func GetClassCasterInfo(className string) *ClassSpellcastingInfo {
 			Method:              PreparedCaster,
 			SpellcastingAbility: Wisdom,
 			RitualCasting:       true,
-			PreparationFormula:  "wisdom+level",
+			PreparedSpellsByLevel: map[int]int{
+				1: 4, 2: 5, 3: 6, 4: 7, 5: 9, 6: 10, 7: 11, 8: 12, 9: 14, 10: 15,
+				11: 16, 12: 16, 13: 17, 14: 17, 15: 18, 16: 18, 17: 19, 18: 20, 19: 21, 20: 22,
+			},
 			CantripsKnownByLevel: map[int]int{
 				1: 2, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4,
 				11: 4, 12: 4, 13: 4, 14: 4, 15: 4, 16: 4, 17: 4, 18: 4, 19: 4, 20: 4,

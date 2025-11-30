@@ -33,6 +33,8 @@ func (m *Model) handleMainPanelKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleOriginPanel(msg)
 	case CompanionPanel:
 		return m.handleCompanionPanel(msg)
+	case WildShapePanel:
+		return m.handleWildShapePanel(msg)
 	}
 	return m, nil
 }
@@ -881,6 +883,58 @@ func (m *Model) handleCompanionPanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if selectedCompanion.CurrentHP != oldHP {
 					m.message = fmt.Sprintf("%s HP: %d/%d", selectedCompanion.GetDisplayName(), selectedCompanion.CurrentHP, selectedCompanion.MaxHP)
 					m.storage.Save(m.character)
+				}
+			}
+		}
+	}
+	return m, nil
+}
+
+// handleWildShapePanel handles wild shape panel specific keys
+func (m *Model) handleWildShapePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	panel := m.wildShapePanel
+	viewMode := panel.GetViewMode()
+
+	// Update panel with current character
+	panel.Update(m.character)
+
+	switch msg.String() {
+	case "up", "k":
+		if viewMode == panels.WildShapeViewList {
+			panel.Prev()
+		} else {
+			panel.ScrollUp()
+		}
+	case "down", "j":
+		if viewMode == panels.WildShapeViewList {
+			panel.Next()
+		} else {
+			panel.ScrollDown()
+		}
+	case "ctrl+u", "pgup":
+		panel.PageUp()
+	case "ctrl+d", "pgdown":
+		panel.PageDown()
+	case "enter":
+		if viewMode == panels.WildShapeViewList {
+			// Enter detail view
+			panel.EnterDetailView()
+		}
+	case "esc":
+		if viewMode == panels.WildShapeViewDetail {
+			// Return to list view
+			panel.ExitDetailView()
+		}
+	case "r":
+		// Long rest - regain wild shape uses
+		if viewMode == panels.WildShapeViewList {
+			// Find Wild Shape feature and restore uses
+			for i := range m.character.Features.Features {
+				if m.character.Features.Features[i].Name == "Wild Shape" {
+					m.character.Features.Features[i].CurrentUses = m.character.Features.Features[i].MaxUses
+					m.message = fmt.Sprintf("Wild Shape uses restored: %d/%d", m.character.Features.Features[i].CurrentUses, m.character.Features.Features[i].MaxUses)
+					m.storage.Save(m.character)
+					break
 				}
 			}
 		}

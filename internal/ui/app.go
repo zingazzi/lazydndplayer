@@ -26,6 +26,7 @@ const (
 	TraitsPanel
 	OriginPanel
 	CompanionPanel
+	WildShapePanel
 )
 
 // Popup size constants for different popup types
@@ -123,6 +124,7 @@ type Model struct {
 	traitsPanel    *panels.TraitsPanel
 	originPanel    *panels.OriginPanel
 	companionPanel *panels.CompanionPanel
+	wildShapePanel *panels.WildShapePanel
 
 	// Fixed Panels (always visible)
 	dicePanel           *panels.DicePanel
@@ -154,6 +156,9 @@ type Model struct {
 	pendingDivineOrder string         // Temporarily store divine order choice ("Protector" or "Thaumaturgic")
 	pendingDivineOrderSkill string    // For Thaumaturgic: chosen skill (Arcana or Religion)
 	divineOrderSelectorVisible bool   // Flag for showing divine order selection
+	pendingPrimalOrder string         // Temporarily store primal order choice ("Magician" or "Warden")
+	pendingPrimalOrderSkill string    // For Magician: chosen skill (Arcana or Nature)
+	primalOrderSelectorVisible bool   // Flag for showing primal order selection
 	pendingChanges     *models.PendingChanges // Transaction system for rollback support
 	eldritchKnightSpellsSelected int   // Counter for Eldritch Knight spell selection (0-3)
 	eldritchKnightSpells []models.Spell // Temporarily store selected spells
@@ -344,6 +349,7 @@ func NewModel(char *models.Character, store StorageInterface, factory ComponentF
 		traitsPanel:           factory.CreateTraitsPanel(char),
 		originPanel:           factory.CreateOriginPanel(char),
 		companionPanel:        factory.CreateCompanionPanel(char),
+		wildShapePanel:        panels.NewWildShapePanel(char),
 		beastSelector:         components.NewBeastSelector(char),
 		companionSelector:     companionSelector,
 		optionSelector:        optionSelector,
@@ -387,6 +393,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.currentPanel {
 			case CompanionPanel:
 				m.companionPanel.UpdateViewport(msg)
+				return m, nil
+			case WildShapePanel:
+				m.wildShapePanel.UpdateViewport(msg)
 				return m, nil
 			case FeaturesPanel:
 				m.featuresPanel.Update(msg)
@@ -559,13 +568,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// We need to re-check the Tab key here
 				if msg.String() == "tab" {
 					m.tabs.Next()
-					m.currentPanel = PanelType(m.tabs.SelectedIndex)
-					debug.Log("Tab navigation: moved to panel %d (optionSelector was visible)", m.currentPanel)
+					selectedTab := m.tabs.GetSelected()
+					m.currentPanel = tabLabelToPanelType(selectedTab.Label)
+					debug.Log("Tab navigation: moved to panel %d (%s) (optionSelector was visible)", m.currentPanel, selectedTab.Label)
 					return m, nil
 				} else if msg.String() == "shift+tab" {
 					m.tabs.Prev()
-					m.currentPanel = PanelType(m.tabs.SelectedIndex)
-					debug.Log("Shift+Tab navigation: moved to panel %d (optionSelector was visible)", m.currentPanel)
+					selectedTab := m.tabs.GetSelected()
+					m.currentPanel = tabLabelToPanelType(selectedTab.Label)
+					debug.Log("Shift+Tab navigation: moved to panel %d (%s) (optionSelector was visible)", m.currentPanel, selectedTab.Label)
 					return m, nil
 				}
 			}
@@ -616,8 +627,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				if !shouldBlockTab {
 					m.tabs.Next()
-					m.currentPanel = PanelType(m.tabs.SelectedIndex)
-					debug.Log("Tab navigation: moved to panel %d", m.currentPanel)
+					selectedTab := m.tabs.GetSelected()
+					m.currentPanel = tabLabelToPanelType(selectedTab.Label)
+					debug.Log("Tab navigation: moved to panel %d (%s)", m.currentPanel, selectedTab.Label)
 					return m, nil
 				}
 
@@ -646,8 +658,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				if !shouldBlockTab {
 					m.tabs.Prev()
-					m.currentPanel = PanelType(m.tabs.SelectedIndex)
-					debug.Log("Shift+Tab navigation: moved to panel %d", m.currentPanel)
+					selectedTab := m.tabs.GetSelected()
+					m.currentPanel = tabLabelToPanelType(selectedTab.Label)
+					debug.Log("Shift+Tab navigation: moved to panel %d (%s)", m.currentPanel, selectedTab.Label)
 					return m, nil
 				}
 			}
@@ -679,14 +692,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.String() == "tab" {
 				m.focusArea = FocusMain
 				m.tabs.Next()
-				m.currentPanel = PanelType(m.tabs.SelectedIndex)
-				debug.Log("Tab navigation: switched from CharStats to Main, moved to panel %d", m.currentPanel)
+				selectedTab := m.tabs.GetSelected()
+				m.currentPanel = tabLabelToPanelType(selectedTab.Label)
+				debug.Log("Tab navigation: switched from CharStats to Main, moved to panel %d (%s)", m.currentPanel, selectedTab.Label)
 				return m, nil
 			} else if msg.String() == "shift+tab" {
 				m.focusArea = FocusMain
 				m.tabs.Prev()
-				m.currentPanel = PanelType(m.tabs.SelectedIndex)
-				debug.Log("Shift+Tab navigation: switched from CharStats to Main, moved to panel %d", m.currentPanel)
+				selectedTab := m.tabs.GetSelected()
+				m.currentPanel = tabLabelToPanelType(selectedTab.Label)
+				debug.Log("Shift+Tab navigation: switched from CharStats to Main, moved to panel %d (%s)", m.currentPanel, selectedTab.Label)
 				return m, nil
 			}
 			return m.handleCharStatsPanelKeys(msg)
@@ -698,6 +713,32 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// tabLabelToPanelType converts a tab label to the corresponding PanelType
+func tabLabelToPanelType(label string) PanelType {
+	switch label {
+	case "Stats":
+		return StatsPanel
+	case "Skills":
+		return SkillsPanel
+	case "Inventory":
+		return InventoryPanel
+	case "Spells":
+		return SpellsPanel
+	case "Features":
+		return FeaturesPanel
+	case "Traits":
+		return TraitsPanel
+	case "Origin":
+		return OriginPanel
+	case "Companion":
+		return CompanionPanel
+	case "Wild Shape":
+		return WildShapePanel
+	default:
+		return StatsPanel // Default fallback
+	}
 }
 
 // Panel handlers moved to handlers_panel.go
@@ -755,6 +796,9 @@ func (m *Model) View() string {
 	layoutCalc := view.NewLayoutCalculator()
 	layout := layoutCalc.CalculateLayout(m.width, m.height)
 
+	// Update tabs based on character class (e.g., Wild Shape for Druids, Companion for Rangers)
+	m.tabs.UpdateTabsForCharacter(m.character)
+
 	// Tab navigation
 	tabBarWidth := layout.MainPanelWidth - 8 // Account for border (2) + horizontal padding (4)
 	tabBar := m.tabs.View(tabBarWidth)
@@ -778,6 +822,7 @@ func (m *Model) View() string {
 		m.traitsPanel,
 		m.originPanel,
 		m.companionPanel,
+		m.wildShapePanel,
 	)
 	mainPanelView := panelRenderer.RenderPanel(view.PanelType(m.currentPanel), mainWidth, mainContentHeight)
 
@@ -860,6 +905,8 @@ func (m *Model) View() string {
 		m.attackMenu,
 		m.IsDivineOrderSelectorVisible(),
 		func() string { return m.renderDivineOrderSelector() },
+		m.IsPrimalOrderSelectorVisible(),
+		func() string { return m.renderPrimalOrderSelector() },
 	)
 
 	// If popup is visible, return it; otherwise return main view

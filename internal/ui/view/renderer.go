@@ -84,6 +84,8 @@ func (pr *PopupRenderer) RenderPopups(
 	attackMenu *components.AttackMenu,
 	divineOrderSelectorVisible bool,
 	renderDivineOrderSelector func() string,
+	primalOrderSelectorVisible bool,
+	renderPrimalOrderSelector func() string,
 ) string {
 	// Check popups in priority order (highest priority first)
 	// Stat generator takes highest priority (Medium)
@@ -299,6 +301,11 @@ func (pr *PopupRenderer) RenderPopups(
 	// Divine Order selector (for Cleric level 1) - show as popup (Medium)
 	if divineOrderSelectorVisible {
 		return renderDivineOrderSelector()
+	}
+
+	// Primal Order selector (for Druid level 1) - show as popup (Medium)
+	if primalOrderSelectorVisible {
+		return renderPrimalOrderSelector()
 	}
 
 	// Class selector takes seventh priority (Medium)

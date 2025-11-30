@@ -14,6 +14,7 @@ const (
 	StateFeatSelection
 	StateAbilityChoice
 	StateDivineOrderSelection
+	StatePrimalOrderSelection
 	StateSpellSelection
 	StateEldritchKnightSpellSelection
 	StateCharacterCreationWizard

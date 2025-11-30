@@ -606,6 +606,29 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 				return m, cmd
 			}
 
+			// Check if we need Primal Order selection (Druid level 1)
+			if selectedClassName == "Druid" {
+				druidLevel := m.character.GetClassLevel("Druid")
+				if druidLevel == 1 {
+					// Check if Primal Order feature exists and hasn't been selected
+					primalOrderApplied := false
+					if m.character.BenefitTracker != nil {
+						for _, benefit := range m.character.BenefitTracker.Benefits {
+							if benefit.Source.Type == "class_feature" && benefit.Source.Name == "Primal Order" {
+								primalOrderApplied = true
+								break
+							}
+						}
+					}
+					if !primalOrderApplied {
+						debug.Log("Druid level 1 - showing Primal Order selector")
+						m.SetPrimalOrderSelectorVisible(true)
+						m.message = "Select your Primal Order..."
+						return m, cmd
+					}
+				}
+			}
+
 			// Check if we need cantrip selection
 			if classData != nil && classData.Spellcasting != nil && classData.Spellcasting.CantripsKnown > 0 {
 				cantripCount := classData.Spellcasting.CantripsKnown
@@ -926,6 +949,200 @@ func (m *Model) handleDivineOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 		m.message = "Divine Order selection cancelled - restored previous state"
 	}
 	return m, cmd
+}
+
+// handlePrimalOrderSelectorKeys handles keyboard input for Primal Order selection
+func (m *Model) handlePrimalOrderSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	// Allow number keys 3-7 for tab navigation to pass through
+	// Only handle keys specifically for Primal Order selection
+	switch msg.String() {
+	case "3", "4", "5", "6", "7":
+		// Tab navigation keys - always allow these to pass through
+		// (handled in main Update function's tab navigation check)
+		// Return empty to allow fall-through to tab navigation
+		return m, cmd
+	case "1":
+		// Magician selected - need to choose skill first
+		m.SetPendingPrimalOrder("Magician")
+		debug.Log("Primal Order selected: Magician - prompting for skill choice")
+		m.message = "Choose skill for Magician: [a] Arcana or [n] Nature"
+	case "2":
+		// Warden selected
+		m.SetPendingPrimalOrder("Warden")
+		debug.Log("Primal Order selected: Warden")
+		err := models.ApplyPrimalOrderBenefits(m.character, "Warden", "")
+		if err != nil {
+			m.message = fmt.Sprintf("Error applying Primal Order: %v", err)
+			return m, cmd
+		}
+		m.SetPrimalOrderSelectorVisible(false)
+		m.message = "Primal Order: Warden selected (Martial weapons + Medium armor)"
+
+		// Check if cantrip selection is needed next
+		needsCantrips := m.character.SpellBook.CantripsKnown > 0
+		if needsCantrips {
+			debug.Log("After Primal Order, showing cantrip selector for %d cantrips", m.character.SpellBook.CantripsKnown)
+			m.cantripSelector.Show("Druid", m.character.SpellBook.CantripsKnown)
+			m.message = fmt.Sprintf("Select %d cantrips for Druid...", m.character.SpellBook.CantripsKnown)
+		} else {
+			m.pendingChanges.Clear()
+			m.storage.Save(m.character)
+
+			// If in wizard mode, check if we can advance (after Primal Order Warden selection)
+			if m.IsInWizard() {
+				m.checkAndAdvanceWizardAfterClassSetup()
+				// Return immediately to ensure wizard state is preserved
+				return m, cmd
+			}
+		}
+	case "a":
+		// Arcana chosen for Magician
+		if m.GetPendingPrimalOrder() == "Magician" {
+			m.SetPendingPrimalOrderSkill("Arcana")
+			debug.Log("Magician skill selected: Arcana")
+			err := models.ApplyPrimalOrderBenefits(m.character, "Magician", "Arcana")
+			if err != nil {
+				m.message = fmt.Sprintf("Error applying Primal Order: %v", err)
+				return m, cmd
+			}
+			m.SetPrimalOrderSelectorVisible(false)
+			m.message = "Primal Order: Magician selected (Extra cantrip + Wisdom modifier to Arcana checks, min +1)"
+
+			// Check if cantrip selection is needed next (Magician gets +1 cantrip)
+			cantripsKnown := m.character.SpellBook.CantripsKnown
+			if cantripsKnown > 0 {
+				// Magician gets one extra cantrip
+				cantripsKnown++
+				debug.Log("Magician: increasing cantrips from %d to %d", m.character.SpellBook.CantripsKnown, cantripsKnown)
+				m.character.SpellBook.CantripsKnown = cantripsKnown
+				m.cantripSelector.Show("Druid", cantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for Druid (Magician: +1 extra)...", cantripsKnown)
+			} else {
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+			}
+		}
+	case "n":
+		// Nature chosen for Magician
+		if m.GetPendingPrimalOrder() == "Magician" {
+			m.SetPendingPrimalOrderSkill("Nature")
+			debug.Log("Magician skill selected: Nature")
+			err := models.ApplyPrimalOrderBenefits(m.character, "Magician", "Nature")
+			if err != nil {
+				m.message = fmt.Sprintf("Error applying Primal Order: %v", err)
+				return m, cmd
+			}
+			m.SetPrimalOrderSelectorVisible(false)
+			m.message = "Primal Order: Magician selected (Extra cantrip + Wisdom modifier to Nature checks, min +1)"
+
+			// Check if cantrip selection is needed next (Magician gets +1 cantrip)
+			cantripsKnown := m.character.SpellBook.CantripsKnown
+			if cantripsKnown > 0 {
+				// Magician gets one extra cantrip
+				cantripsKnown++
+				debug.Log("Magician: increasing cantrips from %d to %d", m.character.SpellBook.CantripsKnown, cantripsKnown)
+				m.character.SpellBook.CantripsKnown = cantripsKnown
+				m.cantripSelector.Show("Druid", cantripsKnown)
+				m.message = fmt.Sprintf("Select %d cantrips for Druid (Magician: +1 extra)...", cantripsKnown)
+			} else {
+				m.pendingChanges.Clear()
+				m.storage.Save(m.character)
+
+				// If in wizard mode, check if we can advance (after Primal Order selection)
+				if m.IsInWizard() {
+					m.checkAndAdvanceWizardAfterClassSetup()
+					// Return immediately to ensure wizard state is preserved
+					return m, cmd
+				}
+			}
+		}
+	case "esc":
+		// Check if in wizard mode
+		if m.IsInWizard() {
+			m.cancelWizard()
+			return m, nil
+		}
+
+		debug.Log("Primal Order selection cancelled")
+		m.SetPrimalOrderSelectorVisible(false)
+		m.stateMachine.ClearContext("pendingPrimalOrder")
+		m.stateMachine.ClearContext("pendingPrimalOrderSkill")
+		m.pendingPrimalOrder = ""
+		m.pendingPrimalOrderSkill = ""
+		m.pendingChanges.RestoreClass(m.character)
+		m.pendingChanges.Clear()
+		m.storage.Save(m.character)
+		m.message = "Primal Order selection cancelled - restored previous state"
+	}
+	return m, cmd
+}
+
+// renderPrimalOrderSelector renders the Primal Order selection popup (Druid-specific)
+func (m *Model) renderPrimalOrderSelector() string {
+	popupMediumWidth := int(float64(m.width) * 0.60)
+	popupMediumHeight := int(float64(m.height) * 0.50)
+	if popupMediumWidth < 70 {
+		popupMediumWidth = 70
+	}
+	if popupMediumHeight < 20 {
+		popupMediumHeight = 20
+	}
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("205")).
+		Align(lipgloss.Center).
+		MarginBottom(1)
+
+	optionStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		MarginBottom(1)
+
+	highlightStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205")).
+		Bold(true)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true).
+		Align(lipgloss.Center).
+		MarginTop(1)
+
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("205")).
+		Padding(2, 4).
+		Width(popupMediumWidth - 8).
+		Align(lipgloss.Center)
+
+	var optionsText string
+	if m.GetPendingPrimalOrder() == "Magician" {
+		// Show skill selection for Magician
+		optionsText = optionStyle.Render("Choose skill for Magician:") + "\n\n" +
+			highlightStyle.Render("[a]") + " Arcana\n" +
+			highlightStyle.Render("[n]") + " Nature\n\n" +
+			hintStyle.Render("Press 'a' for Arcana or 'n' for Nature")
+	} else {
+		// Show Primal Order selection
+		optionsText = titleStyle.Render("Select Primal Order") + "\n\n" +
+			optionStyle.Render("Choose how you channel your connection to nature:") + "\n\n" +
+			highlightStyle.Render("[1]") + " Magician\n" +
+			"   Extra cantrip (+1)\n" +
+			"   Add Wisdom modifier to Intelligence checks (Arcana or Nature, min +1)\n\n" +
+			highlightStyle.Render("[2]") + " Warden\n" +
+			"   Proficiency with martial weapons and medium armor\n\n" +
+			hintStyle.Render("Press 1 for Magician or 2 for Warden • ESC to cancel")
+	}
+
+	box := boxStyle.Render(optionsText)
+
+	return lipgloss.Place(
+		m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		box,
+	)
 }
 
 // renderDivineOrderSelector renders the Divine Order selection popup (Cleric-specific)

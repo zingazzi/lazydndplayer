@@ -558,6 +558,44 @@ func ApplyDivineOrderBenefits(char *Character, order string, chosenSkill string)
 	return nil
 }
 
+// ApplyPrimalOrderBenefits applies the benefits of a chosen Primal Order to a druid
+func ApplyPrimalOrderBenefits(char *Character, order string, chosenSkill string) error {
+	source := BenefitSource{
+		Type: "class_feature",
+		Name: "Primal Order",
+	}
+	applier := NewBenefitApplier(char)
+
+	if order == "Magician" {
+		// Magician: +1 cantrip (handled separately), add Wisdom modifier to Intelligence checks (Arcana or Nature) (min +1)
+		if chosenSkill == "Arcana" || chosenSkill == "Nature" {
+			// This will be handled as a skill bonus when rolling
+			// For now, we'll track it in the character's benefit tracker
+			wisMod := char.AbilityScores.GetModifier(Wisdom)
+			if wisMod < 1 {
+				wisMod = 1 // Minimum +1
+			}
+			char.BenefitTracker.AddBenefit(GrantedBenefit{
+				Source:      source,
+				Type:        BenefitSkill,
+				Target:      chosenSkill,
+				Value:       wisMod,
+				Description: fmt.Sprintf("Add Wisdom modifier to %s checks (Primal Order: Magician, min +1)", chosenSkill),
+			})
+			debug.Log("Applied Magician Primal Order benefits: Wisdom modifier to %s checks (min +1)", chosenSkill)
+		}
+		// Note: Extra cantrip will be handled when cantrips are selected
+	} else if order == "Warden" {
+		// Warden: proficiency with martial weapons and medium armor
+		applier.AddWeaponProficiency(source, "Martial")
+		applier.AddArmorProficiency(source, "Medium")
+		debug.Log("Applied Warden Primal Order benefits: Martial weapons, Medium armor")
+	}
+
+	char.UpdateDerivedStats()
+	return nil
+}
+
 // InitializeSpellcasting sets up spellcasting for a class
 func InitializeSpellcasting(char *Character, class *Class) {
 	if class.Spellcasting == nil {
@@ -611,12 +649,12 @@ func InitializeSpellcasting(char *Character, class *Class) {
 	if char.SpellBook.IsPreparedCaster {
 		casterInfo := GetClassCasterInfo(class.Name)
 		if casterInfo != nil && len(casterInfo.PreparedSpellsByLevel) > 0 {
-			// Use fixed table if available (Paladin)
-			paladinLevel := char.GetClassLevel("Paladin")
-			if maxPrepared, ok := casterInfo.PreparedSpellsByLevel[paladinLevel]; ok {
+			// Use fixed table if available (Paladin, Druid)
+			classLevel := char.GetClassLevel(class.Name)
+			if maxPrepared, ok := casterInfo.PreparedSpellsByLevel[classLevel]; ok {
 				char.SpellBook.MaxPreparedSpells = maxPrepared
 				char.SpellBook.PreparationFormula = "" // Clear formula since we're using fixed table
-				debug.Log("  MaxPreparedSpells: %d (fixed table for level %d)", maxPrepared, paladinLevel)
+				debug.Log("  MaxPreparedSpells: %d (fixed table for level %d)", maxPrepared, classLevel)
 			}
 		} else if class.Spellcasting.PreparationFormula != "" {
 			// Use formula if no fixed table

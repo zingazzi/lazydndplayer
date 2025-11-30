@@ -253,5 +253,38 @@ func (m *Model) handleSpecialComponents(msg tea.KeyMsg) (tea.Model, tea.Cmd, boo
 		return model, cmd, true
 	}
 
+	// Primal Order selector has special tab passthrough logic
+	if m.IsPrimalOrderSelectorVisible() {
+		// Check if Primal Order has already been applied
+		primalOrderApplied := false
+		if m.character.BenefitTracker != nil {
+			for _, benefit := range m.character.BenefitTracker.Benefits {
+				if benefit.Source.Type == "class_feature" && benefit.Source.Name == "Primal Order" {
+					primalOrderApplied = true
+					break
+				}
+			}
+		}
+
+		// If already applied, hide selector and allow navigation
+		if primalOrderApplied {
+			m.SetPrimalOrderSelectorVisible(false)
+			m.stateMachine.ClearContext("pendingPrimalOrder")
+			m.pendingPrimalOrder = ""
+			// Continue to normal routing (don't return handled)
+			return m, nil, false
+		}
+
+		// Allow tab navigation to pass through even when selector is visible
+		if msg.String() == "tab" || msg.String() == "shift+tab" {
+			// Tab navigation - let it pass through to panel navigation check below
+			return m, nil, false
+		}
+
+		// Handle other keys in selector
+		model, cmd := m.handlePrimalOrderSelectorKeys(msg)
+		return model, cmd, true
+	}
+
 	return m, nil, false
 }
