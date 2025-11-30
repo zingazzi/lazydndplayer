@@ -138,9 +138,9 @@ func (wsfs *WildShapeFormLevelUpSelector) IsSelected(formName string) bool {
 	return false
 }
 
-// CanConfirm returns true if the correct number of forms is selected
+// CanConfirm returns true if at least 1 form is selected (up to maxForms)
 func (wsfs *WildShapeFormLevelUpSelector) CanConfirm() bool {
-	return len(wsfs.selectedForms) == wsfs.maxForms
+	return len(wsfs.selectedForms) > 0 && len(wsfs.selectedForms) <= wsfs.maxForms
 }
 
 // GetSelectedForms returns the selected form names
@@ -197,7 +197,7 @@ func (wsfs *WildShapeFormLevelUpSelector) View() string {
 
 	// Left column - form list
 	var leftLines []string
-	titleText := fmt.Sprintf("Select %d wild shape forms  (%d/%d)", wsfs.maxForms, len(wsfs.selectedForms), wsfs.maxForms)
+	titleText := fmt.Sprintf("Select 1-%d wild shape forms  (%d/%d)", wsfs.maxForms, len(wsfs.selectedForms), wsfs.maxForms)
 	crText := fmt.Sprintf("Max CR: %.2f", maxCR)
 	if canFly {
 		crText += ", Flying allowed"
@@ -279,7 +279,11 @@ func (wsfs *WildShapeFormLevelUpSelector) View() string {
 	if wsfs.CanConfirm() {
 		content.WriteString(helpStyle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Esc: Cancel"))
 	} else {
-		content.WriteString(helpStyle.Render(fmt.Sprintf("↑/↓: Navigate • Space: Toggle • Esc: Cancel (need %d more)", wsfs.maxForms-len(wsfs.selectedForms))))
+		if len(wsfs.selectedForms) == 0 {
+			content.WriteString(helpStyle.Render(fmt.Sprintf("↑/↓: Navigate • Space: Toggle • Esc: Cancel (select at least 1 form, up to %d)", wsfs.maxForms)))
+		} else {
+			content.WriteString(helpStyle.Render(fmt.Sprintf("↑/↓: Navigate • Space: Toggle • Esc: Cancel (can select up to %d more)", wsfs.maxForms-len(wsfs.selectedForms))))
+		}
 	}
 
 	// Create popup with larger size

@@ -94,6 +94,32 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	updated, cmd := m.levelUpSelector.Update(msg)
 	m.levelUpSelector = &updated
 
+	// Check if Druid needs wild shape form selection IMMEDIATELY after update
+	// This needs to happen even when the selector is still visible (in LevelUpComplete state)
+	// This ensures the selector appears right after the user confirms level-up
+	if m.levelUpSelector.NeedsWildShapeFormSelection {
+		debug.Log("Druid detected - prompting for wild shape form selection (immediately after level-up)")
+		m.levelUpSelector.NeedsWildShapeFormSelection = false // Clear flag
+		m.levelUpSelector.Hide() // Hide level up selector so wild shape form selector can receive keys
+		druidLevel := m.character.GetClassLevel("Druid")
+		var maxForms int
+		if druidLevel >= 8 {
+			maxForms = 8
+		} else if druidLevel >= 4 {
+			maxForms = 6
+		} else if druidLevel >= 2 {
+			maxForms = 4
+		} else {
+			maxForms = 4 // Default
+		}
+		m.wildShapeFormLevelUpSelector.Show(druidLevel, maxForms)
+		m.message = fmt.Sprintf("Select 1-%d wild shape form(s)...", maxForms)
+		// Save character after level-up
+		m.storage.Save(m.character)
+		m.character.UpdateDerivedStats()
+		return m, cmd
+	}
+
 	// Save character if level-up is complete
 	if !m.levelUpSelector.IsVisible() {
 		m.storage.Save(m.character)
@@ -127,25 +153,6 @@ func (m *Model) handleLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-		// Check if Druid needs wild shape form selection
-		if m.levelUpSelector.NeedsWildShapeFormSelection {
-			debug.Log("Druid detected - prompting for wild shape form selection")
-			m.levelUpSelector.NeedsWildShapeFormSelection = false // Clear flag
-			druidLevel := m.character.GetClassLevel("Druid")
-			var maxForms int
-			if druidLevel >= 8 {
-				maxForms = 8
-			} else if druidLevel >= 4 {
-				maxForms = 6
-			} else if druidLevel >= 2 {
-				maxForms = 4
-			} else {
-				maxForms = 4 // Default
-			}
-			m.wildShapeFormLevelUpSelector.Show(druidLevel, maxForms)
-			m.message = fmt.Sprintf("Select %d wild shape form(s)...", maxForms)
-			return m, cmd
-		}
 
 		// Check if Fey Wanderer needs Fey Gift selection
 		if m.levelUpSelector.NeedsFeyGiftSelection {

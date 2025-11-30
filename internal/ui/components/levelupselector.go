@@ -298,6 +298,11 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 		case LevelUpSelectAbilities:
 			return ls.handleAbilitySelection(msg)
 		case LevelUpComplete:
+			// If we need wild shape form selection, don't hide yet - let app.go handle it
+			if ls.NeedsWildShapeFormSelection {
+				// Don't hide - app.go will handle showing the selector
+				return *ls, nil
+			}
 			if msg.String() == "enter" || msg.String() == "esc" {
 				ls.Hide()
 			}
@@ -453,6 +458,11 @@ func (ls *LevelUpSelector) Rollback() {
 
 // View renders the level-up selector
 func (ls *LevelUpSelector) View() string {
+	// If wild shape form selection is needed, don't render - let the wild shape selector show
+	if ls.NeedsWildShapeFormSelection {
+		return ""
+	}
+
 	// If feat selector is visible, show it
 	if ls.featSelector.IsVisible() {
 		popupMediumWidth := int(float64(120) * 0.75)

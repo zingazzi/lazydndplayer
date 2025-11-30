@@ -235,7 +235,7 @@ func (p *WildShapePanel) View(width, height int) string {
 			}
 
 			lines = append(lines, "")
-			lines = append(lines, dimStyle.Render("Enter: View details • a: Add form • d: Delete form • r: Long rest (regain uses)"))
+			lines = append(lines, dimStyle.Render("Enter: View details • a: Manage forms • r: Long rest (regain uses)"))
 		} else {
 			// DETAIL VIEW
 			formName := p.GetSelectedForm()
@@ -325,10 +325,10 @@ func (p *WildShapePanel) View(width, height int) string {
 				lines = append(lines, dimStyle.Render("Could not load beast data."))
 			}
 
-			// Help text
-			lines = append(lines, dimStyle.Render("Esc: Back to list"))
-			lines = append(lines, dimStyle.Render("HP: h (edit +/-) • + (add 1) • - (remove 1)"))
-			lines = append(lines, dimStyle.Render("Temp HP: t (edit +/-)"))
+			// Help text - contextualized with form name
+			lines = append(lines, dimStyle.Render(fmt.Sprintf("Esc: Back to list")))
+			lines = append(lines, dimStyle.Render(fmt.Sprintf("HP: h (edit +/-) • + (add 1) • - (remove 1) for %s", formName)))
+			lines = append(lines, dimStyle.Render(fmt.Sprintf("Temp HP: t (edit +/-) for %s", formName)))
 		}
 	}
 

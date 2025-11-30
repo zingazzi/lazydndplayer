@@ -511,6 +511,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// Also check if levelUpSelector is visible in other states (like LevelUpComplete) and route keys to it
+		// This will handle the level-up confirmation and check for wild shape form selection
+		if m.levelUpSelector.IsVisible() {
+			debug.Log("Update: levelUpSelector is visible (state=%d), routing key=%s to handleLevelUpSelectorKeys", m.levelUpSelector.GetState(), msg.String())
+			return m.handleLevelUpSelectorKeys(msg)
+		}
+
 		// Check if classSkillSelector is visible - it should take priority over levelUpSelector
 		// when Deft Explorer/Scholar selection is needed
 		if m.classSkillSelector.IsVisible() {
@@ -553,7 +560,29 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Check if wildShapeFormLevelUpSelector is visible - it should take priority
 		// when wild shape form selection is needed (Druid level 2, 4, or 8)
+		// But allow Tab to pass through for panel navigation when focusArea is FocusMain
 		if m.wildShapeFormLevelUpSelector != nil && m.wildShapeFormLevelUpSelector.IsVisible() {
+			// Allow Tab navigation to pass through for panel navigation
+			if (msg.String() == "tab" || msg.String() == "shift+tab") && m.focusArea == FocusMain {
+				// Tab navigation should work even when wild shape form selector is visible
+				// Hide the selector first to avoid conflicts
+				m.wildShapeFormLevelUpSelector.Hide()
+				// Let Tab be handled by the panel navigation logic above
+				// We need to re-check the Tab key here
+				if msg.String() == "tab" {
+					m.tabs.Next()
+					selectedTab := m.tabs.GetSelected()
+					m.currentPanel = tabLabelToPanelType(selectedTab.Label)
+					debug.Log("Tab navigation: moved to panel %d (%s) (wildShapeFormLevelUpSelector was visible)", m.currentPanel, selectedTab.Label)
+					return m, nil
+				} else if msg.String() == "shift+tab" {
+					m.tabs.Prev()
+					selectedTab := m.tabs.GetSelected()
+					m.currentPanel = tabLabelToPanelType(selectedTab.Label)
+					debug.Log("Shift+Tab navigation: moved to panel %d (%s) (wildShapeFormLevelUpSelector was visible)", m.currentPanel, selectedTab.Label)
+					return m, nil
+				}
+			}
 			debug.Log("Update: wildShapeFormLevelUpSelector is visible, routing key=%s directly to it", msg.String())
 			if model, cmd, handled := m.routeComponentToHandler(m.wildShapeFormLevelUpSelector, msg); handled {
 				debug.Log("Update: wildShapeFormLevelUpSelector handler returned handled=true for key=%s", msg.String())

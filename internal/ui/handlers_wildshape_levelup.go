@@ -12,6 +12,11 @@ import (
 func (m *Model) handleWildShapeFormLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	debug.Log("handleWildShapeFormLevelUpSelectorKeys: key=%s", msg.String())
 
+	// Allow tab keys to pass through for panel navigation
+	if msg.String() == "tab" || msg.String() == "shift+tab" {
+		return m, nil
+	}
+
 	var cmd tea.Cmd
 
 	switch msg.String() {
@@ -55,7 +60,11 @@ func (m *Model) handleWildShapeFormLevelUpSelectorKeys(msg tea.KeyMsg) (tea.Mode
 		} else {
 			selectedCount := m.wildShapeFormLevelUpSelector.GetSelectedCount()
 			maxCount := m.wildShapeFormLevelUpSelector.GetMaxForms()
-			m.message = fmt.Sprintf("Please select %d form(s) (%d/%d selected)", maxCount, selectedCount, maxCount)
+			if selectedCount == 0 {
+				m.message = fmt.Sprintf("Please select at least 1 form (up to %d)", maxCount)
+			} else {
+				m.message = fmt.Sprintf("You can select up to %d more form(s) (%d/%d selected)", maxCount-selectedCount, selectedCount, maxCount)
+			}
 		}
 		return m, cmd
 	case "esc":

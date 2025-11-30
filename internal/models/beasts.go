@@ -97,7 +97,7 @@ func GetBeastsByCR(maxCR float64, allowFlying bool, allowSwimming bool) []BeastD
 func GetWildShapeForms(druidLevel int) []BeastDefinition {
 	var maxCR float64
 	allowFlying := false
-	allowSwimming := false
+	allowSwimming := true // Swimming is allowed from level 2 (only flying is restricted)
 
 	if druidLevel >= 8 {
 		maxCR = 1.0
@@ -108,6 +108,7 @@ func GetWildShapeForms(druidLevel int) []BeastDefinition {
 		allowSwimming = true
 	} else if druidLevel >= 2 {
 		maxCR = 0.25
+		allowSwimming = true // Swimming allowed from level 2
 	} else {
 		return []BeastDefinition{} // No wild shape at level 1
 	}

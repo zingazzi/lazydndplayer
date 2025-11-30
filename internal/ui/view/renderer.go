@@ -220,9 +220,21 @@ func (pr *PopupRenderer) RenderPopups(
 		return maneuverSelector.View()
 	}
 
+	// Wild shape form level-up selector (Medium) - check BEFORE level-up selector
+	// This ensures it shows when the flag is set, even if level-up selector is still visible
+	if wildShapeFormLevelUpSelector != nil && wildShapeFormLevelUpSelector.IsVisible() {
+		return wildShapeFormLevelUpSelector.View()
+	}
+
 	// Level-up selector takes sixth priority (Medium/Large)
+	// But skip if wild shape form selection is needed (it will return empty string)
 	if levelUpSelector.IsVisible() {
-		return levelUpSelector.View()
+		view := levelUpSelector.View()
+		if view != "" {
+			return view
+		}
+		// If View() returned empty (because NeedsWildShapeFormSelection is true),
+		// continue to check other selectors
 	}
 
 	// De-level selector takes priority after level-up (Medium)
@@ -243,11 +255,6 @@ func (pr *PopupRenderer) RenderPopups(
 	// Cantrip selector takes seventh priority (Medium)
 	if cantripSelector.IsVisible() {
 		return cantripSelector.View()
-	}
-
-	// Wild shape form level-up selector (Medium)
-	if wildShapeFormLevelUpSelector != nil && wildShapeFormLevelUpSelector.IsVisible() {
-		return wildShapeFormLevelUpSelector.View()
 	}
 
 	// Message popup takes highest priority (shown after selections complete)
