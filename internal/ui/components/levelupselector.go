@@ -284,7 +284,12 @@ func (ls *LevelUpSelector) Update(msg tea.Msg) (LevelUpSelector, tea.Cmd) {
 		case LevelUpConfirm:
 			return ls.handleConfirmation(msg)
 		case LevelUpSelectSubclass:
-			return ls.handleSubclassSelection(msg)
+			// Subclass selector is handled above (line 194), but if we reach here
+			// it means the subclass selector is not visible, so handle it manually
+			if !ls.subclassSelector.IsVisible() {
+				return ls.handleSubclassSelection(msg)
+			}
+			// If subclass selector is visible, it's already handled above
 		case LevelUpSelectSkills:
 			return ls.handleSkillSelection(msg)
 		case LevelUpSelectASI:
