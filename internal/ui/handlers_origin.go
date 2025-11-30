@@ -231,6 +231,62 @@ func (m *Model) handleInputPopupKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				selectedCompanion.Name = value
 				m.message = fmt.Sprintf("Companion renamed to '%s'!", value)
 			}
+		case "wildshape_hp":
+			// Parse HP change (supports +5, -3, or just 5)
+			var amount int
+			_, err := fmt.Sscanf(value, "%d", &amount)
+			if err != nil {
+				m.message = fmt.Sprintf("Invalid HP value: %v", err)
+				m.inputPopup.Hide()
+				m.ClearInputPopupContext()
+				return m, nil
+			}
+			// Apply HP change to wild shape
+			formName := m.wildShapePanel.GetSelectedForm()
+			if formName != "" {
+				// Get beast definition to ensure max HP is set
+				beastDef := models.GetBeastDefinition(formName)
+				if beastDef != nil {
+					if m.character.WildShape.MaxHP == 0 {
+						m.character.WildShape.MaxHP = beastDef.HP
+					}
+					m.character.WildShape.CurrentHP += amount
+					if m.character.WildShape.CurrentHP > m.character.WildShape.MaxHP {
+						m.character.WildShape.CurrentHP = m.character.WildShape.MaxHP
+					}
+					if m.character.WildShape.CurrentHP < 0 {
+						m.character.WildShape.CurrentHP = 0
+					}
+					tempHPStr := ""
+					if m.character.WildShape.TempHP > 0 {
+						tempHPStr = fmt.Sprintf(" (+%d temp)", m.character.WildShape.TempHP)
+					}
+					m.message = fmt.Sprintf("%s HP adjusted by %+d. Current: %d/%d%s", formName, amount, m.character.WildShape.CurrentHP, m.character.WildShape.MaxHP, tempHPStr)
+				}
+			}
+		case "wildshape_temp_hp":
+			// Parse temp HP change (supports +5, -3, or just 5)
+			var amount int
+			_, err := fmt.Sscanf(value, "%d", &amount)
+			if err != nil {
+				m.message = fmt.Sprintf("Invalid temp HP value: %v", err)
+				m.inputPopup.Hide()
+				m.ClearInputPopupContext()
+				return m, nil
+			}
+			// Apply temp HP change to wild shape
+			formName := m.wildShapePanel.GetSelectedForm()
+			if formName != "" {
+				m.character.WildShape.TempHP += amount
+				if m.character.WildShape.TempHP < 0 {
+					m.character.WildShape.TempHP = 0
+				}
+				tempHPStr := ""
+				if m.character.WildShape.TempHP > 0 {
+					tempHPStr = fmt.Sprintf(" (+%d temp)", m.character.WildShape.TempHP)
+				}
+				m.message = fmt.Sprintf("%s temp HP adjusted by %+d. Current: %d/%d%s", formName, amount, m.character.WildShape.CurrentHP, m.character.WildShape.MaxHP, tempHPStr)
+			}
 		}
 		m.inputPopup.Hide()
 		m.ClearInputPopupContext()

@@ -985,6 +985,96 @@ func (m *Model) handleWildShapePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.storage.Save(m.character)
 			}
 		}
+	case "h":
+		// Edit wild shape HP
+		if viewMode == panels.WildShapeViewDetail {
+			formName := panel.GetSelectedForm()
+			if formName != "" {
+				// Get beast definition to set max HP if not set
+				beastDef := models.GetBeastDefinition(formName)
+				if beastDef != nil {
+					if m.character.WildShape.MaxHP == 0 {
+						m.character.WildShape.MaxHP = beastDef.HP
+						if m.character.WildShape.CurrentHP == 0 {
+							m.character.WildShape.CurrentHP = beastDef.HP
+						}
+					}
+					m.inputPopup.Show("Edit Wild Shape HP", fmt.Sprintf("%d", m.character.WildShape.CurrentHP), "Enter HP change (+/- amount)...")
+					m.SetInputPopupContext("wildshape_hp")
+					m.message = "Editing wild shape HP..."
+				}
+			}
+		}
+	case "t":
+		// Edit wild shape temp HP
+		if viewMode == panels.WildShapeViewDetail {
+			formName := panel.GetSelectedForm()
+			if formName != "" {
+				m.inputPopup.Show("Edit Wild Shape Temp HP", fmt.Sprintf("%d", m.character.WildShape.TempHP), "Enter temp HP change (+/- amount)...")
+				m.SetInputPopupContext("wildshape_temp_hp")
+				m.message = "Editing wild shape temp HP..."
+			}
+		}
+	case "+", "=":
+		// Add 1 HP to wild shape form (detail view only)
+		if viewMode == panels.WildShapeViewDetail {
+			formName := panel.GetSelectedForm()
+			if formName != "" {
+				// Get beast definition to set max HP if not set
+				beastDef := models.GetBeastDefinition(formName)
+				if beastDef != nil {
+					if m.character.WildShape.MaxHP == 0 {
+						m.character.WildShape.MaxHP = beastDef.HP
+						if m.character.WildShape.CurrentHP == 0 {
+							m.character.WildShape.CurrentHP = beastDef.HP
+						}
+					}
+					oldHP := m.character.WildShape.CurrentHP
+					m.character.WildShape.CurrentHP++
+					if m.character.WildShape.CurrentHP > m.character.WildShape.MaxHP {
+						m.character.WildShape.CurrentHP = m.character.WildShape.MaxHP
+					}
+					if m.character.WildShape.CurrentHP != oldHP {
+						tempHPStr := ""
+						if m.character.WildShape.TempHP > 0 {
+							tempHPStr = fmt.Sprintf(" (+%d temp)", m.character.WildShape.TempHP)
+						}
+						m.message = fmt.Sprintf("%s HP: %d/%d%s", formName, m.character.WildShape.CurrentHP, m.character.WildShape.MaxHP, tempHPStr)
+						m.storage.Save(m.character)
+					}
+				}
+			}
+		}
+	case "-", "_":
+		// Remove 1 HP from wild shape form (detail view only)
+		if viewMode == panels.WildShapeViewDetail {
+			formName := panel.GetSelectedForm()
+			if formName != "" {
+				// Get beast definition to set max HP if not set
+				beastDef := models.GetBeastDefinition(formName)
+				if beastDef != nil {
+					if m.character.WildShape.MaxHP == 0 {
+						m.character.WildShape.MaxHP = beastDef.HP
+						if m.character.WildShape.CurrentHP == 0 {
+							m.character.WildShape.CurrentHP = beastDef.HP
+						}
+					}
+					oldHP := m.character.WildShape.CurrentHP
+					m.character.WildShape.CurrentHP--
+					if m.character.WildShape.CurrentHP < 0 {
+						m.character.WildShape.CurrentHP = 0
+					}
+					if m.character.WildShape.CurrentHP != oldHP {
+						tempHPStr := ""
+						if m.character.WildShape.TempHP > 0 {
+							tempHPStr = fmt.Sprintf(" (+%d temp)", m.character.WildShape.TempHP)
+						}
+						m.message = fmt.Sprintf("%s HP: %d/%d%s", formName, m.character.WildShape.CurrentHP, m.character.WildShape.MaxHP, tempHPStr)
+						m.storage.Save(m.character)
+					}
+				}
+			}
+		}
 	case "r":
 		// Long rest - regain wild shape uses
 		if viewMode == panels.WildShapeViewList {

@@ -260,10 +260,25 @@ func (p *WildShapePanel) View(width, height int) string {
 				}
 
 				if beast != nil {
+					// Initialize HP if not set (use beast's base HP)
+					if p.character.WildShape.MaxHP == 0 {
+						p.character.WildShape.MaxHP = beast.HP
+						if p.character.WildShape.CurrentHP == 0 {
+							p.character.WildShape.CurrentHP = beast.HP
+						}
+					}
+
 					// Stats Section
 					lines = append(lines, labelStyle.Render("STATS:"))
 					lines = append(lines, fmt.Sprintf("%s %s", labelStyle.Render("AC:"), valueStyle.Render(fmt.Sprintf("%d", beast.AC))))
-					lines = append(lines, fmt.Sprintf("%s %s", labelStyle.Render("HP:"), valueStyle.Render(fmt.Sprintf("%d", beast.HP))))
+
+					// Display HP (current/max) and temp HP if any
+					hpStr := fmt.Sprintf("%d/%d", p.character.WildShape.CurrentHP, p.character.WildShape.MaxHP)
+					if p.character.WildShape.TempHP > 0 {
+						hpStr += fmt.Sprintf(" (+%d temp)", p.character.WildShape.TempHP)
+					}
+					lines = append(lines, fmt.Sprintf("%s %s", labelStyle.Render("HP:"), valueStyle.Render(hpStr)))
+
 					lines = append(lines, fmt.Sprintf("%s %s", labelStyle.Render("Speed:"), valueStyle.Render(beast.Speed)))
 					lines = append(lines, fmt.Sprintf("%s %s", labelStyle.Render("Senses:"), valueStyle.Render(beast.Senses)))
 					lines = append(lines, "")
@@ -311,7 +326,7 @@ func (p *WildShapePanel) View(width, height int) string {
 			}
 
 			// Help text
-			lines = append(lines, dimStyle.Render("Esc: Back to list"))
+			lines = append(lines, dimStyle.Render("Esc: Back to list • h: Edit HP • t: Edit Temp HP • +/-: Quick HP"))
 		}
 	}
 

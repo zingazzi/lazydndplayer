@@ -18,6 +18,9 @@ type HitDicePool struct {
 type WildShapeData struct {
 	KnownForms []string `json:"known_forms,omitempty"` // List of beast names the druid knows
 	MaxForms   int      `json:"max_forms"`             // Maximum number of forms known (4 at level 2, 6 at level 4, 8 at level 8)
+	CurrentHP  int      `json:"current_hp,omitempty"`  // Current HP in wild shape form (0 if not in form)
+	MaxHP      int      `json:"max_hp,omitempty"`      // Max HP of current wild shape form
+	TempHP     int      `json:"temp_hp,omitempty"`     // Temporary HP in wild shape form
 }
 
 // Character represents a D&D 5e character
@@ -242,7 +245,7 @@ func NewCharacter() *Character {
 		ClassSkills:   []SkillType{},
 		Choices:       NewCharacterChoices(),
 		Companions:    []Companion{},
-		WildShape:     WildShapeData{MaxForms: 0, KnownForms: []string{}},
+		WildShape:     WildShapeData{MaxForms: 0, KnownForms: []string{}, CurrentHP: 0, MaxHP: 0, TempHP: 0},
 	}
 	char.UpdateDerivedStats()
 	return char
