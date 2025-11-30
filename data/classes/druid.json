@@ -86,7 +86,7 @@
             "type": "wild_companion",
             "works_like": "find_familiar"
           }
-        },
+        }
       ],
       "spellcasting_info": {
         "cantrips_known": 2,
