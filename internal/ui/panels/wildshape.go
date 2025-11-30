@@ -326,7 +326,9 @@ func (p *WildShapePanel) View(width, height int) string {
 			}
 
 			// Help text
-			lines = append(lines, dimStyle.Render("Esc: Back to list • h: Edit HP • t: Edit Temp HP • +/-: Quick HP"))
+			lines = append(lines, dimStyle.Render("Esc: Back to list"))
+			lines = append(lines, dimStyle.Render("HP: h (edit +/-) • + (add 1) • - (remove 1)"))
+			lines = append(lines, dimStyle.Render("Temp HP: t (edit +/-)"))
 		}
 	}
 
