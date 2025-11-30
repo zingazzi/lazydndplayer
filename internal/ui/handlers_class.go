@@ -464,8 +464,8 @@ func (m *Model) handleClassSkillSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 					// Check if we're selecting skills for Otherworldly Glamour (Fey Wanderer)
 					if feature.Name == "Otherworldly Glamour" && feature.Mechanics != nil {
 						if mechType, ok := feature.Mechanics["type"].(string); ok && mechType == "skill_choice" {
-							// Check if skill_options contains the selected skills
-							if skillOptions, ok := feature.Mechanics["skill_options"].([]interface{}); ok {
+							// Check if skill_options exists (confirms this is Otherworldly Glamour)
+							if _, ok := feature.Mechanics["skill_options"].([]interface{}); ok {
 								// This is Otherworldly Glamour skill selection
 								isFeatureSelection = true
 								featureName = "Otherworldly Glamour"
